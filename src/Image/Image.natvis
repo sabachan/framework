@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Please copy this file in C:\Users\<user_name>\Documents\Visual Studio 20xx\Visualizers -->
+<!-- Note that in a future version of Visual Studio, it may be possible that   -->
+<!-- this file can be just added in the project. This is already the case for  -->
+<!-- natvis files not related to Image Watch.                                  -->
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+
+  <UIVisualizer ServiceId="{A452AFEA-3DF6-46BB-9177-C0B08F318025}" Id="1" MenuName="Add to Image Watch"/>
+
+  <Type Name="sg::image::ImageView&lt;*&gt;">
+    <UIVisualizer ServiceId="{A452AFEA-3DF6-46BB-9177-C0B08F318025}" Id="1" />
+  </Type>
+
+  <Type Name="sg::image::Image&lt;*&gt;">
+    <UIVisualizer ServiceId="{A452AFEA-3DF6-46BB-9177-C0B08F318025}" Id="1" />
+  </Type>
+
+  <Type Name="sg::image::ImageView&lt;sg::math::Vector&lt;*,*&gt;&gt;">
+    <Expand>
+      <Synthetic Name="[type]">
+        <DisplayString Condition='strcmp("unsigned char",  "$T1") == 0'>UINT8</DisplayString>
+        <DisplayString Condition='strcmp("char",           "$T1") == 0'>INT8</DisplayString>
+        <DisplayString Condition='strcmp("unsigned short", "$T1") == 0'>UINT16</DisplayString>
+        <DisplayString Condition='strcmp("short",          "$T1") == 0'>INT16</DisplayString>
+        <DisplayString Condition='strcmp("int",            "$T1") == 0'>INT32</DisplayString>
+        <DisplayString Condition='strcmp("float",          "$T1") == 0'>FLOAT32</DisplayString>
+        <DisplayString Condition='strcmp("double",         "$T1") == 0'>FLOAT64</DisplayString>
+      </Synthetic>
+      <Synthetic Name="[channels]" Condition='$T2 == 3'>
+        <DisplayString>RGB</DisplayString>
+      </Synthetic>
+      <Synthetic Name="[channels]" Condition='$T2 == 4'>
+        <DisplayString>RGBA</DisplayString>
+      </Synthetic>
+      <Synthetic Name="[channels]" Condition='!($T2 == 3 || $T2 != 4)'>
+        <DisplayString>$T2</DisplayString>
+      </Synthetic>
+      <Item Name="[width]">m_size._[0]</Item>
+      <Item Name="[height]">m_size._[1]</Item>
+      <Item Name="[data]">m_data</Item>
+      <Item Name="[stride]">m_strideInBytes</Item>
+    </Expand>
+  </Type>
+
+  <Type Name="sg::image::ImageView&lt;*&gt;">
+    <Expand>
+      <Synthetic Name="[type]">
+        <DisplayString Condition='strcmp("unsigned char",  "$T1") == 0'>UINT8</DisplayString>
+        <DisplayString Condition='strcmp("char",           "$T1") == 0'>INT8</DisplayString>
+        <DisplayString Condition='strcmp("unsigned short", "$T1") == 0'>UINT16</DisplayString>
+        <DisplayString Condition='strcmp("short",          "$T1") == 0'>INT16</DisplayString>
+        <DisplayString Condition='strcmp("int",            "$T1") == 0'>INT32</DisplayString>
+        <DisplayString Condition='strcmp("float",          "$T1") == 0'>FLOAT32</DisplayString>
+        <DisplayString Condition='strcmp("double",         "$T1") == 0'>FLOAT64</DisplayString>
+      </Synthetic>
+      <Synthetic Name="[channels]"><DisplayString>1</DisplayString></Synthetic>
+      <Item Name="[width]">m_size._[0]</Item>
+      <Item Name="[height]">m_size._[1]</Item>
+      <Item Name="[data]">m_data</Item>
+      <Item Name="[stride]">m_strideInBytes</Item>
+    </Expand>
+  </Type>
+
+</AutoVisualizer>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+
+  <Type Name="sg::reflection::IdentifierNode">
+    <DisplayString Condition="m_anonymousIndex != 0">anonymous {m_anonymousIndex}</DisplayString>
+    <DisplayString Condition="m_anonymousIndex == 0">{m_symbol}</DisplayString>
+  </Type>
+
+</AutoVisualizer>

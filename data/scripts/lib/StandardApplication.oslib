@@ -1,0 +1,140 @@
+alias PixelShader is sg::renderengine::PixelShaderDescriptor
+
+function color_add(a, b)
+{
+    var t = []
+    for(var i=0; i<4; ++i)
+    {
+        var c = a[i] + b[i]
+        t += [c]
+    }
+    return t
+}
+
+template StandardOffscreenCommon() is sg::ui::OffscreenCommon
+{
+    compositingDescriptor: private compositing is sg::renderengine::CompositingDescriptor
+    {
+        inputSurfaces : []
+        outputSurfaces : [
+            ["render", protected render is sg::renderengine::OutputSurfaceDescriptor{}],
+        ]
+        inputConstantDatabases : [["input constants", inputConstants is sg::renderengine::InputConstantDatabaseDescriptor{}]]
+        instructions : [
+            [ "Draw",
+                [
+                sg::renderengine::SetShaderResourceDatabaseDescriptor {
+                    database: shaderResources is sg::renderengine::ShaderResourceDatabaseDescriptor {
+                            samplers: [
+                                ["sampler_input", sg::renderengine::SamplerDescriptor{filter: "Linear" adressMode: "Border" borderColor: [0,0,0,0]} ],
+                            ]
+                        }
+                },
+                sg::renderengine::SetConstantDatabaseDescriptor { database:inputConstants },
+                sg::renderengine::ClearSurfacesDescriptor { renderTargets:[ render ] color:[0,0,0,0] },
+                sg::renderengine::SetRenderTargetsDescriptor { renderTargets:[render] depthStencil:null },
+                sg::renderengine::CompositingLayerDescriptor { spec: [ "gui2D" ] },
+                sg::renderengine::SetRenderTargetsDescriptor { renderTargets:[] depthStencil:null },
+                ]
+            ],
+        ]
+    }
+}
+
+
+const textStyle_tech13 = {
+    fillColor      : [255, 255, 255, 255]
+    strokeColor    : [  0,   0,   0,   0]
+    strokeSize     : 0.5
+    size           : 13
+    fontFamilyName : "tech"
+    bold           : false
+    italic         : false
+    superscript    : false
+    subscript      : false
+    underlined     : false
+    strikeThrough  : false
+}
+const textStyle_techSymbols12 = {
+    fillColor      : [255, 255, 255, 255]
+    strokeColor    : [  0,   0,   0,   0]
+    strokeSize     : 0.5
+    size           : 12
+    fontFamilyName : "tech symbols"
+    bold           : false
+    italic         : false
+    superscript    : false
+    subscript      : false
+    underlined     : false
+    strikeThrough  : false
+}
+
+template StandardToolsUICommon() is sg::toolsui::Common
+{
+    styleGuide: sg::ui::GenericStyleGuide
+    {
+        colors : [
+            //[ "BGColor",               [  0,   0,   0, 255] ],
+            [ "FillColorA",            [ 32,  32,  64, 251] ],
+            [ "FillColorA1", color_add([ 32,  32,  64, 255], [ 32,  32,  32,   0]) ],
+            [ "FillColorA2", color_add([ 32,  32,  64, 255], [ 48,  48,  64,   0]) ],
+            [ "FillColorB",            [ 72,  80,  128, 255] ],
+            [ "FillColorB1", color_add([ 72,  80,  128, 255], [ 16,  16,  16,   0]) ],
+            [ "FillColorB2", color_add([ 72,  80,  128, 255], [ 32,  32,  32,   0]) ],
+            [ "FillColorC",            [ 96, 128,  160, 255] ],
+            //[ "FillColor2",       [ 48,  64, 128, 255] ],
+            //[ "LineColorA",       [ 32,  32,  32, 255] ],
+            //[ "LineColorA1",      [ 16,  16,  16,   8] ],
+            [ "LineColorA",       [  96,  96, 128, 255] ],
+            [ "LineColorA1",      [ 220, 220, 220,  64] ],
+            [ "LineColorB",       [ 136, 144, 192, 255] ],
+            //[ "FillActiveColor0", [ 48,  56,  64, 255] ],
+            //[ "FillActiveColor0", color_add([ 16,  32,  64, 255], [ 16,  16,  16,   0]) ],
+            //[ "FillActiveColor1", [255, 255, 128, 255] ],
+        ]
+        lengths : [
+            [ "LineThickness0",           { unit : 1 } ],
+            [ "LineThickness1",           { unit : 2 } ],
+            [ "WindowLineThickness",      { unit : 3 } ],
+            [ "MinManipulationThickness", { magnifiable : 8 } ],
+            [ "MinManipulationLength",    { magnifiable : 16 } ],
+        ]
+        vectors : [
+            [ "LineMargin0",      [ { magnifiable :  1 }, { magnifiable :  1 } ] ],
+            [ "LineMargin1",      [ { magnifiable :  2 }, { magnifiable :  2 } ] ],
+            [ "LineMargin2",      [ { magnifiable :  4 }, { magnifiable :  4 } ] ],
+            [ "TextMargin",       [ { magnifiable : 10 }, { magnifiable :  4 } ] ],
+            [ "WindowButtonSize", [ { magnifiable : 22 }, { magnifiable : 14 } ] ],
+        ]
+        uniformDrawers : [
+            [ "Default", sg::ui::UniformDrawerDescriptor { pixelShader: PixelShader { file: "src:/UserInterface/Shaders/P_UI_UniformDrawer.hlsl" entryPoint: "pmain" } } ],
+        ]
+        textureDrawers : [
+            [ "Default", sg::ui::TextureDrawerDescriptor { pixelShader: PixelShader{ file: "src:/UserInterface/Shaders/P_UI_TextureDrawer_Multiply.hlsl" entryPoint: "pmain" } textureBindName : "texture_input" } ],
+        ]
+        circlePathDrawers : [
+            [ "Default", sg::ui::CirclePathDrawerDescriptor { pixelShader: PixelShader { file: "src:/UserInterface/Shaders/P_UI_CirclePathDrawer.hlsl" entryPoint: "pmain" } } ],
+        ]
+        tfs : [
+            [ "Default", sg::ui::TextFormatScript { instructions : [
+                [ "default", sg::ui::TFSStyle { style : textStyle_tech13 } ],
+                [ "symbols", sg::ui::TFSStyle { style : textStyle_techSymbols12 } ],
+            ] } ],
+        ]
+
+        textStyles : [
+            [ "Default", textStyle_tech13 ],
+            [ "Symbols", textStyle_techSymbols12 ],
+        ]
+
+        paragraphStyles : [
+            [ "Default", {
+                alignment : 0.
+                justified : 0.
+                lineWidth : -1.
+                lineGap   : 0.
+                balanced  : false
+            } ],
+        ]
+    }
+}

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+
+  <Type Name="sg::fastsymbol::TemplateFastSymbol&lt;*&gt;">
+    <DisplayString Condition="true">{*($T1::s_database.m_p->m_values._Mypair._Myval2._Myfirst+m_index)}</DisplayString>
+    <Expand>
+      <Item Name="m_index">m_index</Item>
+      <Item Name="domain:s_database">$T1::s_database</Item>
+    </Expand>
+  </Type>
+
+</AutoVisualizer>
