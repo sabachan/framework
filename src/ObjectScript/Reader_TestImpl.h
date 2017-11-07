@@ -68,6 +68,15 @@
 { "object without bloc",        "sg::reflectionTest::TestClass_A",              "",         false,      ErrorType::expression_is_not_an_instruction},
 { "named object without bloc",  "obj1 is sg::reflectionTest::TestClass_A",      "",         false,      ErrorType::object_definition_expects_an_object},
 { "assign to class",            "sg::reflectionTest::TestClass_A=1",            "",         false,      ErrorType::assign_to_class},
+{ "unresolved identifier 1",    "const a = 0 c = a + b",                        "",         false,      ErrorType::unresolved_identifier_in_expression},
+{ "unresolved identifier 2",    "const a = 0 c = b * a",                        "",         false,      ErrorType::unresolved_identifier_in_expression},
+{ "unresolved identifier 2",    "const b = -a",                                 "",         false,      ErrorType::unresolved_identifier_in_expression},
+
+{ "lone continue",              "continue",                                     "",         false,      ErrorType::unexpected_use_of_jump_statement},
+{ "lone break",                 "break",                                        "",         false,      ErrorType::unexpected_use_of_jump_statement},
+{ "lone return",                "const a = 0 return a",                         "",         false,      ErrorType::unexpected_use_of_jump_statement},
+{ "return missing value",       "function f(x) { const y = x*x return }",       "",         false,      ErrorType::missing_term_after_prefix_operator},
+{ "lone return missing value",  "return",                                       "",         false,      ErrorType::missing_term_after_prefix_operator},
 
 {
     // description
@@ -516,15 +525,15 @@
     // description
     "object in variable",
     // file content
-    "obj1_reference = obj1 is sg::reflectionTest::TestClass_C { u : 1 }"    "\n"
-    "obj2 is sg::reflectionTest::TestClass_D {"                             "\n"
-    "   object : obj1_reference"                                            "\n"
-    "}"                                                                     "\n",
+    "var obj1_reference = obj1 is sg::reflectionTest::TestClass_C { u : 1 }"    "\n"
+    "obj2 is sg::reflectionTest::TestClass_D {"                                 "\n"
+    "   object : obj1_reference"                                                "\n"
+    "}"                                                                         "\n",
     // equivalent file
-    "obj1 is sg::reflectionTest::TestClass_C { u : 1 }"                     "\n"
-    "obj2 is sg::reflectionTest::TestClass_D {"                             "\n"
-    "   object : ::obj1"                                                    "\n"
-    "}"                                                                     "\n",
+    "obj1 is sg::reflectionTest::TestClass_C { u : 1 }"                         "\n"
+    "obj2 is sg::reflectionTest::TestClass_D {"                                 "\n"
+    "   object : ::obj1"                                                        "\n"
+    "}"                                                                         "\n",
     // return value
     true,
     // first error
@@ -534,14 +543,13 @@
     // description
     "anonymous object in variable",
     // file content
-    "obj1 = sg::reflectionTest::TestClass_C { u : 1 }"          "\n"
+    "var obj1 = sg::reflectionTest::TestClass_C { u : 1 }"      "\n"
     "obj2 is sg::reflectionTest::TestClass_D {"                 "\n"
     "   object : obj1"                                          "\n"
     "}"                                                         "\n",
     // equivalent file
-    "sg::reflectionTest::TestClass_C { u : 1 }"                 "\n"
     "obj2 is sg::reflectionTest::TestClass_D {"                 "\n"
-    "   object : <I don't know>"                                "\n"
+    "   object : sg::reflectionTest::TestClass_C { u : 1 }"     "\n"
     "}"                                                         "\n",
     // return value
     // return value

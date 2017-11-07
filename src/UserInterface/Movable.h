@@ -13,8 +13,9 @@ public:
     virtual void ResetOffset() { InvalidatePlacementIFN(); VirtualResetOffset(); }
     virtual void AddOffset(float2 const& iOffset) { InvalidatePlacementIFN(); VirtualAddOffset(iOffset); }
     virtual void SetOffset(float2 const& iOffset) { InvalidatePlacementIFN(); VirtualResetOffset(); VirtualAddOffset(iOffset); }
-    virtual ui::Component* AsComponent() = 0;
+    Component* AsComponent() { Component* c = VirtualAsComponent(); SG_ASSERT(nullptr != c); return c; }
 protected:
+    virtual Component* VirtualAsComponent() = 0;
     virtual void VirtualResetOffset() = 0;
     virtual void VirtualAddOffset(float2 const& iOffset) = 0;
 private:

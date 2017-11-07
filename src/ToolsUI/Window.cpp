@@ -126,7 +126,7 @@ public:
     virtual void OnButtonDownToUp(SG_UI_SENSITIVE_AREA_LISTENER_PARAMETERS_ONE_BUTTON) override;
     virtual void VirtualOnDraw(ui::DrawContext const& iContext) override;
     virtual void VirtualUpdatePlacement() override;
-    virtual ui::Component* AsComponent() { return this; }
+    virtual ui::Component* VirtualAsComponent() override { return this; }
 private:
     bool IsHover() const { return m_sensitiveArea.IsPointerInsideFree(); }
     bool IsClicked() const { return m_sensitiveArea.IsClickedValidable(0); }

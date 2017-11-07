@@ -43,7 +43,7 @@ TextureFromFile::TextureFromFile(RenderDevice const* iRenderDevice, FilePath con
         std::ostringstream oss;
         oss << "Can't load texture from " << iFilename.GetPrintableString() << "!" << std::endl;
         oss << "    Error: " << stbi_failure_reason();
-        SG_LOG_ERROR(oss.str().c_str());
+        SG_LOG_ERROR("Rendering/Texture", oss.str().c_str());
         return;
     }
 
@@ -57,7 +57,7 @@ TextureFromFile::TextureFromFile(RenderDevice const* iRenderDevice, FilePath con
         std::ostringstream oss;
         oss << "Can't load texture from " << iFilename.GetPrintableString() << "!" << std::endl;
         oss << "    Error: " << stbi_failure_reason();
-        SG_LOG_ERROR(oss.str().c_str());
+        SG_LOG_ERROR("Rendering/Texture", oss.str().c_str());
         return;
     }
 #if SG_ENABLE_ASSERT

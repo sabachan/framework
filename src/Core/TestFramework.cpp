@@ -104,13 +104,13 @@ void Run(TestRegistrator const* test)
         oss << test->ns[i] << "/";
     oss << test->name;
 
-    SG_LOG_INFO("=============================================================================");
-    SG_LOG_INFO(Format("Test %0 begin", oss.str()));
+    SG_LOG_INFO("TestFW", "=============================================================================");
+    SG_LOG_INFO("TestFW", Format("Test %0 begin", oss.str()));
 
     test->function();
 
-    SG_LOG_INFO(Format("Test %0 end", oss.str()));
-    SG_LOG_INFO("=============================================================================");
+    SG_LOG_INFO("TestFW", Format("Test %0 end", oss.str()));
+    SG_LOG_INFO("TestFW", "=============================================================================");
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 }

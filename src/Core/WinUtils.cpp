@@ -148,7 +148,7 @@ void PrintWinLastError(char const* iFunctionName)
     std::ostringstream oss;
     oss << iFunctionName << " failed with error: " << std::endl;
     oss << "    " << buffer << std::endl;
-    SG_LOG_ERROR(oss.str().c_str());
+    SG_LOG_DEFAULT_ERROR(oss.str().c_str());
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 bool ShowModalErrorReturnRetry(char const* iErrorTitle, char const* iErrorMsg)

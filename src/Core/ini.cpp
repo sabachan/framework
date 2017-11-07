@@ -19,7 +19,7 @@ public:
     virtual void VirtualOnError(Error const& iError) override
     {
         SG_UNUSED(iError);
-        SG_LOG_ERROR(Format("l.%0,%1: Error: %2", iError.line, iError.col, iError.msg));
+        SG_LOG_ERROR("FileFormat/ini", Format("l.%0,%1: Error: %2", iError.line, iError.col, iError.msg));
     }
 };
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
@@ -555,14 +555,14 @@ class SimpleEventHandler : public IEventHandler
         if(nullptr != iValue.asString)
         {
             std::string const value(iValue.asString->begin, iValue.asString->end);
-            SG_LOG_DEBUG(Format("[%0] %1: \"%2\" (%3)", section, name, value, srcstring));
+            SG_LOG_DEBUG("FileFormat/ini", Format("[%0] %1: \"%2\" (%3)", section, name, value, srcstring));
         }
         else if(nullptr != iValue.asInt)
-            SG_LOG_DEBUG(Format("[%0] %1: %2 (%3)", section, name, *iValue.asInt, srcstring));
+            SG_LOG_DEBUG("FileFormat/ini", Format("[%0] %1: %2 (%3)", section, name, *iValue.asInt, srcstring));
         else if(nullptr != iValue.asFloat)
-            SG_LOG_DEBUG(Format("[%0] %1: %2 (%3)", section, name, *iValue.asFloat, srcstring));
+            SG_LOG_DEBUG("FileFormat/ini", Format("[%0] %1: %2 (%3)", section, name, *iValue.asFloat, srcstring));
         else if(nullptr != iValue.asBool)
-            SG_LOG_DEBUG(Format("[%0] %1: %2 (%3)", section, name, *iValue.asBool ? "true" : "false", srcstring));
+            SG_LOG_DEBUG("FileFormat/ini", Format("[%0] %1: %2 (%3)", section, name, *iValue.asBool ? "true" : "false", srcstring));
         else
             SG_ASSUME_NOT_REACHED();
         return true;

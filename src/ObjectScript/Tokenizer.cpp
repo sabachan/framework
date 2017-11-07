@@ -90,7 +90,7 @@ FORCEINLINE int Compare(char const* begin, char const* end, char const* sz)
         if(s == end)
             return -1;
     }
-    return *(s-1)>*(sz-1) ? 1 : -1;
+    return *(s-1) > *(sz-1) ? 1 : -1;
 }
 #endif
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
@@ -518,9 +518,11 @@ void Tokenizer::PushToken(char const *begin, char const* end, TokenType type)
 {
     SG_ASSERT(nullptr != m_outputToken);
     Token& token = *m_outputToken;
+    token.filebegin = m_all;
     token.begin = begin;
     token.end = end;
     token.type = type;
+    token.fileid = m_errorHandler->GetCurrentFileId();
     token.line = m_line;
     token.col = static_cast<size_t>(begin - m_line_begin);
     m_cursor_tokenized = end;
@@ -531,8 +533,10 @@ void Tokenizer::PushError(ErrorType errorType, char const *begin, char const* en
     SG_ASSERT(end >= m_line_begin);
     SG_ASSERT(end >= m_cursor_tokenized);
     Error error;
+    error.filebegin = m_all;
     error.begin = begin;
     error.end = end;
+    error.fileid = m_errorHandler->GetCurrentFileId();
     error.line = m_line;
     if(begin >= m_line_begin)
         error.col = (size_t)(begin - m_line_begin);

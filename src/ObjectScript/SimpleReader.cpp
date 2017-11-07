@@ -347,7 +347,10 @@ FORCEINLINE bool Compare(char const* begin, char const* end, char const* sz)
     while(*s++ == *sz++)
     {
         if(*sz == 0)
-            return true;
+            if(s == end)
+                return true;
+            else
+                return false;
         if(s == end)
             return false;
     }
@@ -360,11 +363,14 @@ FORCEINLINE int Compare(char const* begin, char const* end, char const* sz)
     while(*s++ == *sz++)
     {
         if(*sz == 0)
-            return 0;
+            if(s == end)
+                return 0;
+            else
+                return 1;
         if(s == end)
             return -1;
     }
-    return *(s-1)>*(sz-1) ? 1 : -1;
+    return *(s-1) > *(sz-1) ? 1 : -1;
 }
 #endif
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''

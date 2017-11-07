@@ -199,7 +199,7 @@ private:
         m_clickAnimFactor.SetValue(0);
         m_clickAnimFactor.Pause();
     }
-    virtual ui::Component* AsComponent() { return this; }
+    virtual ui::Component* VirtualAsComponent() { return this; }
 private:
     safeptr<ApplicationLauncherStyleGuide const> m_styleGuide;
     ui::FrameProperty m_frameProperty;
@@ -293,7 +293,7 @@ size_t ApplicationLauncher::RunReturnNextAppIndex(sg::ArrayView<sg::ApplicationD
     reflection::ObjectDatabase db;
     objectscript::ErrorHandler errorHandler;
     bool ok = objectscript::ReadObjectScriptWithRetryROK(FilePath("src:/Applications/AppUtils/Data/ApplicationLauncher.os"), db, errorHandler);
-    SG_LOG_DEBUG(errorHandler.GetErrorMessage().c_str());
+    SG_LOG_DEFAULT_DEBUG(errorHandler.GetErrorMessage().c_str());
     SG_ASSERT(ok);
 
     reflection::ObjectDatabase::named_object_list namedObjects;

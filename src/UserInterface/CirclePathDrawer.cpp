@@ -33,9 +33,9 @@ bool IsValid(ArrayView<Node> const& iPath)
     for(size_t i = 0; i < size; ++i)
     {
         if(iPath[i].type == NodeType::Close && i != size - 1)
-            SG_LOG_ERROR("A Close node can only be the last one."), isValid = false;
+            SG_LOG_ERROR("CirclePath", "A Close node can only be the last one."), isValid = false;
         if(iPath[i].type == NodeType::Begin && i != 0)
-            SG_LOG_ERROR("A Begin node can only be the first one."), isValid = false;
+            SG_LOG_ERROR("CirclePath", "A Begin node can only be the first one."), isValid = false;
     }
     if(iPath.back().type == NodeType::Close)
     {

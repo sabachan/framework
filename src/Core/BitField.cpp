@@ -208,7 +208,7 @@ void TestPerfs(MyBigStruct (&ref)[N])
         }
         }
     }
-    SG_LOG_INFO(Format("dummy = %0", dummy));
+    SG_LOG_INFO("Test", Format("dummy = %0", dummy));
 }
 }
 //=============================================================================
@@ -218,7 +218,7 @@ SG_TEST((sg,core), BitFieldPerf, (perf, slow))
 
     std::random_device rnd;
     size_t const seed = 0xdeadbeef; // rnd();
-    //SG_LOG_INFO(Format("seed = %0", seed));
+    //SG_LOG_INFO("Test", Format("seed = %0", seed));
     std::mt19937 gen(seed);
     std::uniform_int_distribution<int> dist(0, N-1);
 

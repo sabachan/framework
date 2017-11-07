@@ -56,7 +56,7 @@ void Root::OnUserInputEvent(system::UserInputEvent const& iEvent)
         SG_ASSERT(0 == iEvent.DeviceId());
 #if 0 // SG_ENABLE_ASSERT
         system::MouseState mouseState(iEvent.State());
-        SG_LOG_DEBUG(Format("Pointer: (%0, %1)", mouseState.Position().x(), mouseState.Position().y()));
+        SG_LOG_DEBUG("UI", Format("Pointer: (%0, %1)", mouseState.Position().x(), mouseState.Position().y()));
 #endif
         PointerEventContext context;
         PointerEvent pointerEvent(iEvent SG_CODE_FOR_ASSERT(SG_COMMA m_pointerEventIndex));

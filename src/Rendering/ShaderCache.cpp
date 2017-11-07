@@ -197,7 +197,7 @@ void CompileFromFile(FilePath const& iFile, char const* iEntryPoint, char const*
                 void* errdata = errorMsgs->GetBufferPointer();
                 size_t errsize = errorMsgs->GetBufferSize();
                 std::string errstr((char*)errdata, errsize);
-                SG_LOG_ERROR(errstr.c_str());
+                SG_LOG_ERROR("Rendering/Shader", errstr.c_str());
                 retry = winutils::ShowModalErrorReturnRetry("Shader compilation failed!", errstr.c_str());
                 nRetry = 0;
             }
@@ -239,11 +239,11 @@ void CompileFromFile(FilePath const& iFile, char const* iEntryPoint, char const*
         size_t disassemblysize = disassembly->GetBufferSize();
         std::string disassemblystr((char*)disassemblydata, disassemblysize);
         SG_CODE_FOR_LOG(char const* nInstructionsstr = strstr(disassemblystr.c_str(), "// Approximately");)
-        SG_LOG_INFO("=============================================================================");
-        SG_LOG_INFO(iFile.GetPrintableString().c_str());
-        //SG_LOG_INFO(disassemblystr.c_str());
-        SG_LOG_INFO(nInstructionsstr);
-        SG_LOG_INFO("=============================================================================");
+        SG_LOG_INFO("Rendering/Shader", "=============================================================================");
+        SG_LOG_INFO("Rendering/Shader", iFile.GetPrintableString().c_str());
+        //SG_LOG_INFO("Rendering/Shader", disassemblystr.c_str());
+        SG_LOG_INFO("Rendering/Shader", nInstructionsstr);
+        SG_LOG_INFO("Rendering/Shader", "=============================================================================");
     }
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''

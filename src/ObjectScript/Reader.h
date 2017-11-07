@@ -91,9 +91,12 @@ enum class ErrorType
     function_name_collision_with_class,
     template_name_collision_with_class,
     unknown_reference_in_imported_file,
+    unresolved_identifier_in_expression,
     variable_declaration_needs_constness_qualifier,
     non_const_variable_definition_in_imported_file,
     expression_is_not_callable,
+    unexpected_use_of_jump_statement,
+    missing_term_after_prefix_operator,
     // Warnings
     //-----------------
     typedef_is_deprecated,
@@ -103,8 +106,10 @@ struct Error
     ErrorType type;
     // TODO: begin and end are no more valid when read function returns. It
     // would be better to store a context.
+    char const* filebegin;
     char const* begin;
     char const* end;
+    size_t fileid;
     size_t line;
     size_t col;
     std::string msg;
@@ -116,13 +121,15 @@ public:
     IErrorHandler() : m_errorHappened(false) {}
     virtual ~IErrorHandler() {}
     void OnObjectScriptError(Error const& iError) { m_errorHappened = true; VirtualOnObjectScriptError(iError); }
-    void OnOpenFile(char const* iFilename) { VirtualOnOpenFile(iFilename); }
+    void OnOpenFile(FilePath const& iFilepath) { VirtualOnOpenFile(iFilepath); }
     void OnCloseFile() { VirtualOnCloseFile(); }
     bool DidErrorHappen() { return m_errorHappened; }
+    size_t GetCurrentFileId() const { return VirtualGetCurrentFileId(); }
 protected:
     virtual void VirtualOnObjectScriptError(Error const& iError) = 0;
-    virtual void VirtualOnOpenFile(char const* iFilename) = 0;
+    virtual void VirtualOnOpenFile(FilePath const& iFilepath) = 0;
     virtual void VirtualOnCloseFile() = 0;
+    virtual size_t VirtualGetCurrentFileId() const = 0;
 private:
     bool m_errorHappened;
 };
@@ -132,16 +139,17 @@ class ErrorHandler : public IErrorHandler
 public:
     ArrayView<Error const> GetErrors() const { return ArrayView<Error const>(m_errors.data(), m_errors.size()); }
     std::string GetErrorMessage() const;
+    ErrorHandler() { m_fileIndexStack.push_back(all_ones); }
     virtual ~ErrorHandler() override {}
 private:
     virtual void VirtualOnObjectScriptError(Error const& iError) override;
-    virtual void VirtualOnOpenFile(char const* iFilename) override { m_files.EmplaceBack(iFilename); }
-    virtual void VirtualOnCloseFile() override { SG_ASSERT(!m_files.Empty()); m_files.PopBack(); };
+    virtual void VirtualOnOpenFile(FilePath const& iFilepath) override { m_fileIndexStack.EmplaceBack(m_files.size()); m_files.EmplaceBack(iFilepath); }
+    virtual void VirtualOnCloseFile() override { SG_ASSERT(!m_fileIndexStack.Empty()); m_fileIndexStack.PopBack(); };
+    virtual size_t VirtualGetCurrentFileId() const { return m_fileIndexStack.back(); }
 private:
     ArrayList<Error> m_errors;
-    ArrayList<std::string> m_lines;
-    ArrayList<std::string> m_filePerError;
-    ArrayList<std::string> m_files;
+    ArrayList<FilePath> m_files;
+    ArrayList<size_t> m_fileIndexStack;
 };
 //=============================================================================
 bool ReadObjectScriptWithRetryROK(FilePath const& iFile, reflection::ObjectDatabase& ioObjectDatabase, ImportDatabase& ioImportDatabase, IErrorHandler& iErrorHandler);

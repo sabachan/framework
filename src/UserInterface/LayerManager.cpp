@@ -33,12 +33,12 @@ namespace
 #if ENABLE_LAYER_MANAGER_STATS
     void PrintLayerManagerStatsAndClear()
     {
-        SG_LOG_DEBUG(Format("LayerManager - %0 visited layers / input box", float(g_sumVisitedLayerCount) / g_sumInputBoxCount));
+        SG_LOG_DEBUG("UI", Format("LayerManager - %0 visited layers / input box", float(g_sumVisitedLayerCount) / g_sumInputBoxCount));
         if(0 != g_sumVisitedPreBoxCount)
-            SG_LOG_DEBUG(Format("LayerManager - %0 visited pre boxes / input box", float(g_sumVisitedPreBoxCount) / g_sumInputBoxCount));
-        SG_LOG_DEBUG(Format("LayerManager - %0 visited boxes / input box", float(g_sumVisitedBoxCount) / g_sumInputBoxCount));
+            SG_LOG_DEBUG("UI", Format("LayerManager - %0 visited pre boxes / input box", float(g_sumVisitedPreBoxCount) / g_sumInputBoxCount));
+        SG_LOG_DEBUG("UI", Format("LayerManager - %0 visited boxes / input box", float(g_sumVisitedBoxCount) / g_sumInputBoxCount));
         if(0 != g_sumVisitedBoundingBoxCount)
-            SG_LOG_DEBUG(Format("LayerManager - %0 visited bounding boxes / input box", float(g_sumVisitedBoundingBoxCount) / g_sumInputBoxCount));
+            SG_LOG_DEBUG("UI", Format("LayerManager - %0 visited bounding boxes / input box", float(g_sumVisitedBoundingBoxCount) / g_sumInputBoxCount));
         g_sumVisitedPreBoxCount = 0;
         g_sumVisitedBoxCount = 0;
         g_sumVisitedBoundingBoxCount = 0;
@@ -133,7 +133,7 @@ LayerRange LayerManager_AllBoxes::Lock(box2f const& iBox, size_t iLayerCount)
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 void LayerManager_AllBoxes::Clear()
 {
-    //SG_LOG_DEBUG(Format("LayerManager - %0 layers", m_layers.size()));
+    //SG_LOG_DEBUG("UI", Format("LayerManager - %0 layers", m_layers.size()));
 #if ENABLE_LAYER_MANAGER_STATS
     PrintLayerManagerStatsAndClear();
 #endif
@@ -198,7 +198,7 @@ LayerRange LayerManager_OneBoxPerLayer::Lock(box2f const& iBox, size_t iLayerCou
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 void LayerManager_OneBoxPerLayer::Clear()
 {
-    //SG_LOG_DEBUG(Format("LayerManager - %0 layers", m_layers.size()));
+    //SG_LOG_DEBUG("UI", Format("LayerManager - %0 layers", m_layers.size()));
 #if ENABLE_LAYER_MANAGER_STATS
     PrintLayerManagerStatsAndClear();
 #endif
@@ -330,7 +330,7 @@ LayerRange LayerManager_NBoxesPerLayer::Lock(box2f const& iBox, size_t iLayerCou
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 void LayerManager_NBoxesPerLayer::Clear()
 {
-    //SG_LOG_DEBUG(Format("LayerManager - %0 layers", m_layers.size()));
+    //SG_LOG_DEBUG("UI", Format("LayerManager - %0 layers", m_layers.size()));
 #if ENABLE_LAYER_MANAGER_STATS
     PrintLayerManagerStatsAndClear();
 #endif
@@ -569,7 +569,7 @@ LayerRange LayerManager_QuadTreeLike::Lock(box2f const& iBox, size_t iLayerCount
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 void LayerManager_QuadTreeLike::Clear()
 {
-    //SG_LOG_DEBUG(Format("LayerManager - %0 layers", m_layers.size()));
+    //SG_LOG_DEBUG("UI", Format("LayerManager - %0 layers", m_layers.size()));
 #if ENABLE_LAYER_MANAGER_STATS
     PrintLayerManagerStatsAndClear();
 #endif
@@ -1084,7 +1084,7 @@ LayerRange LayerManager_RTreePerLayer::Lock(box2f const& iBox, size_t iLayerCoun
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 void LayerManager_RTreePerLayer::Clear()
 {
-    //SG_LOG_DEBUG(Format("LayerManager - %0 layers", m_layers.size()));
+    //SG_LOG_DEBUG("UI", Format("LayerManager - %0 layers", m_layers.size()));
 #if ENABLE_LAYER_MANAGER_STATS
     PrintLayerManagerStatsAndClear();
 #endif
@@ -1727,7 +1727,7 @@ LayerRange LayerManager_RTree::Lock(box2f const& iBox, size_t iLayerCount)
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 void LayerManager_RTree::Clear()
 {
-    //SG_LOG_DEBUG(Format("LayerManager - %0 layers", m_layers.size()));
+    //SG_LOG_DEBUG("UI", Format("LayerManager - %0 layers", m_layers.size()));
 #if ENABLE_LAYER_MANAGER_STATS
     PrintLayerManagerStatsAndClear();
 #endif

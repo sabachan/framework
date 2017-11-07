@@ -56,7 +56,7 @@ protected:
     virtual void VirtualAddOffset(float2 const& iOffset) override;
     virtual void VirtualUpdatePlacement() override;
     virtual void VirtualOnChildInvalidatePlacement() override { InvalidatePlacement(); }
-    virtual ui::Component* AsComponent() { return this; }
+    virtual ui::Component* VirtualAsComponent() { return this; }
 private:
 #if SG_ENABLE_ASSERT
     void CheckConstraintsOnItem(IMovable* iItem);
@@ -77,7 +77,7 @@ private:
         virtual void VirtualResetOffset() override { m_offset = float2(0); }
         virtual void VirtualAddOffset(float2 const& iOffset) override { m_offset += iOffset; }
         virtual void VirtualUpdatePlacement() override;
-        virtual ui::Component* AsComponent() { return this; }
+        virtual ui::Component* VirtualAsComponent() { return this; }
     private:
         //safeptr<ui::Magnifier const> m_magnifier;
         safeptr<Component> m_content;

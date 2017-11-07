@@ -43,7 +43,7 @@ SimpleCPUPerfLog::~SimpleCPUPerfLog()
     if(delta < *m_best)
         *m_best = delta;
     oss << " (best: " << 1000000 * *m_best / freq.QuadPart << "us)";
-    SG_LOG_INFO(oss.str().c_str());
+    SG_LOG_INFO("Perf", oss.str().c_str());
 }
 //=============================================================================
 namespace {
@@ -769,7 +769,7 @@ SG_TEST((sg), PerfLog, (Core, slow))
 
     perflog::Clear();
 
-    SG_LOG_INFO(oss.str().c_str());
+    SG_LOG_INFO("Test", oss.str().c_str());
     perflog::Shutdown();
 }
 //=============================================================================

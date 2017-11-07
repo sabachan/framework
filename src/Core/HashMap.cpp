@@ -302,7 +302,7 @@ SG_TEST((sg,core), HashMapPerf, (perf, slow, start))
                     SG_ASSERT_AND_UNUSED(f);
                 }
             }
-            SG_LOG_INFO(Format("dummy = %0", dummy));
+            SG_LOG_INFO("Test", Format("dummy = %0", dummy));
             dummy = 0;
             {
                 SIMPLE_CPU_PERF_LOG_SCOPE("HashMap - Misc");
@@ -340,7 +340,7 @@ SG_TEST((sg,core), HashMapPerf, (perf, slow, start))
                         dummy += f->value2 - f->value;
                 }
             }
-            SG_LOG_INFO(Format("dummy = %0", dummy));
+            SG_LOG_INFO("Test", Format("dummy = %0", dummy));
         }
         {
             std::unordered_map<HMTestKeyA, HMTestClassA, HMTestKeyAHasherComparer, HMTestKeyAHasherComparer> hm;
@@ -382,7 +382,7 @@ SG_TEST((sg,core), HashMapPerf, (perf, slow, start))
                     SG_ASSERT_AND_UNUSED(1 == f);
                 }
             }
-            SG_LOG_INFO(Format("dummy = %0", dummy));
+            SG_LOG_INFO("Test", Format("dummy = %0", dummy));
             dummy = 0;
             {
                 SIMPLE_CPU_PERF_LOG_SCOPE("HashMap - Misc");
@@ -420,7 +420,7 @@ SG_TEST((sg,core), HashMapPerf, (perf, slow, start))
                         dummy += f->second.value2 - f->second.value;
                 }
             }
-            SG_LOG_INFO(Format("dummy = %0", dummy));
+            SG_LOG_INFO("Test", Format("dummy = %0", dummy));
         }
     }
     SG_ASSERT(0 == HMTestKeyA::s_count);

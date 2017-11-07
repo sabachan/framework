@@ -80,8 +80,10 @@ enum class TokenType {
 struct Token
 {
     TokenType type;
+    char const* filebegin;
     char const* begin;
     char const* end;
+    size_t fileid;
     size_t line;
     size_t col;
 };
@@ -93,7 +95,6 @@ public:
     Tokenizer(char const* str, IErrorHandler* iErrorHandler);
     Tokenizer(Tokenizer&&) = default;
     void Tokenize(Token& oToken);
-    //void Run();
 private:
     void TokenizePrivate();
     static TokenType IdentifyKeywordIFP(char const* begin, char const* end);

@@ -17,7 +17,7 @@ template<typename BS>
 void TestSieveOfErathosthenes(BS& isPrime)
 {
     size_t const N = isPrime.size();
-    //SG_LOG_INFO(Format("Sieve of Erathosthenes until %0", N));
+    //SG_LOG_INFO("Test", Format("Sieve of Erathosthenes until %0", N));
     isPrime.reset();
     isPrime.flip();
     isPrime.reset(0);
@@ -26,7 +26,7 @@ void TestSieveOfErathosthenes(BS& isPrime)
     {
         if(isPrime[i])
         {
-            //SG_LOG_INFO(Format("%0", i));
+            //SG_LOG_INFO("Test", Format("%0", i));
             size_t n = 2 * i;
             while(n < N)
             {

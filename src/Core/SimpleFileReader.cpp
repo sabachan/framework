@@ -33,7 +33,7 @@ SimpleFileReader::SimpleFileReader(FilePath const& iFilename)
     {
         std::ostringstream oss;
         oss << "can't open file: " << iFilename.GetPrintableString();
-        SG_LOG_ERROR(oss.str().c_str());
+        SG_LOG_ERROR("File", oss.str().c_str());
         m_isValid = false;
         return;
     }

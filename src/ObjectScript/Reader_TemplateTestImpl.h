@@ -257,3 +257,67 @@
     // first error
     ErrorType::expression_is_not_callable
 },
+{
+    // description
+    "break in template",
+    // file content
+    "template tplObj("                                          "\n"
+    "    x,"                                                    "\n"
+    ") is sg::reflectionTest::TestClass_C {"                    "\n"
+    "    u : x"                                                 "\n"
+    "    break"                                                 "\n"
+    "}"                                                         "\n"
+    "object1 is myNamespace::tplObj(1)"                         "\n",
+    // equivalent file
+    "",
+    // return value
+    false,
+    // first error
+    ErrorType::unexpected_use_of_jump_statement
+},
+{
+    // description
+    "if/else in template",
+    // file content
+    "template MyTemplate(x) is sg::reflectionTest::TestClass_D"         "\n"
+    "{"                                                                 "\n"
+    "    object: subobj is sg::reflectionTest::TestClass_C { i: x }"    "\n"
+    "    var list = []"                                                 "\n"
+    "    if(x < 100)"                                                   "\n"
+    "    {"                                                             "\n"
+    "        const y = x+1"                                             "\n"
+    "        list += ["                                                 "\n"
+    "           subobj,"                                                "\n"
+    "           sg::reflectionTest::TestClass_C { i: y }"               "\n"
+    "        ]"                                                         "\n"
+    "    }"                                                             "\n"
+    "    else"                                                          "\n"
+    "    {"                                                             "\n"
+    "        const y = x-100"                                           "\n"
+    "        list += ["                                                 "\n"
+    "           sg::reflectionTest::TestClass_C { i: y }"               "\n"
+    "        ]"                                                         "\n"
+    "    }"                                                             "\n"
+    "    objectlist: list"                                              "\n"
+    "}"                                                                 "\n"
+    "obj1 is MyTemplate { x : 4 }"                                      "\n"
+    "obj2 is MyTemplate { x : 104 }"                                    "\n",
+    // equivalent file
+    "obj1 is sg::reflectionTest::TestClass_D {"                         "\n"
+    "    object: subobj is sg::reflectionTest::TestClass_C { i: 4 }"    "\n"
+    "    objectlist: ["                                                 "\n"
+    "       subobj,"                                                    "\n"
+    "       sg::reflectionTest::TestClass_C { i: 5 }"                   "\n"
+    "    ]"                                                             "\n"
+    "}"                                                                 "\n"
+    "obj2 is sg::reflectionTest::TestClass_D {"                         "\n"
+    "    object: subobj is sg::reflectionTest::TestClass_C { i: 104 }"  "\n"
+    "    objectlist: ["                                                 "\n"
+    "       sg::reflectionTest::TestClass_C { i: 4 }"                   "\n"
+    "    ]"                                                             "\n"
+    "}"                                                                 "\n",
+    // return value
+    true,
+    // first error
+    ErrorType::unknown
+},

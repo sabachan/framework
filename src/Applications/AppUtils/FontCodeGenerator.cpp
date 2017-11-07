@@ -611,7 +611,7 @@ void FontCodeGenerator::Run() const
         objectscript::ErrorHandler errorHandler;
         bool ok = objectscript::ReadObjectScriptROK(f, db, errorHandler);
         if(!ok)
-            SG_LOG_DEBUG(errorHandler.GetErrorMessage().c_str());
+            SG_LOG_DEFAULT_DEBUG(errorHandler.GetErrorMessage().c_str());
         SG_ASSERT(ok);
 
         reflection::ObjectDatabase::named_object_list namedObjects;
@@ -697,7 +697,7 @@ void GenerateFontCodes()
     reflection::ObjectDatabase db;
     objectscript::ErrorHandler errorHandler;
     bool ok = objectscript::ReadObjectScriptWithRetryROK(FilePath("data:/Applications/BitmapFonts/Fonts.os"), db, errorHandler);
-    SG_LOG_DEBUG(errorHandler.GetErrorMessage().c_str());
+    SG_LOG_DEFAULT_DEBUG(errorHandler.GetErrorMessage().c_str());
     SG_ASSERT(ok);
 
     reflection::ObjectDatabase::named_object_list namedObjects;

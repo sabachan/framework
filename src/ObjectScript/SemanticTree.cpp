@@ -17,12 +17,21 @@ void PushError(semanticTree::EvaluationInputOutput& io, ErrorType iErrorType, To
 {
     Error err;
     err.type = iErrorType;
+    err.filebegin = iToken.filebegin;
     err.begin = iToken.begin;
     err.end = iToken.end;
+    err.fileid = iToken.fileid;
     err.col = iToken.col;
     err.line = iToken.line;
     err.msg = msg;
     io.errorHandler->OnObjectScriptError(err);
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+void PushUnresolvedIdentifierError(semanticTree::EvaluationInputOutput& io, semanticTree::ITreeNode* iTreeNode)
+{
+    Token const& token = iTreeNode->GetToken();
+    // TODO: print identifier if possible
+    PushError(io, ErrorType::unresolved_identifier_in_expression, token, "unresolved identifier in expression");
 }
 //=============================================================================
 struct ResolvedIdentifier
@@ -104,7 +113,9 @@ bool ConvertToValueROK(semanticTree::EvaluationInputOutput& io, Token const& iTo
         {
             if(io.isPreresolutionPass)
             {
-                io.presesolvedNodeIFN = new semanticTree::PreresolvedIdentifierAndQualifiers(io.returnIdentifier);
+                semanticTree::PreresolvedIdentifierAndQualifiers* preresolved = new semanticTree::PreresolvedIdentifierAndQualifiers(io.returnIdentifier);
+                preresolved->SetToken(iToken);
+                io.presesolvedNodeIFN = preresolved;
             }
             else
             {
@@ -124,7 +135,7 @@ bool ConvertToValueROK(semanticTree::EvaluationInputOutput& io, Token const& iTo
         }
             break;
         case ResolvedIdentifier::Type::Metaclass:
-            PushError(io, ErrorType::use_of_class_as_value, iToken, "Class can not be used as a value");
+            PushError(io, ErrorType::use_of_class_as_value, iToken, "Class can't be used as a value");
             return false;
         case ResolvedIdentifier::Type::ScriptObject:
             {
@@ -263,10 +274,10 @@ bool PreresolveInstructionROK(semanticTree::EvaluationInputOutput& io,
             return false;
         if(nullptr != subio.presesolvedNodeIFN)
             oPreresolvedInstructions.push_back(subio.presesolvedNodeIFN.get());
-        if(nullptr != subio.breakingInstruction)
+        if(nullptr != subio.jumpStatement)
         {
-            // Do not forward breaking instruction in preresolution.
-            subio.breakingInstruction = nullptr;
+            // Do not forward jump statements in preresolution.
+            subio.jumpStatement = nullptr;
         }
     }
     return true;
@@ -464,10 +475,10 @@ bool Function::CallImplROK(semanticTree::EvaluationInputOutput& io, std::vector<
         ok = m_instructions[i]->EvaluateROK(subio);
         if(!ok)
             return false;
-        if(nullptr != subio.breakingInstruction)
+        if(nullptr != subio.jumpStatement)
         {
-            SG_ASSERT(semanticTree::BreakingInstruction::Type::Return == subio.breakingInstruction->GetType()); // TODO: Error message "invalid use of break/continue in function body""
-            subio.breakingInstruction = nullptr;
+            SG_ASSERT(semanticTree::JumpStatement::Type::Return == subio.jumpStatement->GetType()); // TODO: Error message "invalid use of break/continue in function body""
+            subio.jumpStatement = nullptr;
             ok = ConvertToValueROK(subio, m_instructions[i]->GetToken());
             if(!ok)
                 return false;
@@ -604,7 +615,7 @@ bool Template::CallImplROK(semanticTree::EvaluationInputOutput& io, std::vector<
             SG_ASSERT(io.errorHandler->DidErrorHappen());
             break;
         }
-        SG_ASSERT(nullptr == subio.breakingInstruction); // TODO: Error message "invalid use of break/continue/return in template body"
+        SG_ASSERT(nullptr == subio.jumpStatement); // TODO: Error message "invalid use of break/continue/return in template body"
     }
     return ok;
 }
@@ -621,6 +632,12 @@ REFLECTION_CLASS_END
 namespace sg {
 namespace objectscript {
 namespace semanticTree {
+//=============================================================================
+EvaluationInputOutput::~EvaluationInputOutput()
+{
+    if(nullptr != jumpStatement)
+        PushError(*this, ErrorType::unexpected_use_of_jump_statement, jumpStatement->GetToken(), "unexpected use of jump statement");
+}
 //=============================================================================
 bool Root::EvaluateScriptROK(EvaluationInputOutput& io)
 {
@@ -1824,7 +1841,6 @@ bool Namespace::EvaluateROK(EvaluationInputOutput& io)
 bool If::EvaluateROK(EvaluationInputOutput& io)
 {
     bool ok = true;
-    SG_ASSERT(nullptr == io.returnValue);
     SG_ASSERT(io.enableScriptDefinitions); // TODO: Error message
 
     reflection::ObjectDatabaseScopedTransaction scopedTransaction(io.scriptDatabase.get());
@@ -1865,16 +1881,24 @@ bool If::EvaluateROK(EvaluationInputOutput& io)
             if(!ok)
                 return false;
             preresolved->SetExpr(expr.get());
-            std::vector<refptr<ITreeNode>> preresolvedIstructions;
-            ok = PreresolveInstructionROK(io, pathForScript, m_instructions, preresolvedIstructions);
-            if(!ok)
-                return false;
-            preresolved->SetInstructions(preresolvedIstructions);
-            std::vector<refptr<ITreeNode>> preresolvedElseIstructions;
-            ok = PreresolveInstructionROK(io, pathForScript, m_elseinstructions, preresolvedElseIstructions);
-            if(!ok)
-                return false;
-            preresolved->SetElseInstructions(preresolvedElseIstructions);
+            {
+                reflection::ObjectDatabaseScopedTransaction scopedTransaction2(io.scriptDatabase.get());
+                reflection::Identifier pathForScript2 = reflection::Identifier(pathForScript, reflection::IdentifierNode());
+                std::vector<refptr<ITreeNode>> preresolvedIstructions;
+                ok = PreresolveInstructionROK(io, pathForScript2, m_instructions, preresolvedIstructions);
+                if(!ok)
+                    return false;
+                preresolved->SetInstructions(preresolvedIstructions);
+            }
+            {
+                reflection::ObjectDatabaseScopedTransaction scopedTransaction2(io.scriptDatabase.get());
+                reflection::Identifier pathForScript2 = reflection::Identifier(pathForScript, reflection::IdentifierNode());
+                std::vector<refptr<ITreeNode>> preresolvedElseIstructions;
+                ok = PreresolveInstructionROK(io, pathForScript2, m_elseinstructions, preresolvedElseIstructions);
+                if(!ok)
+                    return false;
+                preresolved->SetElseInstructions(preresolvedElseIstructions);
+            }
             io.presesolvedNodeIFN = preresolved;
             return true;
         }
@@ -1911,8 +1935,8 @@ bool If::EvaluateROK(EvaluationInputOutput& io)
             ok = m_instructions[i]->EvaluateROK(subio);
             if(!ok)
                 return false;
-            if(nullptr != subio.breakingInstruction)
-                subio.ForwardBreakingInstruction(io);
+            if(nullptr != subio.jumpStatement)
+                subio.ForwardJumpStatement(io);
         }
     }
     else
@@ -1925,8 +1949,8 @@ bool If::EvaluateROK(EvaluationInputOutput& io)
             ok = m_elseinstructions[i]->EvaluateROK(subio);
             if(!ok)
                 return false;
-            if(nullptr != subio.breakingInstruction)
-                subio.ForwardBreakingInstruction(io);
+            if(nullptr != subio.jumpStatement)
+                subio.ForwardJumpStatement(io);
         }
     }
     return ok;
@@ -2012,18 +2036,18 @@ bool While::EvaluateROK(EvaluationInputOutput& io)
                     SG_ASSERT(io.errorHandler->DidErrorHappen());
                     return false;
                 }
-                if(nullptr != subio.breakingInstruction)
+                if(nullptr != subio.jumpStatement)
                 {
-                    switch(subio.breakingInstruction->GetType())
+                    switch(subio.jumpStatement->GetType())
                     {
-                    case semanticTree::BreakingInstruction::Type::Return:
-                        subio.ForwardBreakingInstruction(io);
+                    case semanticTree::JumpStatement::Type::Return:
+                        subio.ForwardJumpStatement(io);
                         break;
-                    case semanticTree::BreakingInstruction::Type::Break:
-                        subio.breakingInstruction = nullptr;
+                    case semanticTree::JumpStatement::Type::Break:
+                        subio.jumpStatement = nullptr;
                         return ok;
-                    case semanticTree::BreakingInstruction::Type::Continue:
-                        subio.breakingInstruction = nullptr;
+                    case semanticTree::JumpStatement::Type::Continue:
+                        subio.jumpStatement = nullptr;
                         i = instructionCount;
                         break;
                     default:
@@ -2179,18 +2203,18 @@ bool For::EvaluateROK(EvaluationInputOutput& io)
                         SG_ASSERT(io.errorHandler->DidErrorHappen());
                         return false;
                     }
-                    if(nullptr != subio.breakingInstruction)
+                    if(nullptr != subio.jumpStatement)
                     {
-                        switch(subio.breakingInstruction->GetType())
+                        switch(subio.jumpStatement->GetType())
                         {
-                        case semanticTree::BreakingInstruction::Type::Return:
-                            subio.ForwardBreakingInstruction(io);
+                        case semanticTree::JumpStatement::Type::Return:
+                            subio.ForwardJumpStatement(io);
                             break;
-                        case semanticTree::BreakingInstruction::Type::Break:
-                            subio.breakingInstruction = nullptr;
+                        case semanticTree::JumpStatement::Type::Break:
+                            subio.jumpStatement = nullptr;
                             return ok;
-                        case semanticTree::BreakingInstruction::Type::Continue:
-                            subio.breakingInstruction = nullptr;
+                        case semanticTree::JumpStatement::Type::Continue:
+                            subio.jumpStatement = nullptr;
                             i = instructionCount;
                             break;
                         default:
@@ -2320,18 +2344,18 @@ bool For::EvaluateROK(EvaluationInputOutput& io)
                             SG_ASSERT(io.errorHandler->DidErrorHappen());
                             return false;
                         }
-                        if(nullptr != subio.breakingInstruction)
+                        if(nullptr != subio.jumpStatement)
                         {
-                            switch(subio.breakingInstruction->GetType())
+                            switch(subio.jumpStatement->GetType())
                             {
-                            case semanticTree::BreakingInstruction::Type::Return:
-                                subio.ForwardBreakingInstruction(io);
+                            case semanticTree::JumpStatement::Type::Return:
+                                subio.ForwardJumpStatement(io);
                                 break;
-                            case semanticTree::BreakingInstruction::Type::Break:
-                                subio.breakingInstruction = nullptr;
+                            case semanticTree::JumpStatement::Type::Break:
+                                subio.jumpStatement = nullptr;
                                 return ok;
-                            case semanticTree::BreakingInstruction::Type::Continue:
-                                subio.breakingInstruction = nullptr;
+                            case semanticTree::JumpStatement::Type::Continue:
+                                subio.jumpStatement = nullptr;
                                 j = instructionCount;
                                 break;
                             default:
@@ -2423,14 +2447,14 @@ bool Assert::EvaluateROK(EvaluationInputOutput& io)
 bool Continue::EvaluateROK(EvaluationInputOutput& io)
 {
     if(io.isPreresolutionPass) { io.presesolvedNodeIFN = this; }
-    io.breakingInstruction = this;
+    io.jumpStatement = this;
     return true;
 }
 //=============================================================================
 bool Break::EvaluateROK(EvaluationInputOutput& io)
 {
     if(io.isPreresolutionPass) { io.presesolvedNodeIFN = this; }
-    io.breakingInstruction = this;
+    io.jumpStatement = this;
     return true;
 }
 //=============================================================================
@@ -2461,7 +2485,7 @@ bool Return::EvaluateROK(EvaluationInputOutput& io)
         io.presesolvedNodeIFN = preresolved;
         return true;
     }
-    io.breakingInstruction = this;
+    io.jumpStatement = this;
     return ok;
 }
 //=============================================================================
@@ -2869,7 +2893,11 @@ bool TemplateDeclaration::EvaluateROK(EvaluationInputOutput& io)
                         }
                         if(nullptr != subio.presesolvedNodeIFN)
                             preresolvedInstructions.push_back(subio.presesolvedNodeIFN.get());
-                        SG_ASSERT(nullptr == subio.breakingInstruction); // TODO: Error message "invalid use of break/continue/return in template body"
+                        if(nullptr != subio.jumpStatement)
+                        {
+                            PushError(subio, ErrorType::unexpected_use_of_jump_statement, m_instructions[i]->GetToken(), "unexpected use of jump statement");
+                            return false;
+                        }
                     }
                     tmplt->SetBody(preresolvedInstructions);
                 }
@@ -3003,6 +3031,12 @@ bool UnaryExpression::EvaluateROK(EvaluationInputOutput& io)
     SG_ASSERT(nullptr != argio.returnValue);
     SG_ASSERT(argio.returnIdentifier.Empty());
     SG_ASSERT(argio.qualifiers.empty());
+    if(argio.returnValueContainsUnresolvedIdentifier)
+    {
+        PushUnresolvedIdentifierError(argio, m_arg.get());
+        return false;
+    }
+
     io.returnValueContainsUnresolvedIdentifier = argio.returnValueContainsUnresolvedIdentifier;
     reflection::PrimitiveDataType type = argio.returnValue->GetType();
     for(size_t i = 0; i < unaryExpressionEntriesCount; ++i)
@@ -3081,7 +3115,8 @@ template <TokenType OP, typename T1, typename T2> bool BinaryExpressionImplROK(E
     MACRO(TOKEN, EXPR, float,   i32,    float) \
     MACRO(TOKEN, EXPR, float,   u32,    float) \
     MACRO(TOKEN, EXPR, i32,     float,  float) \
-    MACRO(TOKEN, EXPR, u32,     float,  float)
+    MACRO(TOKEN, EXPR, u32,     float,  float) \
+    MACRO(TOKEN, EXPR, float,   float,  float)
 #define APPLY_MACRO_TO_BINARY_EXPRESSION_IMPL_FLOAT_INT_COMPARISON(MACRO, TOKEN, OP) \
     MACRO(TOKEN, o=(l OP r),            i32,     i32,    bool) \
     MACRO(TOKEN, o=((i32)l OP r),       u32,     i32,    bool) \
@@ -3090,7 +3125,8 @@ template <TokenType OP, typename T1, typename T2> bool BinaryExpressionImplROK(E
     MACRO(TOKEN, o=(l OP r),            float,   i32,    bool) \
     MACRO(TOKEN, o=(l OP r),            float,   u32,    bool) \
     MACRO(TOKEN, o=(l OP r),            i32,     float,  bool) \
-    MACRO(TOKEN, o=(l OP r),            u32,     float,  bool)
+    MACRO(TOKEN, o=(l OP r),            u32,     float,  bool) \
+    MACRO(TOKEN, o=(l OP r),            float,   float,  bool)
 #define APPLY_MACRO_TO_BINARY_EXPRESSION_IMPL_INT(MACRO, TOKEN, EXPR) \
     MACRO(TOKEN, EXPR, i32,     i32,    i32) \
     MACRO(TOKEN, EXPR, u32,     i32,    i32) \
@@ -3194,8 +3230,16 @@ bool BinaryExpression::EvaluateROK(EvaluationInputOutput& io)
 
     SG_ASSERT(nullptr != arg0io.returnValue);
     SG_ASSERT(nullptr != arg1io.returnValue);
-    SG_ASSERT(!arg0io.returnValueContainsUnresolvedIdentifier);
-    SG_ASSERT(!arg1io.returnValueContainsUnresolvedIdentifier);
+    if(arg0io.returnValueContainsUnresolvedIdentifier)
+    {
+        PushUnresolvedIdentifierError(arg0io, m_args[0].get());
+        return false;
+    }
+    if(arg1io.returnValueContainsUnresolvedIdentifier)
+    {
+        PushUnresolvedIdentifierError(arg1io, m_args[1].get());
+        return false;
+    }
 
     io.returnValueContainsUnresolvedIdentifier = arg0io.returnValueContainsUnresolvedIdentifier || arg1io.returnValueContainsUnresolvedIdentifier;
     reflection::PrimitiveDataType leftType = arg0io.returnValue->GetType();
@@ -3410,7 +3454,7 @@ bool TernaryExpression::EvaluateROK(EvaluationInputOutput& io)
     SG_ASSERT(!arg0io.returnValueContainsUnresolvedIdentifier);
     reflection::PrimitiveDataType type0 = arg0io.returnValue->GetType();
     reflection::PrimitiveDataType type1 = arg1io.returnValue->GetType();
-    reflection::PrimitiveDataType type2 = arg1io.returnValue->GetType();
+    reflection::PrimitiveDataType type2 = arg2io.returnValue->GetType();
     SG_UNUSED((type0, type1, type2));
     bool cond;
     bool isCondOk = arg0io.returnValue->AsROK<bool>(&cond);

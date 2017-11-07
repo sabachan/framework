@@ -21,7 +21,7 @@ namespace sg {
 namespace objectscript {
 namespace semanticTree {
 //=============================================================================
-class BreakingInstruction;
+class JumpStatement;
 class ITreeNode;
 //=============================================================================
 enum class Construction { None, Object, Struct };
@@ -46,7 +46,7 @@ public:
     // output
     refptr<reflection::IPrimitiveData>* returnLValueReference;
     std::vector<TokenType> qualifiers;
-    safeptr<BreakingInstruction> breakingInstruction;
+    safeptr<JumpStatement> jumpStatement;
     reflection::Identifier returnIdentifier;
     refptr<ITreeNode> presesolvedNodeIFN;
 
@@ -84,7 +84,7 @@ public:
         , returnValue(nullptr)
         , returnLValueReference(nullptr)
         , qualifiers()
-        , breakingInstruction(nullptr)
+        , jumpStatement(nullptr)
         , returnIdentifier()
         , presesolvedNodeIFN()
         , isPreresolutionPass(false)
@@ -116,7 +116,7 @@ public:
         , returnValue()
         , returnLValueReference(nullptr)
         , qualifiers()
-        , breakingInstruction()
+        , jumpStatement()
         , returnIdentifier()
         , presesolvedNodeIFN()
         , isPreresolutionPass(parentio.isPreresolutionPass)
@@ -133,16 +133,13 @@ public:
         , returnValueIsCommaSeparatedList(false)
         , returnValueContainsUnresolvedIdentifier(false)
     {
-        SG_ASSERT(nullptr == parentio.breakingInstruction);
+        SG_ASSERT(nullptr == parentio.jumpStatement);
     }
-    ~EvaluationInputOutput()
-    {
-        SG_ASSERT_MSG(nullptr == breakingInstruction, "A breaking instruction has not been treated!");
-    }
-    void ForwardBreakingInstruction(EvaluationInputOutput& io)
+    ~EvaluationInputOutput();
+    void ForwardJumpStatement(EvaluationInputOutput& io)
     {
         SG_ASSERT(nullptr == io.returnValue && io.returnIdentifier.Empty());
-        io.breakingInstruction = breakingInstruction;
+        io.jumpStatement = jumpStatement;
         io.returnIdentifier = returnIdentifier;
         io.returnValue = returnValue;
         io.returnLValueReference = returnLValueReference;
@@ -151,7 +148,7 @@ public:
         io.returnValueIsLValue = returnValueIsLValue;
         SG_ASSERT(qualifiers.empty());
         SG_ASSERT(nullptr == objectIdentifier);
-        breakingInstruction = nullptr;
+        jumpStatement = nullptr;
     }
 };
 //=============================================================================
@@ -538,11 +535,11 @@ private:
     refptr<ITreeNode> m_arg;
 };
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-class BreakingInstruction : public ITreeNode
+class JumpStatement : public ITreeNode
 {
 public:
     enum class Type { Continue, Break, Return };
-    BreakingInstruction(Type iType) : m_type(iType) {}
+    JumpStatement(Type iType) : m_type(iType) {}
     Type GetType() const { return m_type; }
     virtual bool IsValue() const override { return false; }
     virtual bool IsInstruction() const { return true; }
@@ -550,26 +547,26 @@ private:
     Type m_type;
 };
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-class Continue : public BreakingInstruction
+class Continue : public JumpStatement
 {
 public:
-    Continue() : BreakingInstruction(Type::Continue) {}
+    Continue() : JumpStatement(Type::Continue) {}
     virtual bool EvaluateROK(EvaluationInputOutput& io) override;
 private:
 };
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-class Break : public BreakingInstruction
+class Break : public JumpStatement
 {
 public:
-    Break() : BreakingInstruction(Type::Break) {}
+    Break() : JumpStatement(Type::Break) {}
     virtual bool EvaluateROK(EvaluationInputOutput& io) override;
 private:
 };
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-class Return : public BreakingInstruction
+class Return : public JumpStatement
 {
 public:
-    Return() : BreakingInstruction(Type::Return) {}
+    Return() : JumpStatement(Type::Return) {}
     virtual void SetArgument(size_t i, ITreeNode* iArg) override { SG_ASSERT_AND_UNUSED(0 == i); SG_ASSERT(nullptr == m_arg); m_arg = iArg; }
     virtual bool EvaluateROK(EvaluationInputOutput& io) override;
 private:

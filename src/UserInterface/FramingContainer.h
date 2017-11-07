@@ -27,7 +27,7 @@ public:
     void SetFitMode(ui::FitMode2 const& iFitMode) { m_fitMode = iFitMode; }
     virtual void VirtualResetOffset() override;
     virtual void VirtualAddOffset(float2 const& iOffset) override;
-    virtual ui::Component* AsComponent() override { return this; }
+    virtual ui::Component* VirtualAsComponent() override { return this; }
 private:
     //void VirtualOnDraw(ui::DrawContext const& iContext)
     //{

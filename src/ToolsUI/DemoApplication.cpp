@@ -84,7 +84,7 @@ void DemoApplication::Run()
     reflection::ObjectDatabase db;
     objectscript::ErrorHandler errorHandler;
     bool ok = objectscript::ReadObjectScriptROK(FilePath("src:/ToolsUI/Data/DemoApplication.os"), db, errorHandler);
-    SG_LOG_DEBUG(errorHandler.GetErrorMessage().c_str());
+    SG_LOG_DEFAULT_DEBUG(errorHandler.GetErrorMessage().c_str());
     SG_ASSERT(ok);
 
     Common& common = Common::Get();

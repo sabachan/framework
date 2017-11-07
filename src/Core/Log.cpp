@@ -2,8 +2,10 @@
 
 #include "Log.h"
 
+#include "Assert.h"
 #include "Config.h"
 #include "Platform.h"
+#include "StringFormat.h"
 
 #if SG_PLATFORM_IS_WIN
 #include <Core/WindowsH.h>
@@ -13,55 +15,51 @@ namespace sg {
 namespace logging {
 //=============================================================================
 namespace {
-    void Log_Impl(char const* msg) // TODO: add type
-    {
+LogFct* s_LogCallback = DefaultLogCallback;
+}
+//=============================================================================
+void DefaultLogCallback(char const* domain, Type type, char const* msg)
+{
 #if SG_PLATFORM_IS_WIN
-        OutputDebugStringA(msg);
-        OutputDebugStringA("\n");
+    if(nullptr != domain)
+        OutputDebugStringA(Format("[%0] ", domain).c_str());
+    switch(type)
+    {
+    case Type::Debug:
+    case Type::Info:
+        break;
+    case Type::Warning:
+        OutputDebugStringA("[WARNING] ");
+        break;
+    case Type::Error:
+        OutputDebugStringA("[ERROR] ");
+        break;
+    default:
+        SG_ASSERT_NOT_REACHED();
+    }
+    OutputDebugStringA(msg);
+    OutputDebugStringA("\n");
 #else
 #error "todo"
 #endif
-    }
 }
 //=============================================================================
-void Debug(char const* msg)
+LogFct* GetAndSetLogCallback(LogFct* f)
 {
-    Log_Impl(msg);
-}
-//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-void Info(char const* msg)
-{
-    Log_Impl(msg);
-}
-//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-void Warning(char const* msg)
-{
-    Log_Impl(msg);
-}
-//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-void Error(char const* msg)
-{
-    Log_Impl(msg);
+    LogFct* r = s_LogCallback;
+    s_LogCallback = f;
+    return r;
 }
 //=============================================================================
-void Debug(std::string const& msg)
+void Log(char const* domain, Type type, char const* msg)
 {
-    Log_Impl(msg.c_str());
+    if(nullptr != s_LogCallback)
+        s_LogCallback(domain, type, msg);
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-void Info(std::string const& msg)
+void Log(char const* domain, Type type, std::string const& msg)
 {
-    Log_Impl(msg.c_str());
-}
-//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-void Warning(std::string const& msg)
-{
-    Log_Impl(msg.c_str());
-}
-//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-void Error(std::string const& msg)
-{
-    Log_Impl(msg.c_str());
+    Log(domain, type, msg.c_str());
 }
 //=============================================================================
 }

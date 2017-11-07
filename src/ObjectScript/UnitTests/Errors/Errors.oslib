@@ -1,0 +1,6 @@
+
+template Template_UnknownVariable(a = 0, b = [1,2]) is ::sg::reflectionTest::TestClass_C
+{
+    const ttt = true
+    vectoru : [a] + b + c
+}

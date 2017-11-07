@@ -11,6 +11,7 @@
 #include <Core/Log.h>
 #include <Core/PerfLog.h>
 #include <Core/SimpleFileReader.h>
+#include <Core/StringFormat.h>
 #include <Core/TestFramework.h>
 #include <Core/WinUtils.h>
 #include <Reflection/BaseClass.h>
@@ -69,64 +70,100 @@
 namespace sg {
 namespace objectscript {
 //=============================================================================
+namespace {
+std::string GetErrorLine(Error const& error)
+{
+    if(nullptr != error.begin)
+    {
+        SG_ASSERT(nullptr != error.end);
+        char const* b = error.begin - error.col;
+        char const* e = error.end;
+        while(*e != '\n' && *e != '\r' && *e != '\0')
+            ++e;
+        return std::string(b,e);
+    }
+    else
+    {
+        return std::string();
+    }
+}
+}
+//=============================================================================
 std::string ErrorHandler::GetErrorMessage() const
 {
     std::ostringstream oss;
     size_t const errorCount = m_errors.size();
-    SG_ASSERT(m_lines.size() == errorCount);
-    for(size_t i = 0; i<errorCount; ++i)
+    for(size_t i = 0; i < errorCount; ++i)
     {
-        Error const& error = m_errors[i];
-        std::string const& filename = m_filePerError[i];
+        Error error = m_errors[i];
+        size_t const fileid = error.fileid;
+        FilePath const& filepath = fileid == all_ones ? FilePath() : m_files[fileid];
+        std::string const& filename = filepath.GetPrintableString();
         if(filename.empty())
             oss << "<Filename should be writen here>";
         else
             oss << filename;
         oss << "(" << error.line << ":" << error.col << "): ";
         oss << "error " << (size_t)error.type << ": ";
-        if(error.end > error.begin)
+        if(filepath.Empty())
         {
-            size_t const maxContextSize = 60;
-            if(error.end < error.begin + maxContextSize)
-                oss << "\"" << std::string(error.begin, error.end) << "\"";
-            else
-                oss << "\"" << std::string(error.begin, error.begin + maxContextSize - 4) << " ..." << "\"";
-            oss << ": ";
+            SG_ASSERT(error.fileid == all_ones);
+            if(error.end > error.begin)
+            {
+                size_t const maxContextSize = 60;
+                if(error.end < error.begin + maxContextSize)
+                    oss << "\"" << std::string(error.begin, error.end) << "\"";
+                else
+                    oss << "\"" << std::string(error.begin, error.begin + maxContextSize - 4) << " ..." << "\"";
+                oss << ": ";
+            }
+            oss << error.msg << std::endl;
+
+            std::string const line = GetErrorLine(error);
+            oss << line << std::endl;
+            for(size_t j = 0; j < error.col; ++j)
+                oss << " ";
+            oss << "^" << std::endl;
         }
-        oss << error.msg << std::endl;
-        std::string const& line = m_lines[i];
-        oss << line << std::endl;
-        for(size_t j = 0; j<error.col; ++j)
-            oss << " ";
-        oss << "^" << std::endl;
+        else
+        {
+            SimpleFileReader file(filepath);
+            if(file.IsValid())
+            {
+                char const* filedata = reinterpret_cast<char const*>(file.data());
+                ptrdiff_t const offset = filedata - error.filebegin;
+                error.filebegin += offset;
+                error.begin += offset;
+                error.end += offset;
+                if(error.end > error.begin)
+                {
+                    size_t const maxContextSize = 60;
+                    if(error.end < error.begin + maxContextSize)
+                        oss << "\"" << std::string(error.begin, error.end) << "\"";
+                    else
+                        oss << "\"" << std::string(error.begin, error.begin + maxContextSize - 4) << " ..." << "\"";
+                    oss << ": ";
+                }
+                oss << error.msg << std::endl;
+                std::string const& line = GetErrorLine(error);
+                oss << line << std::endl;
+                for(size_t j = 0; j < error.col; ++j)
+                    oss << " ";
+                oss << "^" << std::endl;
+            }
+            else
+            {
+                oss << error.msg << std::endl;
+            }
+        }
     }
     return oss.str();
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 void ErrorHandler::VirtualOnObjectScriptError(Error const& iError)
 {
-    SG_ASSERT(iError.col <= 10000);
-    if(nullptr != iError.begin)
-    {
-        SG_ASSERT(nullptr != iError.end);
-        char const* b = iError.begin - iError.col;
-        char const* e = iError.end;
-        while(*e != '\n' && *e != '\r' && *e != '\0')
-            ++e;
-        m_lines.push_back(std::string(b, e));
-    }
-    else
-    {
-        m_lines.emplace_back();
-    }
-    Error error = iError;
-    error.begin = m_lines.back().c_str() + iError.col;
-    error.end = error.begin + (iError.end-iError.begin);
-    m_errors.EmplaceBack(error);
-    if(m_files.Empty())
-        m_filePerError.EmplaceBack();
-    else
-        m_filePerError.EmplaceBack(m_files.back());
+    SG_ASSERT(iError.fileid < m_files.size() || iError.fileid == all_ones);
+    m_errors.EmplaceBack(iError);
 }
 //=============================================================================
 namespace {
@@ -203,8 +240,10 @@ namespace {
 void PushFileError(FilePath const& iFile, IErrorHandler& iErrorHandler)
 {
     Error error;
+    error.filebegin = nullptr;
     error.begin = nullptr;
     error.end = nullptr;
+    error.fileid = iErrorHandler.GetCurrentFileId();
     error.col = 0;
     error.line = 0;
     error.type = ErrorType::cant_read_file;
@@ -220,7 +259,7 @@ bool ReadObjectScriptROK(FilePath const& iFile, reflection::ObjectDatabase& ioOb
     std::string const dir = iFile.ParentDirectory().GetSystemFilePath();
     filesystem::PushWorkingDir(dir);
 
-    iErrorHandler.OnOpenFile(iFile.GetPrintableString().c_str());
+    iErrorHandler.OnOpenFile(iFile);
 
     SimpleFileReader reader(iFile);
     if(!reader.IsValid())
@@ -278,7 +317,7 @@ bool ReadImportROK(FilePath const& iFile, reflection::ObjectDatabase& ioScriptDa
     std::string const dir = iFile.ParentDirectory().GetSystemFilePath();
     filesystem::PushWorkingDir(dir);
 
-    iErrorHandler.OnOpenFile(iFile.GetPrintableString().c_str());
+    iErrorHandler.OnOpenFile(iFile);
 
     SimpleFileReader reader(iFile);
     if(!reader.IsValid())
@@ -523,12 +562,12 @@ SG_TEST((sg, objectscript), Reader, (ObjectScript, quick))
         {
             std::ostringstream oss;
             oss << "Testing " << test.description << " (" << i << ")";
-            SG_LOG_INFO(oss.str().c_str());
+            SG_LOG_INFO("Test", oss.str().c_str());
         }
         ErrorHandler errorHandler;
         reflection::ObjectDatabase db;
         bool const ok = ReadObjectScriptROK(test.fileContent, db, errorHandler);
-        SG_LOG_DEBUG(errorHandler.GetErrorMessage().c_str());
+        SG_LOG_DEBUG("Test", errorHandler.GetErrorMessage().c_str());
         SG_ASSERT(ok == test.returnValue);
         if(!ok)
         {
@@ -560,7 +599,7 @@ SG_TEST((sg, objectscript), Reader, (ObjectScript, quick))
             SG_ASSERT(!errorHandler.DidErrorHappen() || !ok);
             SG_ASSERT_AND_UNUSED(ok);
         }
-        SG_LOG_DEBUG(errorHandler.GetErrorMessage().c_str());
+        SG_LOG_DEBUG("Test", errorHandler.GetErrorMessage().c_str());
         std::string str;
         WriteObjectScript(str, db);
         //for(size_t kk=0; kk<200000; ++kk)
@@ -573,7 +612,7 @@ SG_TEST((sg, objectscript), Reader, (ObjectScript, quick))
                 SG_ASSERT(!errorHandler_2.DidErrorHappen() || !ok_2);
                 SG_ASSERT_AND_UNUSED(ok_2);
             }
-            SG_LOG_DEBUG(errorHandler_2.GetErrorMessage().c_str());
+            SG_LOG_DEBUG("Test", errorHandler_2.GetErrorMessage().c_str());
             std::string str_2;
             WriteObjectScript(str_2, db_2);
             SG_ASSERT(str == str_2);
@@ -613,6 +652,21 @@ SG_TEST((sg, objectscript), Reader, (ObjectScript, quick))
         std::string str_ref;
         WriteObjectScript(str_ref, db_ref);
         //SG_ASSERT(str == str_ref);
+    }
+
+    char const* filenames_errors[] = {
+        "src:/ObjectScript/UnitTests/Errors/Test_Errors.os"
+    };
+    for(char const* filename : AsArrayView(filenames_errors))
+    {
+        SG_LOG_INFO("Test", Format("Testing file: %0", filename));
+        ErrorHandler errorHandler;
+        reflection::ObjectDatabase db;
+        {
+            bool const ok = ReadObjectScriptROK(FilePath(filename), db, errorHandler);
+            SG_ASSERT(errorHandler.DidErrorHappen() && !ok);
+        }
+        SG_LOG_DEBUG("Test", errorHandler.GetErrorMessage().c_str());
     }
 
     filesystem::Shutdown();

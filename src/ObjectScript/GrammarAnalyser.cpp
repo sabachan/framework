@@ -220,8 +220,10 @@ void GrammarAnalyser::PushError(ErrorType iErrorType, Token const& iToken, char 
 {
     Error err;
     err.type = iErrorType;
+    err.filebegin = iToken.filebegin;
     err.begin = iToken.begin;
     err.end = iToken.end;
+    err.fileid = iToken.fileid;
     err.col = iToken.col;
     err.line = iToken.line;
     err.msg = msg;
@@ -724,7 +726,9 @@ bool GrammarAnalyser::ProcessGrammarConstructIFNReturnDone(Token const& iToken, 
                 case semanticTree::For::ConstructProgress::Begin:
                     if(m_stack.back().semanticNodes.empty())
                     {
-                        treeNode->SetInit(new semanticTree::NoOp);
+                        semanticTree::ITreeNode* noop = new semanticTree::NoOp;
+                        noop->SetToken(iToken);
+                        treeNode->SetInit(noop);
                     }
                     else if(m_stack.back().semanticNodes.size() == 1)
                     {
@@ -750,7 +754,9 @@ bool GrammarAnalyser::ProcessGrammarConstructIFNReturnDone(Token const& iToken, 
                     if(m_stack.back().semanticNodes.empty())
                     {
                         // An empty condition means true
-                        treeNode->SetCond(new semanticTree::Value(new reflection::PrimitiveData<bool>(true)));
+                        semanticTree::ITreeNode* cond = new semanticTree::Value(new reflection::PrimitiveData<bool>(true));
+                        cond->SetToken(iToken);
+                        treeNode->SetCond(cond);
                     }
                     else
                     {
@@ -786,7 +792,9 @@ bool GrammarAnalyser::ProcessGrammarConstructIFNReturnDone(Token const& iToken, 
                 case semanticTree::For::ConstructProgress::Cond:
                     if(node.subTreeNodes.empty())
                     {
-                        treeNode->SetIncr(new semanticTree::NoOp);
+                        semanticTree::ITreeNode* noop = new semanticTree::NoOp;
+                        noop->SetToken(iToken);
+                        treeNode->SetIncr(noop);
                     }
                     else
                     {
@@ -1448,6 +1456,7 @@ void GrammarAnalyser::ProcessToken(Token const& iToken, bool hasSeparatorBefore,
     case TokenType::keyword_break:
         ForceSolve(iToken);
         m_stack.back().semanticNodes.emplace_back(new semanticTree::Break());
+        m_stack.back().semanticNodes.back().treeNode->SetToken(iToken);
         break;
     case TokenType::keyword_const:
         ForceSolve(iToken);
@@ -1490,7 +1499,9 @@ void GrammarAnalyser::ProcessToken(Token const& iToken, bool hasSeparatorBefore,
         SolveOnValueIFN(iToken);
         ProcessOperator(iToken, OperatorTraitsIndexGetter<TokenType::keyword_public>::index());
         break;
-    case TokenType::keyword_return: ProcessOperator(iToken, OperatorTraitsIndexGetter<TokenType::keyword_return>::index()); break;
+    case TokenType::keyword_return:
+        ProcessOperator(iToken, OperatorTraitsIndexGetter<TokenType::keyword_return>::index());
+        break;
     case TokenType::keyword_private:
         SolveOnValueIFN(iToken);
         ProcessOperator(iToken, OperatorTraitsIndexGetter<TokenType::keyword_private>::index());
@@ -1498,6 +1509,7 @@ void GrammarAnalyser::ProcessToken(Token const& iToken, bool hasSeparatorBefore,
     case TokenType::keyword_continue:
         ForceSolve(iToken);
         m_stack.back().semanticNodes.emplace_back(new semanticTree::Continue());
+        m_stack.back().semanticNodes.back().treeNode->SetToken(iToken);
         break;
     case TokenType::keyword_function:
         ForceSolve(iToken);
@@ -1516,6 +1528,7 @@ void GrammarAnalyser::ProcessToken(Token const& iToken, bool hasSeparatorBefore,
     case TokenType::keyword_intrinsic:
         SolveOnValueIFN(iToken);
         m_stack.back().semanticNodes.emplace_back(new semanticTree::IntrinsicKeyword());
+        m_stack.back().semanticNodes.back().treeNode->SetToken(iToken);
         break;
     case TokenType::keyword_namespace:
         ForceSolve(iToken);
@@ -1691,6 +1704,11 @@ void GrammarAnalyser::Solve(Token const& iToken, size_t iLastOperatorIndex)
             case Arrity::PrefixUnary:
                 SG_ASSERT(node.subTreeNodes.empty());
                 {
+                    if(stackNode.semanticNodes.size() < i+2)
+                    {
+                        PushError(ErrorType::missing_term_after_prefix_operator, node.treeNode->GetToken(), "missing term after prefix operator");
+                        return;
+                    }
                     SG_ASSERT(i+2 == stackNode.semanticNodes.size());
                     SemanticNode& right = stackNode.semanticNodes[i+1];
                     SG_ASSERT(-1 == right.operatorTraitsIndexIfIncomplete);

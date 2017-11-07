@@ -29,7 +29,7 @@ public:
 private:
     virtual void VirtualOnDraw(ui::DrawContext const& iContext) override;
     virtual void VirtualUpdatePlacement() override;
-    virtual ui::Component* AsComponent() override { return this; }
+    virtual ui::Component* VirtualAsComponent() override { return this; }
 private:
     ui::FrameProperty m_frameProperty;
     ui::ParagraphStyle m_paragraphStyle;

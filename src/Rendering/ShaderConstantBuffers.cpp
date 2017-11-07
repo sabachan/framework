@@ -114,7 +114,7 @@ void ShaderConstantBuffers::UpdateIFN(RenderDevice const* iRenderDevice, ID3D11S
                     //{
                     //    std::ostringstream oss;
                     //    oss << "Shader variable " << varDesc.Name << " has not the correct type." << std::endl;
-                    //    SG_LOG_WARNING(oss.str().c_str());
+                    //    SG_LOG_WARNING("Rendering/Shader", oss.str().c_str());
                     //}
 
                     constant->WriteInBuffer((u8*)mapped.pData + startOffset, size);
@@ -181,7 +181,7 @@ void ShaderConstantBuffers::CreateBuffers(RenderDevice const* iRenderDevice, ID3
             {
                 std::ostringstream oss;
                 oss << "Shader variable " << varDesc.Name << " is not used." << std::endl;
-                SG_LOG_WARNING(oss.str().c_str());
+                SG_LOG_WARNING("Rendering/Shader", oss.str().c_str());
             }
         }
     }

@@ -30,7 +30,7 @@ bool HandleAssertFailedReturnMustBreak(char const* iExpr,
     oss << "in " << iFctName << " (" << iFile << ":" << iLine << ")." << std::endl;
     if(nullptr != iMsg)
         oss << std::endl << iMsg << std::endl;
-    SG_LOG_ERROR(oss.str().c_str());
+    SG_LOG_ERROR("Assert", oss.str().c_str());
 
     static std::unordered_set<size_t> toIgnore;
     if(!toIgnore.empty())
