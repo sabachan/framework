@@ -1,5 +1,5 @@
-#ifndef Rendering_ShaderResource_H
-#define Rendering_ShaderResource_H
+#ifndef Rendering_IShaderResource_H
+#define Rendering_IShaderResource_H
 
 #include <Core/SmartPtr.h>
 

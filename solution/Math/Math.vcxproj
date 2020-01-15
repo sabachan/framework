@@ -349,11 +349,6 @@
     <ClInclude Include="..\..\src\Math\Quaternion.h" />
     <ClInclude Include="..\..\src\Math\stdafx.h" />
   </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\Core\Core.vcxproj">
-      <Project>{d102ece8-5875-4b91-8d63-b1ad580d37b1}</Project>
-    </ProjectReference>
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

@@ -12,7 +12,10 @@ math::Matrix<T, dim_m, dim_n, order> InternalRotation(math::TemplateQuaternion<T
     static_assert(3 <= dim_m && dim_m <= 4 && dim_m == dim_n, "dimension must be 3x3 or 4x4");
     static_assert(math::MatrixOrder::RowMajor == order, "only row major order is currently supported");
 
-    SG_ASSERT(abs(T(1) - iQuaternion.NormSq()) < std::numeric_limits<T>::epsilon() * T(10));
+#if SG_ENABLE_ASSERT
+    T const normSq = iQuaternion.NormSq();
+    SG_ASSERT(abs(T(1) - normSq) < std::numeric_limits<T>::epsilon() * T(10));
+#endif
     math::Matrix<T, dim_m, dim_n, order> m = math::Matrix<T, dim_m, dim_n, order>(uninitialized);
     T const w = iQuaternion.a();
     T const x = iQuaternion.b();

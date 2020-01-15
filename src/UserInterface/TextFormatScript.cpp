@@ -91,18 +91,23 @@ void OpenScopedInstruction(VectorOfScopedPtr<ITextModifier const>& oModifiers, T
             SG_ASSERT_NOT_REACHED();
             break;
         case TFSInstruction::Type::Style:
-            {
-                TFSStyle const* inst = checked_cast<TFSStyle const*>(instruction);
+        {
+            TFSStyle const* inst = checked_cast<TFSStyle const*>(instruction);
 #if 1
-                ITextModifier const* modifierBack = oModifiers.empty() ? nullptr : oModifiers.back();
-                if(nullptr != modifierBack && modifierBack->GetType() == ITextModifier::Type::StylePop && modifierBack->Position() == pos)
-                    oModifiers.pop_back();
-                else
+            ITextModifier const* modifierBack = oModifiers.empty() ? nullptr : oModifiers.back();
+            if(nullptr != modifierBack && modifierBack->GetType() == ITextModifier::Type::StylePop && modifierBack->Position() == pos)
+                oModifiers.pop_back();
+            else
 #endif
-                    oModifiers.push_back(new TextModifier_StylePush(pos));
-                oModifiers.push_back(new TextModifier_StyleChange(inst->GetStyle(), pos));
-            }
+                oModifiers.push_back(new TextModifier_StylePush(pos));
+            oModifiers.push_back(new TextModifier_StyleChange(inst->GetStyle(), pos));
             break;
+        }
+        case TFSInstruction::Type::Skip:
+        {
+            oModifiers.push_back(new TextModifier_HidePush(pos));
+            break;
+        }
         default:
             SG_ASSUME_NOT_REACHED();
         }
@@ -125,6 +130,11 @@ void CloseInstructionScope(VectorOfScopedPtr<ITextModifier const>& oModifiers, s
                 oModifiers.push_back(new TextModifier_StylePop(pos));
             }
             break;
+        case TFSInstruction::Type::Skip:
+        {
+            oModifiers.push_back(new TextModifier_HidePop(pos));
+            break;
+        }
         default:
             SG_ASSUME_NOT_REACHED();
         }
@@ -207,8 +217,7 @@ void RunTextFormatScript(VectorOfScopedPtr<ITextModifier const>& oModifiers, std
 TextFormatScript::TextFormatScript(auto_initialized_t)
     : TextFormatScript()
 {
-    reflection::ObjectCreationContext context;
-    EndCreationIFN(context);
+    EndAutoCreation();
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 void TextFormatScript::Run(VectorOfScopedPtr<ITextModifier const>& oModifiers, std::wstring const& iStr) const
@@ -244,6 +253,10 @@ REFLECTION_ABSTRACT_CLASS_BEGIN((sg,ui), TFSInsert)
 REFLECTION_CLASS_DOC("")
 REFLECTION_CLASS_END
 //=============================================================================
+REFLECTION_CLASS_BEGIN((sg,ui), TFSSkip)
+REFLECTION_CLASS_DOC("Skip contained text")
+REFLECTION_CLASS_END
+//=============================================================================
 TFSStyle::TFSStyle()
     : TFSInstruction(TFSInstruction::Type::Style)
     , m_style()
@@ -254,8 +267,7 @@ TFSStyle::TFSStyle(TextStyle const& iStyle)
     : TFSInstruction(TFSInstruction::Type::Style)
     , m_style(iStyle)
 {
-    reflection::ObjectCreationContext context;
-    EndCreationIFN(context);
+    EndAutoCreation();
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 TFSStyle::~TFSStyle()

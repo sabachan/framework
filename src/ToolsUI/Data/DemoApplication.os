@@ -2,6 +2,7 @@ import "data:/scripts/lib/StandardApplication.oslib"
 
 StandardOffscreenCommon{}
 StandardToolsUICommon{}
+StandardCommonTools{}
 
 export compositing is sg::renderengine::CompositingDescriptor
 {

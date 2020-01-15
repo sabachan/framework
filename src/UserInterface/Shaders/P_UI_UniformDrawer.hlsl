@@ -11,6 +11,11 @@ struct p2f {
 
 void pmain(in v2p IN, out p2f OUT)
 {
+    float4 inCol = IN.Col;
+#if defined(APPLY_PREMULTIPLICATION) && APPLY_PREMULTIPLICATION
+    inCol.rgb *= inCol.a;
+#endif
+
     OUT.Col.rg = IN.Tex.xy;
     OUT.Col.b = 0;
     OUT.Col.a = 1;
@@ -20,7 +25,5 @@ void pmain(in v2p IN, out p2f OUT)
     float ratio = w/h;
     float2 wh = float2(w,h);
 
-    OUT.Col = IN.Col;
-    //OUT.Col.a = 1;
-    //OUT.Col = float4(1,0,0,1);
+    OUT.Col = inCol;
 }

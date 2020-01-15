@@ -5,7 +5,7 @@
 #include <Core/SmartPtr.h>
 #include <Core/ArrayView.h>
 
-#include <d3d11.h>
+#include "WTF/IncludeD3D11.h"
 
 struct ID3D11BlendState;
 struct ID3D11DepthStencilState;
@@ -16,10 +16,9 @@ namespace rendering {
 //=============================================================================
 class RenderStateDico;
 //=============================================================================
-class BlendStateDescriptor : public RefAndSafeCountable
+class BlendStateDescriptor : public SafeCountable
 {
 public:
-    BlendStateDescriptor() {}
     size_t Hash() const;
     bool Equals(BlendStateDescriptor const& b) const;
     D3D11_BLEND_DESC& GetWritableDesc() { return desc; }
@@ -29,10 +28,9 @@ private:
     D3D11_BLEND_DESC desc;
 };
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-class DepthStencilDescriptor : public RefAndSafeCountable
+class DepthStencilDescriptor : public SafeCountable
 {
 public:
-    DepthStencilDescriptor() {}
     size_t Hash() const;
     bool Equals(DepthStencilDescriptor const& b) const;
     D3D11_DEPTH_STENCIL_DESC& GetWritableDesc() { return desc; }
@@ -41,10 +39,9 @@ private:
     D3D11_DEPTH_STENCIL_DESC desc;
 };
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-class RasterizerStateDescriptor : public RefAndSafeCountable
+class RasterizerStateDescriptor : public SafeCountable
 {
 public:
-    RasterizerStateDescriptor() {}
     size_t Hash() const;
     bool Equals(RasterizerStateDescriptor const& b) const;
     D3D11_RASTERIZER_DESC& GetWritableDesc() { return desc; }

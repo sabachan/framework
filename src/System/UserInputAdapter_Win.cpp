@@ -314,7 +314,6 @@ LRESULT MouseAdapter::OnMouseWheel(Window* iWnd, UINT message, WPARAM wParam, LP
         CallReleaseCaptureIFN(iWnd);
 
     return 0;
-
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 LRESULT MouseAdapter::WndProc(Window* iWnd, UINT message, WPARAM wParam, LPARAM lParam, UserInputListenerList& iWndListeners, UserInputManager& iManager)
@@ -376,6 +375,15 @@ LRESULT MouseAdapter::WndProc(Window* iWnd, UINT message, WPARAM wParam, LPARAM 
     return 0;
 }
 //=============================================================================
+// Notes on some behaviors of keyboard on Windows
+// - AltGr key generates a Ctrl KeyDown, but not the associated KeyUp. After
+//   that the KeyDown and KeyUp for vk 18 are generated.
+// - Alt doesn't produce a standard KeyDown/KeyUp. Maybe a SysKeyDown/SysKeyUp.
+// - PrintScreen produces only a single KeyDown
+// - left and right shift share the same vk code, but not the same scan code.
+// - left and right ctrl share the same vk code and scan code, but left is
+//   marked as extended.
+//=============================================================================
 LRESULT KeyboardAdapter::OnKeyDown(Window* iWnd, UINT message, WPARAM wParam, LPARAM lParam, UserInputListenerList& iWndListeners, UserInputManager& iManager)
 {
     SG_UNUSED(message);
@@ -386,9 +394,29 @@ LRESULT KeyboardAdapter::OnKeyDown(Window* iWnd, UINT message, WPARAM wParam, LP
     bool const isExtended = 1 == ((lParam >> 24) & 0x1);
     bool const isRepeat = 1 == ((lParam >> 30) & 0x1);
 
+    SG_LOG_DEBUG("Input", Format("Key Down sc: %0 vk: %1 ext: %2 repeat: %3 (%4|%5)", int(scanCode), int(vkCode), isExtended?1:0, isRepeat?1:0, wParam, lParam));
+
+    SG_ASSERT(scanCode < scanCodeMaxCount);
+    if(scanCode < scanCodeMaxCount)
+    {
+        SG_CODE_FOR_ASSERT(bool const isControl = 29 == scanCode;)
+        SG_ASSERT(m_scanCodesState[scanCode] == isRepeat || isControl);
+        m_scanCodesState.set(scanCode, true);
+        m_scanCodesKnownState.set(scanCode, true);
+    }
+    SG_ASSERT(vkCode < vkCodeMaxCount);
+    if(vkCode < vkCodeMaxCount)
+    {
+        SG_CODE_FOR_ASSERT(bool const isShift = VK_SHIFT == vkCode;)
+        SG_CODE_FOR_ASSERT(bool const isControl = VK_CONTROL == vkCode;)
+        SG_ASSERT(m_vkCodesState[vkCode] == isRepeat || isControl || isShift);
+        m_vkCodesState.set(vkCode, true);
+        m_vkCodesKnownState.set(vkCode, true);
+    }
+
     u32 const entryId = scanCode | (isExtended << 8);
     u32 const additionalData = vkCode;
-    u32 const keyboardState = 0; // TODO
+    u64 const keyboardState = ComputeKeyboardState();
 
     UserInputEvent& event = iManager.CreatePushAndGetEvent(iWnd, &iWndListeners);
     event.SetDevice(UserInputDeviceType::Keyboard, 0);
@@ -408,22 +436,108 @@ LRESULT KeyboardAdapter::OnKeyUp(Window* iWnd, UINT message, WPARAM wParam, LPAR
     SG_UNUSED(repeatCount);
     bool const isExtended = 1 == ((lParam >> 24) & 0x1);
     bool const isRepeat = 1 == ((lParam >> 30) & 0x1);
-    SG_UNUSED(isRepeat);
+    SG_UNUSED(!isRepeat);
+
+    SG_LOG_DEBUG("Input", Format("Key Up   sc: %0 vk: %1 ext: %2 repeat: %3 (%4|%5)", int(scanCode), int(vkCode), isExtended?1:0, isRepeat?1:0, wParam, lParam));
+
+    SG_ASSERT(scanCode < scanCodeMaxCount);
+    if(scanCode < scanCodeMaxCount)
+    {
+        SG_ASSERT(m_scanCodesState[scanCode] || !m_scanCodesKnownState[vkCode]);
+        m_scanCodesState.set(scanCode, false);
+        m_scanCodesKnownState.set(scanCode, true);
+    }
+    SG_ASSERT(vkCode < vkCodeMaxCount);
+    if(vkCode < vkCodeMaxCount)
+    {
+        SG_ASSERT(m_vkCodesState[vkCode] || !m_vkCodesKnownState[vkCode]);
+        m_vkCodesState.set(vkCode, false);
+        m_vkCodesKnownState.set(vkCode, true);
+    }
 
     u32 const entryId = scanCode | (isExtended << 8);
-    u32 const keyboardState = 0; // TODO
+    u32 const additionalData = vkCode;
+    u64 const keyboardState = ComputeKeyboardState();
 
     UserInputEvent& event = iManager.CreatePushAndGetEvent(iWnd, &iWndListeners);
     event.SetDevice(UserInputDeviceType::Keyboard, 0);
     event.SetEntry(UserInputEventType::OnToOff, entryId);
-    event.SetAdditionalData(vkCode);
+    event.SetAdditionalData(additionalData);
     event.SetState(keyboardState);
     return 0;
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+LRESULT KeyboardAdapter::OnChar(Window* iWnd, UINT message, WPARAM wParam, LPARAM lParam, UserInputListenerList& iWndListeners, UserInputManager& iManager)
+{
+    SG_UNUSED(message);
+    wchar_t const charCode = checked_numcastable(wParam);
+    u8 const scanCode = (lParam >> 16) & 0xFF;
+    u16 const repeatCount = lParam & 0xFFFF;
+    SG_UNUSED(repeatCount);
+    bool const isExtended = 1 == ((lParam >> 24) & 0x1);
+    bool const isRepeat = 1 == ((lParam >> 30) & 0x1);
+    SG_UNUSED(!isRepeat);
+
+    SG_LOG_DEBUG("Input", Format("Char     sc: %0 ext: %1 repeat: %2 (%3|%4) char: %5 (%6)", int(scanCode), isExtended?1:0, isRepeat?1:0, wParam, lParam, std::wstring(&charCode, 1), int(charCode)));
+
+    //u32 const entryId = scanCode | (isExtended << 8);
+    u32 const additionalData = charCode;
+    u64 const keyboardState = ComputeKeyboardState();
+
+    UserInputEvent& event = iManager.CreatePushAndGetEvent(iWnd, &iWndListeners);
+    event.SetDevice(UserInputDeviceType::Keyboard, 0);
+    event.SetEntry(UserInputEventType::Message, 0);
+    event.SetAdditionalData(additionalData);
+    event.SetState(keyboardState);
+    return 0;
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+LRESULT KeyboardAdapter::OnKillFocus(Window* iWnd, UINT message, WPARAM wParam, LPARAM lParam, UserInputListenerList& iWndListeners, UserInputManager& iManager)
+{
+    SG_UNUSED((message, wParam, lParam));
+    m_vkCodesState.reset();
+    m_vkCodesKnownState.reset();
+    m_scanCodesState.reset();
+    m_scanCodesKnownState.reset();
+
+    UserInputEvent& event = iManager.CreatePushAndGetEvent(iWnd, &iWndListeners);
+    event.SetDevice(UserInputDeviceType::Keyboard, 0);
+    event.SetEntry(UserInputEventType::ResetDevice, 0);
+    event.SetAdditionalData(0);
+    event.SetState(0);
+    return 0;
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+LRESULT KeyboardAdapter::OnSetFocus(Window* iWnd, UINT message, WPARAM wParam, LPARAM lParam, UserInputListenerList& iWndListeners, UserInputManager& iManager)
+{
+    SG_UNUSED((iWnd, message, wParam, lParam, iWndListeners, iManager));
+    SG_ASSERT(m_vkCodesState.none());
+    SG_ASSERT(m_vkCodesKnownState.none());
+    SG_ASSERT(m_scanCodesState.none());
+    SG_ASSERT(m_scanCodesKnownState.none());
+    return 0;
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+u64 KeyboardAdapter::ComputeKeyboardState() const
+{
+    KeyboardState state;
+    bool const lshift = m_vkCodesState[VK_LSHIFT];
+    bool const rshift = m_vkCodesState[VK_RSHIFT];
+    bool const shift = m_vkCodesState[VK_SHIFT];
+    state.SetModifier(KeyboardModifier::Shift, lshift || rshift || shift);
+    bool const lcontrol = m_vkCodesState[VK_LCONTROL];
+    bool const rcontrol = m_vkCodesState[VK_RCONTROL];
+    bool const control = m_vkCodesState[VK_CONTROL];
+    state.SetModifier(KeyboardModifier::Control, lcontrol || rcontrol || control);
+    bool const alt = m_vkCodesState[VK_MENU];
+    state.SetModifier(KeyboardModifier::Alt, alt);
+    return state.Data();
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 LRESULT KeyboardAdapter::WndProc(Window* iWnd, UINT message, WPARAM wParam, LPARAM lParam, UserInputListenerList& iWndListeners, UserInputManager& iManager)
 {
-    SG_ASSERT(WM_KEYFIRST <= message && message <= WM_KEYLAST);
+    SG_ASSERT(WM_KEYFIRST <= message && message <= WM_KEYLAST
+        || WM_KILLFOCUS == message || WM_SETFOCUS == message);
     switch (message)
     {
     case WM_KEYDOWN:
@@ -431,6 +545,7 @@ LRESULT KeyboardAdapter::WndProc(Window* iWnd, UINT message, WPARAM wParam, LPAR
     case WM_KEYUP:
         return OnKeyUp(iWnd, message, wParam, lParam, iWndListeners, iManager);
     case WM_CHAR:
+        return OnChar(iWnd, message, wParam, lParam, iWndListeners, iManager);
         break;
     case WM_DEADCHAR:
         break;
@@ -443,6 +558,12 @@ LRESULT KeyboardAdapter::WndProc(Window* iWnd, UINT message, WPARAM wParam, LPAR
     case WM_SYSDEADCHAR:
         break;
     case WM_UNICHAR:
+        break;
+    case WM_KILLFOCUS:
+        return OnKillFocus(iWnd, message, wParam, lParam, iWndListeners, iManager);
+        break;
+    case WM_SETFOCUS:
+        return OnSetFocus(iWnd, message, wParam, lParam, iWndListeners, iManager);
         break;
     default:
         SG_ASSERT_NOT_REACHED();
@@ -457,7 +578,8 @@ LRESULT UserInputAdapter::WndProc(Window* iWnd, UINT message, WPARAM wParam, LPA
        || WM_MOUSEHOVER == message || WM_MOUSELEAVE == message
        || WM_CAPTURECHANGED == message)
         return m_mouseAdapter.WndProc(iWnd, message, wParam, lParam, iWndListeners, iManager);
-    if(WM_KEYFIRST <= message && message <= WM_KEYLAST)
+    if(WM_KEYFIRST <= message && message <= WM_KEYLAST
+        || WM_KILLFOCUS == message || WM_SETFOCUS == message)
         return m_keyboardAdapter.WndProc(iWnd, message, wParam, lParam, iWndListeners, iManager);
     return DefWindowProc(iWnd->hWnd(), message, wParam, lParam);
 }

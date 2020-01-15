@@ -31,8 +31,10 @@
 
 #define Include_DeclareMetaclasses
 #include <Applications/AppUtils/DeclareMetaclasses.h>
+#include <ObjectScript/DeclareMetaclasses.h>
 #include <Reflection/DeclareMetaclasses.h>
 #include <RenderEngine/DeclareMetaclasses.h>
+#include <Tools/CommonTools/DeclareMetaclasses.h>
 #include <ToolsUI/DeclareMetaclasses.h>
 #include <UserInterface/DeclareMetaclasses.h>
 #undef Include_DeclareMetaclasses
@@ -69,8 +71,14 @@ void Shutdown()
 
 sg::ArrayView<sg::ApplicationDescriptor> GetApplicationDescriptors();
 
+template <void (*Fct)()>
+void CallFunction(void*)
+{
+    Fct();
+}
+
 template <typename T>
-void LaunchApplication()
+void LaunchApplication(void*)
 {
     Init();
     {
@@ -81,7 +89,7 @@ void LaunchApplication()
 }
 
 template <void (*Fct)()>
-void LaunchApplication()
+void LaunchApplication(void*)
 {
     Init();
     {
@@ -91,41 +99,41 @@ void LaunchApplication()
 }
 
 size_t g_nextAppIndex = 0;
-template <>
-void LaunchApplication<sg::ApplicationLauncher>()
+template <typename T>
+void LaunchApplicationLauncher(void*)
 {
     Init();
     {
-        sg::ApplicationLauncher app;
+        T app;
         g_nextAppIndex = app.RunReturnNextAppIndex(GetApplicationDescriptors());
     }
     Shutdown();
 }
 
-void RunAllApplications()
+void RunAllApplications(void*)
 {
     sg::ArrayView<sg::ApplicationDescriptor> descs = GetApplicationDescriptors();
     for_range(size_t, i, 2, descs.size())
     {
-        descs[i].launch();
+        descs[i].launch(descs[i].arg);
     }
 }
 
 void Quit() { g_nextAppIndex = -1; }
 
 sg::ApplicationDescriptor applicationDescriptors[] = {
-    { "Application Launcher",   LaunchApplication<sg::ApplicationLauncher> },
-    { "Run all applications",   RunAllApplications },
+    { "Launchers/App launcher V2",      LaunchApplicationLauncher<sg::ApplicationLauncherV2> },
+    { "Launchers/App launcher V1",      LaunchApplicationLauncher<sg::ApplicationLauncher> },
 #if SG_ENABLE_UNIT_TESTS
-    { "Run fast unit tests",    sg::RunFastUnitTests },
-    { "Run all unit tests",     sg::RunAllUnitTests },
-    { "Run perf tests",         sg::RunPerfUnitTests },
+    { "Tests/Run fast unit tests",      CallFunction<sg::RunFastUnitTests> },
+    { "Tests/Run all unit tests",       CallFunction<sg::RunAllUnitTests> },
+    { "Tests/Run perf tests",           CallFunction<sg::RunPerfUnitTests> },
 #endif
 #if SG_ENABLE_TOOLS
-    { "Generate fonts code",    LaunchApplication<sg::image::tool::GenerateFontCodes> },
-    { "Demo ToolsUI",           LaunchApplication<sg::toolsui::DemoApplication> },
+    { "Tools/Generate fonts code",      LaunchApplication<sg::image::tool::GenerateFontCodes> },
+    { "Demos/ToolsUI",                  LaunchApplication<sg::toolsui::DemoApplication> },
 #endif
-    { "Quit",                   Quit },
+    { "Quit",                           CallFunction<Quit> },
 };
 
 sg::ArrayView<sg::ApplicationDescriptor> GetApplicationDescriptors()
@@ -154,7 +162,7 @@ int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
         SG_ASSERT(g_nextAppIndex < SG_ARRAYSIZE(applicationDescriptors));
         size_t const  appIndex = g_nextAppIndex;
         g_nextAppIndex = 0;
-        applicationDescriptors[appIndex].launch();
+        applicationDescriptors[appIndex].launch(applicationDescriptors[appIndex].arg);
         SG_ASSERT(g_nextAppIndex == -1 || g_nextAppIndex < SG_ARRAYSIZE(applicationDescriptors));
     } while(-1 != g_nextAppIndex);
 

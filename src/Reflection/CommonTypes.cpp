@@ -61,6 +61,20 @@ namespace reflection {
         REFLECTION_NAMED_PROPERTY_DOC(_[3], w, "w coordinate")
     REFLECTION_TYPE_WRAPPER_END
 
+    REFLECTION_TYPE_WRAPPER_BEGIN(quaternion)
+        REFLECTION_TYPE_DOC("quaternion")
+        REFLECTION_NAMED_PROPERTY_DOC(m_values[0], a, "real part")
+        REFLECTION_NAMED_PROPERTY_DOC(m_values[1], b, "imaginary part along i")
+        REFLECTION_NAMED_PROPERTY_DOC(m_values[2], c, "imaginary part along j")
+        REFLECTION_NAMED_PROPERTY_DOC(m_values[3], d, "imaginary part along k")
+    REFLECTION_TYPE_WRAPPER_END
+
+    REFLECTION_TYPE_WRAPPER_BEGIN(box2i)
+        REFLECTION_TYPE_DOC("2D box")
+        REFLECTION_PROPERTY(min)
+        REFLECTION_PROPERTY(max)
+    REFLECTION_TYPE_WRAPPER_END
+
     REFLECTION_TYPE_WRAPPER_BEGIN(Color3f)
         REFLECTION_TYPE_DOC("Color RGB as floats")
         REFLECTION_NAMED_PROPERTY_DOC(m_data._[0], r, "r component")

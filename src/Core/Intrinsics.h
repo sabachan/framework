@@ -122,6 +122,31 @@ SG_FORCE_INLINE size_t GetLargestPowerOf2LessThan(size_t i)
 #endif
 }
 //=============================================================================
+SG_FORCE_INLINE u64 GetPopCount(u16 i)
+{
+#if SG_ARCH_IS_X64
+    return __popcnt16(i);
+#else
+#error "not implemented"
+#endif
+}
+SG_FORCE_INLINE u32 GetPopCount(u32 i)
+{
+#if SG_ARCH_IS_X64
+    return __popcnt(i);
+#else
+#error "not implemented"
+#endif
+}
+SG_FORCE_INLINE u64 GetPopCount(u64 i)
+{
+#if SG_ARCH_IS_X64
+    return __popcnt64(i);
+#else
+#error "not implemented"
+#endif
+}
+//=============================================================================
 } // namespace sg
 
 #endif

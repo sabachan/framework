@@ -2,25 +2,7 @@
 
 #include "CompositingLayer.h"
 
-#include <Core/Log.h>
-#include <Reflection/CommonTypes.h>
-#include <Rendering/RenderDevice.h>
-#include <Rendering/RenderBatch.h>
-#include <Rendering/RenderStateUtils.h>
-#include <Rendering/ShaderConstantBuffers.h>
-#include <Rendering/ShaderConstantDatabase.h>
-#include <Rendering/ShaderResourceBuffer.h>
-#include <Rendering/Surface.h>
-#include <Rendering/VertexTypes.h>
-#include <algorithm>
-#include <d3d11.h>
-#include <d3d11shader.h>
 #include "Compositing.h"
-#include "DatabaseDescriptors.h"
-#include "RenderBatch.h"
-#include "ShaderDescriptors.h"
-#include "SurfaceDescriptors.h"
-#include <algorithm>
 
 namespace sg {
 namespace renderengine {
@@ -38,14 +20,14 @@ CompositingLayer::~CompositingLayer()
     m_dico.Clear(&m_instructions);
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-void CompositingLayer::Register(rendering::IRenderBatch* iInstruction)
+void CompositingLayer::Register(rendering::IRenderBatch* iInstruction, rendering::RenderBatchPassId iPassId)
 {
-    m_instructions.Insert(iInstruction);
+    m_instructions.Insert(iInstruction, iPassId);
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-void CompositingLayer::Unregister(rendering::IRenderBatch* iInstruction)
+void CompositingLayer::Unregister(rendering::IRenderBatch* iInstruction, rendering::RenderBatchPassId iPassId)
 {
-    m_instructions.Remove(iInstruction);
+    m_instructions.Remove(iInstruction, iPassId);
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 rendering::TransientRenderBatch* CompositingLayer::GetOrCreateTransientRenderBatch(

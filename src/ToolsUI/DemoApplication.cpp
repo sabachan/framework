@@ -11,12 +11,15 @@
 #include "Label.h"
 #include "ScrollingContainer.h"
 #include "Slider.h"
+#include "TextField.h"
+#include "TreeView.h"
 #include "Window.h"
 #include <Core/Log.h>
 #include <Core/PerfLog.h>
 #include <Core/Singleton.h>
 #include <Core/StringFormat.h>
 #include <Core/StringUtils.h>
+#include <Core/Tool.h>
 #include <Reflection/ObjectDatabase.h>
 #include <RenderEngine/Compositing.h>
 #include <RenderEngine/CompositingLayer.h>
@@ -103,9 +106,9 @@ void DemoApplication::Run()
 
     ArrayView<rendering::IShaderResource*> const inputSurfaces;
     ArrayView<rendering::IRenderTarget*> const outputSurfaces = AsArrayView(renderTargets);
-    rendering::IShaderConstantDatabase* constantDatabases_data[] = { m_shaderConstantDatabase.get() };
-    ArrayView<rendering::IShaderConstantDatabase*> const constantDatabases = AsArrayView(constantDatabases_data);
-    ArrayView<rendering::IShaderResourceDatabase*> const resourceDatabases;
+    rendering::IShaderConstantDatabase const* constantDatabases_data[] = { m_shaderConstantDatabase.get() };
+    ArrayView<rendering::IShaderConstantDatabase const*> const constantDatabases = AsArrayView(constantDatabases_data);
+    ArrayView<rendering::IShaderResourceDatabase const*> const resourceDatabases;
     refptr<renderengine::ICompositing> compositing = compositingDesc->CreateInstance(m_renderDevice.get(), inputSurfaces, outputSurfaces, constantDatabases, resourceDatabases);
     m_compositing = compositing;
 
@@ -121,7 +124,7 @@ void DemoApplication::Run()
     Window* w = new Window;
     w->SetTitle(L"A Window");
     w->SetInfo(L"This is really a beautiful window, it even comes with an info box!");
-    w->SetClientSize(float2(60, 30));
+    w->SetClientSize(float2(60, 300));
     w->SetClientOffset(float2(50, 50));
     //w->SetMinClientSizeRelativeToContent(ui::Relative(float2(1,1)));
     w->SetMinClientSize_RelativeToContent(ui::Relative(float2(1,0)) + ui::Magnifiable(float2(0,40)));
@@ -130,17 +133,60 @@ void DemoApplication::Run()
     whnd.Show(true);
 
     //m_uiRoot->AddComponent(w);
-    ui::VerticalListLayout::Properties listprop;
-    listprop.margins.left = ui::Magnifiable(4);
-    listprop.margins.top = ui::Magnifiable(4);
-    listprop.margins.right = ui::Magnifiable(4);
-    listprop.margins.bottom = ui::Magnifiable(4);
-    listprop.margins.interItem = ui::Magnifiable(5);
-    listprop.widthFitMode = ui::FitMode::FitToMaxContentAndFrame;
-    //listprop.widthFitMode = ui::FitMode::FitToContentOnly;
-    ui::VerticalListLayout* list = new ui::VerticalListLayout(common.GetMagnifier(), listprop);
+    ui::VerticalListLayout* list = new ui::VerticalListLayout(common.GetMagnifier(), common.VerticalListProperties());
     //m_uiRoot->AddComponent(list);
     list->AppendItem(new Label(L"Hello world!"));
+
+    Foldable* foldable = new Foldable();
+    SG_CODE_FOR_TOOLS(foldable->SetNameForTools("foldable");)
+    foldable->SetNonFoldableContent(new Label(L"Tree 0"));
+    foldable->SetFoldableContent(new Label(L"This content is not visible when folded but, now, it's unfolded."));
+    list->AppendItem(foldable);
+    Foldable* foldable1 = new Foldable();
+    SG_CODE_FOR_TOOLS(foldable1->SetNameForTools("foldable1");)
+    foldable1->SetNonFoldableContent(new Label(L"Long description for a simple foldable component"));
+    FoldableList* foldable2 = new FoldableList();
+    SG_CODE_FOR_TOOLS(foldable2->SetNameForTools("foldable2");)
+    foldable2->SetNonFoldableContent(new Label(L"A foldable list"));
+    FoldableList* foldable3 = new FoldableList();
+    SG_CODE_FOR_TOOLS(foldable3->SetNameForTools("foldable3");)
+    foldable3->SetFraming(Foldable::NoFrame);
+    //foldable3->SetNonFoldableContent(new Label(L"Sub list 1"));
+    foldable3->SetNonFoldableContent(new TextButton(L"Sub list 1"));
+    foldable3->AppendFoldableContent(new Label(L"This content was folded 3 times, but you managed to unfold it!"));
+    foldable3->AppendFoldableContent(new Label(L"Bravo!"));
+    foldable2->AppendFoldableContent(foldable3);
+    FoldableList* foldable4 = new FoldableList();
+    SG_CODE_FOR_TOOLS(foldable4->SetNameForTools("foldable3");)
+    foldable4->SetNonFoldableContent(new Label(L"Sub list 2"));
+    foldable4->AppendFoldableContent(new Label(L"Hey!"));
+    foldable2->AppendFoldableContent(foldable4);
+    foldable2->AppendFoldableContent(new Label(L"End of the foldable List"));
+    foldable1->SetFoldableContent(foldable2);
+    list->AppendItem(foldable1);
+
+    TreeView* treeView = new TreeView();
+    list->AppendItem(treeView);
+
+    treeView->Insert("Root/Toto/Field1", new Label(L"Field 1"));
+    treeView->Insert("Root/Toto/Field2", new Label(L"Field 2"));
+    treeView->Insert("Root/Tata", new Label(L"Tata overriden"));
+    treeView->Insert("Root/Tata/Field1", new Label(L"Field 1"));
+    treeView->Insert("Root/Tata/Field2", new TextField(L"Field 2"));
+    treeView->Insert("Root/Titi/Field1", new Label(L"Field 1"));
+    treeView->Insert("Root/Titi/Field2", new Label(L"Field 2"));
+
+    treeView->Remove("Root/Tata");
+    treeView->Remove("Root/Toto/Field1");
+    treeView->Remove("Root/Titi/Field1");
+    treeView->Remove("Root/Titi/Field2");
+
+    list->AppendItem(new Label(ConvertUTF8ToUCS2("#kanji{鯖ちゃん}")));
+    list->AppendItem(new Label(ConvertUTF8ToUCS2("#small{a small label}")));
+    list->AppendItem(new Label(ConvertUTF8ToUCS2("#xsmall{an extra small label}")));
+    list->AppendItem(new Label(ConvertUTF8ToUCS2("#xsmall{portez un wisky au vieux juge blond qui fume la pipe}")));
+    list->AppendItem(new Label(ConvertUTF8ToUCS2("#xsmall{ctrl + C}")));
+    list->AppendItem(new Label(ConvertUTF8ToUCS2("#xsmall{ctrl + M}")));
     list->AppendItem(new TextButton(L"Button"));
     list->AppendItem(new TextButton(L"Button with a lot of text that may need to be split into multiple lines if it exceeds the width of the container."));
     list->AppendItem(new TextButton(L"Another button, with a long-big-word-with-a-lot-of-letters that may go out of the frame."));
@@ -153,7 +199,7 @@ void DemoApplication::Run()
 
     w->SetContent(sc);
 
-    ui::VerticalListLayout* list2 = new ui::VerticalListLayout(common.GetMagnifier(), listprop);
+    ui::VerticalListLayout* list2 = new ui::VerticalListLayout(common.GetMagnifier(), common.VerticalListProperties());
     for_range(size_t, i, 0, 100)
         list2->AppendItem(new Label(ConvertUTF8ToUCS2(Format("Label %0", i))));
 
@@ -168,6 +214,8 @@ void DemoApplication::Run()
     list->AppendExpansibleItem(sc2, ui::Magnifiable(100), 1);
 
     list->AppendItem(new TextCheckBox(L"A second check box"));
+    list->AppendItem(new TextField(L"Please write me"));
+    list->AppendItem(new TextField(L"Write me too"));
 
     system::WindowedApplication::Run();
 
@@ -189,7 +237,7 @@ void DemoApplication::VirtualOnNotified(ObservableValue<uint2> const* iObservabl
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 void DemoApplication::VirtualOneTurn()
 {
-    CPU_PERF_LOG_SCOPE(0);
+    SG_CPU_PERF_LOG_SCOPE(0);
 
 #if SG_ENABLE_TOOLS
     // TODO: Add a tool option.
@@ -226,10 +274,12 @@ void DemoApplication::VirtualOneTurn()
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 void DemoApplication::OnUserInputEvent(system::UserInputEvent const& iEvent)
 {
-    // proto
-    system::KeyboardEntryAdapter const quitEntry(system::KeyboardKey::Escape, system::KeyboardLayout::UserLayout);
-    if(system::UserInputEventType::OffToOn == iEvent.EventType() && quitEntry.DoesMatch(iEvent))
+    system::KeyboardShortcutAdapter const quitEntry(system::KeyboardKey::Escape, indeterminate, indeterminate, indeterminate, system::KeyboardLayout::UserLayout);
+    if(quitEntry.IsTriggered(iEvent))
+    {
+        iEvent.SetMasked();
         PostQuitMessage(0);
+    }
 
     int a = 0;
 }

@@ -676,7 +676,9 @@ void Window::VirtualUpdatePlacement()
     float const lineThickness = styleGuide.GetLength(common.WindowLineThickness).Resolve(magnification, std::numeric_limits<float>::lowest());
     float const windowThickness = styleGuide.GetLength(common.MinManipulationThickness).Resolve(magnification, std::numeric_limits<float>::lowest());
 
-    float2 prevClientSize = m_requestedClientBox.Delta();
+    float2 const minClientSize0 = m_minClientSize.Resolve(magnification, float2(0));
+
+    float2 prevClientSize = componentwise::max(minClientSize0, m_requestedClientBox.Delta());
     float2 prevWindowSize = prevWindowBox.Delta();
     SG_CODE_FOR_ASSERT(size_t iter_count = 0;)
     for(;;)

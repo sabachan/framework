@@ -7,6 +7,10 @@
 
   <UIVisualizer ServiceId="{A452AFEA-3DF6-46BB-9177-C0B08F318025}" Id="1" MenuName="Add to Image Watch"/>
 
+  <Type Name="sg::image::AbstractImage&lt;*&gt;">
+    <UIVisualizer ServiceId="{A452AFEA-3DF6-46BB-9177-C0B08F318025}" Id="1" />
+  </Type>
+
   <Type Name="sg::image::ImageView&lt;*&gt;">
     <UIVisualizer ServiceId="{A452AFEA-3DF6-46BB-9177-C0B08F318025}" Id="1" />
   </Type>
@@ -15,7 +19,7 @@
     <UIVisualizer ServiceId="{A452AFEA-3DF6-46BB-9177-C0B08F318025}" Id="1" />
   </Type>
 
-  <Type Name="sg::image::ImageView&lt;sg::math::Vector&lt;*,*&gt;&gt;">
+  <Type Name="sg::image::AbstractImage&lt;sg::math::Vector&lt;*,*&gt;&gt;">
     <Expand>
       <Synthetic Name="[type]">
         <DisplayString Condition='strcmp("unsigned char",  "$T1") == 0'>UINT8</DisplayString>
@@ -25,6 +29,13 @@
         <DisplayString Condition='strcmp("int",            "$T1") == 0'>INT32</DisplayString>
         <DisplayString Condition='strcmp("float",          "$T1") == 0'>FLOAT32</DisplayString>
         <DisplayString Condition='strcmp("double",         "$T1") == 0'>FLOAT64</DisplayString>
+        <DisplayString Condition='strcmp("unsigned char const ",  "$T1") == 0'>UINT8</DisplayString>
+        <DisplayString Condition='strcmp("char const ",           "$T1") == 0'>INT8</DisplayString>
+        <DisplayString Condition='strcmp("unsigned short const ", "$T1") == 0'>UINT16</DisplayString>
+        <DisplayString Condition='strcmp("short const ",          "$T1") == 0'>INT16</DisplayString>
+        <DisplayString Condition='strcmp("int const ",            "$T1") == 0'>INT32</DisplayString>
+        <DisplayString Condition='strcmp("float const ",          "$T1") == 0'>FLOAT32</DisplayString>
+        <DisplayString Condition='strcmp("double const ",         "$T1") == 0'>FLOAT64</DisplayString>
       </Synthetic>
       <Synthetic Name="[channels]" Condition='$T2 == 3'>
         <DisplayString>RGB</DisplayString>
@@ -42,7 +53,7 @@
     </Expand>
   </Type>
 
-  <Type Name="sg::image::ImageView&lt;*&gt;">
+  <Type Name="sg::image::AbstractImage&lt;*&gt;">
     <Expand>
       <Synthetic Name="[type]">
         <DisplayString Condition='strcmp("unsigned char",  "$T1") == 0'>UINT8</DisplayString>
@@ -52,6 +63,13 @@
         <DisplayString Condition='strcmp("int",            "$T1") == 0'>INT32</DisplayString>
         <DisplayString Condition='strcmp("float",          "$T1") == 0'>FLOAT32</DisplayString>
         <DisplayString Condition='strcmp("double",         "$T1") == 0'>FLOAT64</DisplayString>
+        <DisplayString Condition='strcmp("unsigned char const ",  "$T1") == 0'>UINT8</DisplayString>
+        <DisplayString Condition='strcmp("char const ",           "$T1") == 0'>INT8</DisplayString>
+        <DisplayString Condition='strcmp("unsigned short const ", "$T1") == 0'>UINT16</DisplayString>
+        <DisplayString Condition='strcmp("short const ",          "$T1") == 0'>INT16</DisplayString>
+        <DisplayString Condition='strcmp("int const ",            "$T1") == 0'>INT32</DisplayString>
+        <DisplayString Condition='strcmp("float const ",          "$T1") == 0'>FLOAT32</DisplayString>
+        <DisplayString Condition='strcmp("double const ",         "$T1") == 0'>FLOAT64</DisplayString>
       </Synthetic>
       <Synthetic Name="[channels]"><DisplayString>1</DisplayString></Synthetic>
       <Item Name="[width]">m_size._[0]</Item>

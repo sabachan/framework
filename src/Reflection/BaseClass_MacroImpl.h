@@ -2,6 +2,9 @@
 #error "this file must be included only by BaseClass.h"
 #endif
 
+#include <Core/Log.h>
+#include <Core/StringFormat.h>
+
 #include <Core/Preprocessor.h>
 #include <cstddef>
 #include <type_traits>
@@ -64,10 +67,15 @@
 #define SG_REFLECTION_IMPL_COMMON_HEADER(TYPE, PARENT) \
     public: \
         static ::sg::reflection::Metaclass const* StaticGetMetaclass() { return s_sg_reflection_metaclassRegistrator.metaclass; } \
+        static void sg_reflection_DeclareMetaclass() { \
+            SG_LOG_INFO("reflection", "declare " #TYPE); \
+            SG_ASSERT_MSG(!s_sg_reflection_isMetaclassDeclared, "metaclass already declared"); \
+            s_sg_reflection_isMetaclassDeclared = true; } \
     private: \
         typedef STRIP_PARENTHESIS(TYPE) reflection_this_type; \
         typedef STRIP_PARENTHESIS(PARENT) reflection_parent_type; \
         static ::sg::reflection::Metaclass* sg_reflection_CreateMetaclass(::sg::reflection::MetaclassRegistrator* iRegistrator); \
+        static bool s_sg_reflection_isMetaclassDeclared; \
     protected: \
         static ::sg::reflection::MetaclassRegistrator s_sg_reflection_metaclassRegistrator; \
     private:
@@ -108,6 +116,7 @@
 #define SG_REFLECTION_IMPL_DEFINE_force_registration(TYPE, NAME) \
     ::sg::reflection::Metaclass const* sg_reflection_force_metaclass_registration_for_##NAME() \
     { \
+        STRIP_PARENTHESIS(TYPE)::sg_reflection_DeclareMetaclass(); \
         return STRIP_PARENTHESIS(TYPE)::StaticGetMetaclass(); \
     } \
 
@@ -115,17 +124,24 @@
     static_assert(ISCLASS || (!ISCONCRETE), "ISCONCRETE must be set to false when ISCLASS is false" ); \
     static_assert(!std::is_polymorphic<SG_REFLECTION_IMPL_FULL_TYPE(NS, TYPE) >::value || ISCLASS, \
         "A polymorphic class must derive from ::sg::reflection::BaseClass" ); \
+    namespace { \
     char const*const sg_reflection_namespace_##NAME [] = SG_REFLECTION_IMPL_NAMESPACE_AS_STR_ARRAY(NS); \
-    TEMPLATE_PREFIX ::sg::reflection::MetaclassRegistrator STRIP_PARENTHESIS(TYPE)::s_sg_reflection_metaclassRegistrator( \
+    ::sg::reflection::MetaclassInfo const sg_reflection_metaclass_info_##NAME = { \
         sg_reflection_namespace_##NAME, \
         SG_ARRAYSIZE(sg_reflection_namespace_##NAME)-1, \
         #NAME, \
-        &SG_REFLECTION_IMPL_FULL_TYPE(NS, TYPE)::reflection_parent_type::s_sg_reflection_metaclassRegistrator, \
-        SG_REFLECTION_IMPL_FULL_TYPE(NS, TYPE)::sg_reflection_CreateMetaclass, \
         ISCLASS, \
         ISCONCRETE, \
         ENABLE_LIST, \
         ENABLE_STRUCT \
+    }; \
+    } \
+    TEMPLATE_PREFIX bool STRIP_PARENTHESIS(TYPE)::s_sg_reflection_isMetaclassDeclared = false; \
+    TEMPLATE_PREFIX ::sg::reflection::MetaclassRegistrator STRIP_PARENTHESIS(TYPE)::s_sg_reflection_metaclassRegistrator( \
+        &SG_REFLECTION_IMPL_FULL_TYPE(NS, TYPE)::reflection_parent_type::s_sg_reflection_metaclassRegistrator, \
+        SG_REFLECTION_IMPL_FULL_TYPE(NS, TYPE)::sg_reflection_CreateMetaclass, \
+        sg_reflection_metaclass_info_##NAME, \
+        SG_REFLECTION_IMPL_FULL_TYPE(NS, TYPE)::s_sg_reflection_isMetaclassDeclared \
     ); \
     SG_REFLECTION_IMPL_DEFINE_force_registration(TYPE, NAME) \
     IF_THEN(ISCONCRETE, SG_REFLECTION_IMPL_DEFINE_CreateObject(TYPE, NAME) ) \
@@ -228,18 +244,27 @@ namespace reflection {
 
 #define SG_REFLECTION_IMPL_TYPE_WRAPPER_HEADER(NS, TYPE, NAME) SG_REFLECTION_IMPL_DETAIL_TYPE_WRAPPER_HEADER(NS, TYPE, NAME)
 
+// TODO: How to remove the call for sg_reflection_wrapped_type_namespace_?
+
 #define SG_REFLECTION_IMPL_DETAIL_TYPE_WRAPPER_BEGIN(NAME) \
     ::sg::reflection::Metaclass* sg_reflection_CreateMetaclass_##NAME(MetaclassRegistrator* iRegistrator); \
+    namespace { \
+        ::sg::reflection::MetaclassInfo const sg_reflection_metaclass_info_##NAME = { \
+            sg_reflection_wrapped_type_namespace_##NAME().first, \
+            sg_reflection_wrapped_type_namespace_##NAME().second, \
+            #NAME, \
+            false, \
+            false, \
+            true, \
+            true \
+        }; \
+        bool s_sg_reflection_isMetaclassDeclared_##NAME = false; \
+    } \
     ::sg::reflection::MetaclassRegistrator sg_reflection_metaclassRegistratorWrapper_##NAME::metaclassRegistrator( \
-        sg_reflection_wrapped_type_namespace_##NAME().first, \
-        sg_reflection_wrapped_type_namespace_##NAME().second, \
-        #NAME, \
         &::sg::reflection::BaseType::s_sg_reflection_metaclassRegistrator, \
         sg_reflection_CreateMetaclass_##NAME, \
-        false, \
-        false, \
-        true, \
-        true \
+        sg_reflection_metaclass_info_##NAME, \
+        s_sg_reflection_isMetaclassDeclared_##NAME \
     ); \
     ::sg::reflection::Metaclass* sg_reflection_CreateMetaclass_##NAME(MetaclassRegistrator* iRegistrator) \
     { \

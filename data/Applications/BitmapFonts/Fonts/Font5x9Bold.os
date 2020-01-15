@@ -1289,7 +1289,7 @@ export font is sg::image::tool::Font
                 ""
         },
         {
-            character : "°"
+            character : "Â°"
             representation :
                 " . . . . . \n" +
                 " . . X . . \n" +

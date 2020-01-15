@@ -2,6 +2,8 @@
 
 #include "ShaderDescriptors.h"
 
+#include <Reflection/CommonTypes.h>
+
 namespace sg {
 namespace renderengine {
 //=============================================================================
@@ -28,6 +30,7 @@ REFLECTION_ABSTRACT_CLASS_BEGIN((sg, renderengine), BaseShaderDescriptor)
 REFLECTION_CLASS_DOC("")
     REFLECTION_m_PROPERTY_DOC(file, "")
     REFLECTION_m_PROPERTY_DOC(entryPoint, "")
+    REFLECTION_m_PROPERTY_DOC(defines, "")
 REFLECTION_CLASS_END
 //=============================================================================
 PixelShaderDescriptor::PixelShaderDescriptor()
@@ -42,7 +45,7 @@ rendering::PixelShaderProxy PixelShaderDescriptor::GetProxy() const
 {
     if(!m_proxy.IsValid() && IsValid())
     {
-        refptr<rendering::PixelShaderDescriptor> desc = new rendering::PixelShaderDescriptor(m_file, m_entryPoint);
+        refptr<rendering::PixelShaderDescriptor> desc = new rendering::PixelShaderDescriptor(m_file, m_entryPoint, m_defines.View());
         m_proxy = desc->GetProxy();
     }
     return m_proxy;
@@ -64,7 +67,7 @@ rendering::VertexShaderProxy VertexShaderDescriptor::GetProxy() const
 {
     if(!m_proxy.IsValid() && IsValid())
     {
-        rendering::VertexShaderDescriptor* desc = new rendering::VertexShaderDescriptor(m_file, m_entryPoint);
+        refptr<rendering::VertexShaderDescriptor> desc = new rendering::VertexShaderDescriptor(m_file, m_entryPoint);
         m_proxy = desc->GetProxy();
     }
     return m_proxy;

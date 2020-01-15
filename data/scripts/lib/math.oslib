@@ -1,0 +1,52 @@
+import "std.oslib"
+
+namespace math
+{
+    const e         = 2.71828182845904523536
+    const log2e     = 1.44269504088896340736
+    const log10e    = 0.434294481903251827651
+    const ln2       = 0.693147180559945309417
+    const ln10      = 2.30258509299404568402
+    const TAU       = 6.283185307179586476925
+    const PI        = 3.14159265358979323846
+    const PI_2      = 1.57079632679489661923
+    const PI_4      = 0.785398163397448309616
+    const _1_PI     = 0.318309886183790671538
+    const _2_PI     = 0.636619772367581343076
+    const _2_sqrtPI = 1.12837916709551257390
+    const sqrt2     = 1.41421356237309504880
+    const sqrt1_2   = 0.707106781186547524401
+
+    function sq(x)  { return x*x }
+    function abs(x) { return x < 0 ? -x : x }
+    function min(x, y) { return x < y ? x : y }
+    function max(x, y) { return x < y ? y : x }
+
+    function cos(x)         { return intrinsic("cos",       x) }
+    function sin(x)         { return intrinsic("sin",       x) }
+    function tan(x)         { return intrinsic("tan",       x) }
+    function acos(x)        { return intrinsic("acos",      x) }
+    function asin(x)        { return intrinsic("asin",      x) }
+    function atan(x)        { return intrinsic("atan",      x) }
+    function exp(x)         { return intrinsic("exp",       x) }
+    function log(x)         { return intrinsic("log",       x) }
+    function sqrt(x)        { return intrinsic("sqrt",      x) }
+    function isfinite(x)    { return intrinsic("isfinite",  x) }
+    function isinf(x)       { return intrinsic("isinf",     x) }
+    function isnan(x)       { return intrinsic("isnan",     x) }
+
+    function atan2(y, x)    { return intrinsic("atan2",  y, x) }
+
+    function lerp(a, b, t)
+    {
+        assert std::is_numeric(a)
+        assert std::is_numeric(b)
+        assert std::is_numeric(t)
+        const u = 1 - t
+        return a * u + b * t
+    }
+
+    namespace test
+    {
+    }
+}

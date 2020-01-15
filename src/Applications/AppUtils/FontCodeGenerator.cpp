@@ -6,8 +6,11 @@
 #include <Core/StringUtils.h>
 #include <Core/WinUtils.h>
 #include <Image/BitMapFont.h>
+#include <Image/ImageFromFile.h>
+#include <Image/ImageIteration.h>
 #include <ObjectScript/Reader.h>
 #include <Reflection/ObjectDatabase.h>
+#include <FileFormats/pnm.h>
 #include <iomanip>
 #include <sstream>
 #include <unordered_map>
@@ -18,12 +21,21 @@ namespace sg {
 namespace image {
 namespace tool {
 //=============================================================================
-REFLECTION_TYPE_BEGIN((sg,image,tool), Glyph)
+REFLECTION_TYPE_BEGIN((sg,image,tool), GlyphBase)
     REFLECTION_TYPE_DOC("")
     REFLECTION_PROPERTY_DOC(character, "")
     REFLECTION_PROPERTY_DOC(symbol, "")
-    REFLECTION_PROPERTY_DOC(representation, "")
     REFLECTION_PROPERTY_DOC(advanceReduction, "reduces advance for non-monospace font. It also assumes that glyph box is reduced for monospace display.")
+REFLECTION_TYPE_END
+//=============================================================================
+REFLECTION_TYPE_BEGIN((sg,image,tool), Glyph)
+    REFLECTION_TYPE_DOC("")
+    REFLECTION_PROPERTY_DOC(representation, "")
+REFLECTION_TYPE_END
+//=============================================================================
+REFLECTION_TYPE_BEGIN((sg,image,tool), ImageGlyph)
+    REFLECTION_TYPE_DOC("")
+    REFLECTION_PROPERTY_DOC(pos, "")
 REFLECTION_TYPE_END
 //=============================================================================
 REFLECTION_TYPE_BEGIN((sg,image,tool), Kerning)
@@ -64,8 +76,9 @@ namespace {
         }
         else
         {
-            SG_ASSERT(1 == rep.size());
-            return u8(rep.back());
+            std::wstring const wrep = ConvertUTF8ToUCS2(rep);
+            SG_ASSERT(1 == wrep.size());
+            return u32(wrep.back());
         }
     }
 }
@@ -112,7 +125,7 @@ void SymbolDictionary::Dump()
 
 #if SG_PLATFORM_IS_WIN
     bool ok = winutils::WriteFileOverwriteIFNROK(out.GetSystemFilePath(), reinterpret_cast<u8 const*>(oss.str().data()), oss.str().size());
-    SG_ASSERT(ok);
+    SG_ASSERT_AND_UNUSED(ok);
 #else
 #error todo
     SG_ASSERT_NOT_IMPLEMENTED();
@@ -136,20 +149,52 @@ Font::~Font()
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 void Font::GenerateCode(size_t index, std::string& datacode, std::string& fontcode, SymbolDictionary& symbols, size_t& memoryfootprint) const
 {
-    //==== Glyphs
+    //==== Template image
+    {
+        image::Image<u8> img((m_glyphSize + 2) * 32);
+        uint2 const glyphSize = m_glyphSize;
+        uint2 const frameSize = m_glyphSize + 2;
+        image::CoIterateWithPosition([frameSize, glyphSize](uint2 p, u8& o)
+        {
+            uint2 const q = p / frameSize;
+            uint2 const r = (p+frameSize+1) % frameSize;
+            o =  0; //(0 == ((q.x() + q.y()) % 2)) ? 0 : 16;
+            if(any(r < uint2(2)))
+                o = 64;
+        }, img.View());
+        FilePath filepath(Format("tmp:/fontTemplate%0x%1.pnm", m_glyphSize.x(), m_glyphSize.y()));
+        bool const ok = pnm::WriteGrayROK(filepath, img.Buffer(), img.BufferSizeInBytes(), img.Size().x(), img.Size().y(), img.StrideInBytes());
+        SG_ASSERT(ok);
+    }
 
-    size_t const glyphCount = m_glyphs.size();
+    //==== Glyphs
+    image::Image<u8> glyphsImage;
+    if(!m_glyphsImageFile.Empty())
+    {
+        image::ImageFromFile srcImage;
+        srcImage.Open(m_glyphsImageFile);
+        switch(srcImage.GetColorFormat())
+        {
+        case image::ImageFromFile::ColorFormat::Gray: image::ComputeFromCoIteration(glyphsImage, [](u8 p) { return p; }, srcImage.GetGreyViewIFP()); break;
+        case image::ImageFromFile::ColorFormat::RG:   image::ComputeFromCoIteration(glyphsImage, [](ubyte2 p) { return u8(roundi(p.x() * p.y() * (1.f/255))); }, srcImage.GetRGViewIFP()); break;
+        case image::ImageFromFile::ColorFormat::RGB:  image::ComputeFromCoIteration(glyphsImage, [](ubyte3 p) { return u8((dot(int3(p), int3(4, 10, 2)) + 8) / 16); }, srcImage.GetRGBViewIFP()); break;
+        case image::ImageFromFile::ColorFormat::RGBA: image::ComputeFromCoIteration(glyphsImage, [](ubyte4 p) { return u8(roundi(dot(float4(p), float4(0.2f, 0.7f, 0.1f, 0.f)) * p.w() * (1.f/255))); }, srcImage.GetRGBAViewIFP()); break;
+        default:
+            SG_ASSERT_NOT_REACHED();
+        }
+    }
+
+    size_t const totalGlyphCount = m_glyphs.size() + m_imageGlyphs.size();
 
     u32 maxCharCode = 0;
     std::vector<u32> charCodes;
     std::unordered_map<size_t, size_t> advanceReversePalette;
     std::vector<size_t> sortedGlyphIndices;
-    charCodes.reserve(glyphCount);
-    sortedGlyphIndices.reserve(glyphCount);
+    charCodes.reserve(totalGlyphCount);
+    sortedGlyphIndices.reserve(totalGlyphCount);
     bool is0defined = false;
-    for_range(size_t, i, 0, glyphCount)
+    auto handleGlyph = [&](GlyphBase const& glyph, size_t index)
     {
-        Glyph const& glyph = m_glyphs[i];
         u32 const c32 = GetCharFromRepresentation(glyph.character);
         if(0 == c32) is0defined = true;
         maxCharCode = std::max(maxCharCode, c32);
@@ -157,21 +202,32 @@ void Font::GenerateCode(size_t index, std::string& datacode, std::string& fontco
         SG_ASSERT(glyphAdvance <= 0xFF);
         advanceReversePalette.emplace(glyphAdvance, advanceReversePalette.size());
         charCodes.push_back(c32);
-        sortedGlyphIndices.push_back(i);
+        sortedGlyphIndices.push_back(index);
         if(!glyph.symbol.empty())
             symbols.Add(glyph.symbol, c32);
+    };
+    for_range(size_t, i, 0, m_glyphs.size())
+    {
+        Glyph const& glyph = m_glyphs[i];
+        handleGlyph(glyph, i);
+    }
+    size_t const imageGlyphStart = m_glyphs.size();
+    for_range(size_t, i, 0, m_imageGlyphs.size())
+    {
+        ImageGlyph const& glyph = m_imageGlyphs[i];
+        handleGlyph(glyph, i+imageGlyphStart);
     }
     SG_ASSERT_MSG(is0defined, "You must provide a representation for unknown character as a glyph for 0.");
 
     std::sort(sortedGlyphIndices.begin(), sortedGlyphIndices.end(), [&](size_t const& a, size_t const& b) { return charCodes[a] < charCodes[b]; });
 
     size_t const bitCountPerGlyph = m_glyphSize.x() * m_glyphSize.y();
-    size_t const bitCountForGlyphsData = glyphCount * bitCountPerGlyph;
+    size_t const bitCountForGlyphsData = totalGlyphCount * bitCountPerGlyph;
     std::vector<u64> glyphsData((bitCountForGlyphsData + 63) / 64, 0);
 
     size_t const charCodeSizeInBytes = maxCharCode > 0xFF ? maxCharCode > 0xFFFF ? 4 : 2 : 1;
     std::vector<u8> charCodesData;
-    charCodesData.reserve(glyphCount * charCodeSizeInBytes);
+    charCodesData.reserve(totalGlyphCount * charCodeSizeInBytes);
 
     std::vector<u8> advancePalette;
     {
@@ -210,13 +266,19 @@ void Font::GenerateCode(size_t index, std::string& datacode, std::string& fontco
         }
         SG_ASSERT(advanceBitCount != -1);
     }
-    std::vector<u64> advancesData((advanceBitCount * glyphCount + 63) / 64, 0);
+    std::vector<u64> advancesData((advanceBitCount * totalGlyphCount + 63) / 64, 0);
 
     SG_CODE_FOR_ASSERT(u32 prevCharCode_ForAssert = all_ones);
-    for_range(size_t, i, 0, glyphCount)
+    for_range(size_t, i, 0, totalGlyphCount)
     {
         size_t const glyphIndex = sortedGlyphIndices[i];
-        Glyph const& glyph = m_glyphs[glyphIndex];
+        Glyph const* pStdGlyph = nullptr;
+        ImageGlyph const* pImgGlyph = nullptr;
+        if(glyphIndex < imageGlyphStart)
+            pStdGlyph = &m_glyphs[glyphIndex];
+        else
+            pImgGlyph = &m_imageGlyphs[glyphIndex - imageGlyphStart];
+        GlyphBase const& glyph = glyphIndex < imageGlyphStart ? *static_cast<GlyphBase const*>(pStdGlyph) : *static_cast<GlyphBase const*>(pImgGlyph);
         u32 const c32 = charCodes[glyphIndex];
         SG_ASSERT_MSG(prevCharCode_ForAssert != c32, "A char code is present multiple times");
         SG_CODE_FOR_ASSERT(prevCharCode_ForAssert = c32);
@@ -225,16 +287,23 @@ void Font::GenerateCode(size_t index, std::string& datacode, std::string& fontco
             u8 const byte = (c32 >> ((charCodeSizeInBytes-b-1) * 8)) & 0xFF;
             charCodesData.push_back(byte);
         }
-        SG_ASSERT(size_t((1 << bitCountPerGlyph) - 1) >= c32);
+        SG_ASSERT(size_t((1 << (charCodeSizeInBytes * 8)) - 1) >= c32);
         size_t const glyphDataOffset = i * bitCountPerGlyph;
         std::vector<bool> glyphBits;
         glyphBits.reserve(bitCountPerGlyph);
-        for(auto b : glyph.representation)
+        if(glyphIndex < imageGlyphStart)
         {
-            if('.' == b || '0' == b)
-                glyphBits.push_back(false);
-            else if('X' == b || '1' == b)
-                glyphBits.push_back(true);
+            for(auto b : pStdGlyph->representation)
+            {
+                if('.' == b || '0' == b)
+                    glyphBits.push_back(false);
+                else if('X' == b || '1' == b)
+                    glyphBits.push_back(true);
+            }
+        }
+        else
+        {
+            image::CoIterate([&glyphBits](u8 p){ glyphBits.push_back(p > 128) ; }, glyphsImage.RectView(uintbox2::FromMinDelta(uint2(pImgGlyph->pos), m_glyphSize)));
         }
         SG_ASSERT(glyphBits.size() == bitCountPerGlyph);
         for_range(size_t, j, 0, bitCountPerGlyph)
@@ -526,7 +595,7 @@ void Font::GenerateCode(size_t index, std::string& datacode, std::string& fontco
 
     ossfont << "{ ";
     ossfont << "\"" << m_famillyName << "\", ";
-    ossfont << glyphCount << ", ";
+    ossfont << totalGlyphCount << ", ";
     ossfont << kerningCount << ", ";
     ossfont << "ubyte2(" << m_glyphSize.x() << ", " << m_glyphSize.y() << "), ";
     ossfont << (int)flags << ", ";
@@ -574,6 +643,8 @@ REFLECTION_CLASS_BEGIN((sg,image,tool), Font)
     REFLECTION_m_PROPERTY_DOC(advance, "")
     REFLECTION_m_PROPERTY_DOC(baseline, "")
     REFLECTION_m_PROPERTY_DOC(glyphSize, "")
+    REFLECTION_m_PROPERTY_DOC(glyphsImageFile, "")
+    REFLECTION_m_PROPERTY_DOC(imageGlyphs, "")
     REFLECTION_m_PROPERTY_DOC(glyphs, "")
     REFLECTION_m_PROPERTY_DOC(kernings, "")
 REFLECTION_CLASS_END
@@ -609,7 +680,7 @@ void FontCodeGenerator::Run() const
         FilePath f = m_fonts[i];
         reflection::ObjectDatabase db;
         objectscript::ErrorHandler errorHandler;
-        bool ok = objectscript::ReadObjectScriptROK(f, db, errorHandler);
+        bool ok = objectscript::ReadObjectScriptWithRetryROK(f, db, errorHandler);
         if(!ok)
             SG_LOG_DEFAULT_DEBUG(errorHandler.GetErrorMessage().c_str());
         SG_ASSERT(ok);
@@ -653,7 +724,7 @@ void FontCodeGenerator::Run() const
 #if SG_PLATFORM_IS_WIN
 #if 1
     bool ok = winutils::WriteFileOverwriteIFNROK(out.GetSystemFilePath(), reinterpret_cast<u8 const*>(oss.str().data()), oss.str().size());
-    SG_ASSERT(ok);
+    SG_ASSERT_AND_UNUSED(ok);
 #else
     HANDLE handle = CreateFileW(
         ConvertUTF8ToUCS2(out.GetSystemFilePath()).c_str(),
@@ -698,7 +769,7 @@ void GenerateFontCodes()
     objectscript::ErrorHandler errorHandler;
     bool ok = objectscript::ReadObjectScriptWithRetryROK(FilePath("data:/Applications/BitmapFonts/Fonts.os"), db, errorHandler);
     SG_LOG_DEFAULT_DEBUG(errorHandler.GetErrorMessage().c_str());
-    SG_ASSERT(ok);
+    SG_ASSERT_AND_UNUSED(ok);
 
     reflection::ObjectDatabase::named_object_list namedObjects;
     db.GetExportedObjects(namedObjects);

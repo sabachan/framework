@@ -39,10 +39,14 @@ public:
 
     UserInputEvent& CreatePushAndGetEvent(Window* iWnd, UserInputListenerList* iWndListeners);
     void RunEvents();
+    void ClearEventsBeforeDestruction();
+    bool IsAboutToBeDestroyed() const { return m_isAboutToBeDestroyed; }
 private:
     UserInputListenerList m_listeners;
     std::vector<std::pair<safeptr<UserInputListenerList>, std::unique_ptr<UserInputEvent> > > m_events;
     //max_sized_array<UserInputEvent, 64> m_events;
+
+    bool m_isAboutToBeDestroyed;
 
 #if SG_ENABLE_ASSERT
 public:

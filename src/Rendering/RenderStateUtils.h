@@ -2,7 +2,8 @@
 #define Rendering_RenderStateUtils_H
 
 #include <Core/ComPtr.h>
-#include <d3d11.h>
+
+#include "WTF/IncludeD3D11.h"
 
 namespace sg {
 namespace rendering {

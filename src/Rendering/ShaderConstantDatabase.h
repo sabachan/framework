@@ -103,12 +103,21 @@ class ShaderConstantDatabase : public IShaderConstantDatabase
 public:
     ShaderConstantDatabase();
     virtual ~ShaderConstantDatabase() override;
+    void AddReference(ShaderConstantName iName, IShaderVariable const* iValue);
     void AddVariable(ShaderConstantName iName, IShaderVariable* iValue);
+    void RemoveVariable(ShaderConstantName iName);
+    void Clear();
     IShaderVariable* GetConstantForWriting(ShaderConstantName iName);
     virtual IShaderVariable const* GetConstantIFP(ShaderConstantName iName) const override;
-    std::unordered_map<ShaderConstantName, refptr<IShaderVariable> > const& Constants() const { return m_constants; }
+    size_t ComputeHash() const;
+    bool IsSameAs(ShaderConstantDatabase const& other) const;
 private:
-    std::unordered_map<ShaderConstantName, refptr<IShaderVariable> > m_constants;
+    struct Entry
+    {
+        refptr<IShaderVariable const> reference;
+        safeptr<IShaderVariable> variable;
+    };
+    std::unordered_map<ShaderConstantName, Entry> m_constants;
 };
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 template <bool keepRefOnFirst, bool keepRefOnSecond>
@@ -120,7 +129,6 @@ public:
     virtual ~ShaderConstantDatabasePair() override;
     virtual IShaderVariable const* GetConstantIFP(ShaderConstantName iName) const override;
 private:
-    std::unordered_map<ShaderConstantName, refptr<IShaderVariable> > m_constants;
     reforsafeptr<IShaderConstantDatabase const, keepRefOnFirst> const m_firstDatabase;
     reforsafeptr<IShaderConstantDatabase const, keepRefOnSecond> const m_secondDatabase;
 };

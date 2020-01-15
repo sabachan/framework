@@ -628,7 +628,7 @@ SG_TEST((sg, geometry), PolygonUtils, (Geometry, quick))
     {
         for_range(size_t, i, 0, 6)
         {
-            SIMPLE_CPU_PERF_LOG_SCOPE("Test Convex Hull");
+            SG_SIMPLE_CPU_PERF_LOG_SCOPE("Test Convex Hull");
             std::vector<float2> points;
             GenerateTestPointCloud(i, points);
             TestConvexHull(AsArrayView(points));
@@ -636,7 +636,7 @@ SG_TEST((sg, geometry), PolygonUtils, (Geometry, quick))
 
         for_range(size_t, i, 0, 3)
         {
-            SIMPLE_CPU_PERF_LOG_SCOPE("Test Polygon");
+            SG_SIMPLE_CPU_PERF_LOG_SCOPE("Test Polygon");
             std::vector<float2> points;
             GenerateTestPolygon(i, points);
             TestPolgon(AsArrayView(points));

@@ -79,7 +79,7 @@ float const CIEXYZToLinearRGBMatrix[] = {
      float(   705./12673.), -float(   2585./12673.),  float(  705./667.),
 };
 float const LinearRGBToCIEXYZMatrix[] = {
-     float(506752./1228815.), float(87881./245763.),  float(  12673./70218.),
+     float(506752./1228815.), float( 87881./245763.), float(  12673./70218.),
      float( 87098./409605.),  float(175762./245763.), float(  12673./175545.),
      float(  7918./409605.),  float( 87881./737289.), float(1001167./1053270.),
 };

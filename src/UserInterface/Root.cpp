@@ -7,10 +7,12 @@
 #include "Context.h"
 #include "LayerManager.h"
 #include "PointerEvent.h"
+#include "RootContainer.h"
 #include <Core/Log.h>
 #include <Core/StringFormat.h>
 #include <Rendering/ShaderConstantDatabase.h>
 #include <RenderEngine/CompositingLayer.h>
+#include <System/KeyboardUtils.h>
 #include <System/Window.h>
 
 namespace sg {
@@ -51,7 +53,8 @@ void Root::OnUserInputEvent(system::UserInputEvent const& iEvent)
     // TODO:
     // - PointerEvent
     // - FocusableEvent
-    if(system::UserInputDeviceType::Mouse == iEvent.DeviceType())
+    system::UserInputDeviceType const deviceType = iEvent.DeviceType();
+    if(system::UserInputDeviceType::Mouse == deviceType)
     {
         SG_ASSERT(0 == iEvent.DeviceId());
 #if 0 // SG_ENABLE_ASSERT
@@ -62,6 +65,46 @@ void Root::OnUserInputEvent(system::UserInputEvent const& iEvent)
         PointerEvent pointerEvent(iEvent SG_CODE_FOR_ASSERT(SG_COMMA m_pointerEventIndex));
         SG_CODE_FOR_ASSERT(++m_pointerEventIndex;)
         m_container->OnPointerEvent(context, pointerEvent);
+    }
+    else if(system::UserInputDeviceType::Keyboard == deviceType)
+    {
+        IFocusable* focusable = m_container->AsFocusableIFP();
+        SG_ASSERT(nullptr != focusable);
+        FocusableEvent focusableEvent(iEvent SG_CODE_FOR_ASSERT(SG_COMMA m_focusaleEventIndex));
+        SG_CODE_FOR_ASSERT(++m_focusaleEventIndex;)
+        focusable->OnFocusableEvent(focusableEvent);
+
+        FocusDirection direction = FocusDirection::None;
+        if(system::KeyboardShortcutAdapter::IsTriggerableEvent(iEvent))
+        {
+            std::pair<system::KeyboardShortcutAdapter, FocusDirection> const shortcuts[] = {
+                std::make_pair(system::KeyboardShortcutAdapter(system::KeyboardKey::Left,   false, false, false, system::KeyboardLayout::UserLayout), FocusDirection::Left),
+                std::make_pair(system::KeyboardShortcutAdapter(system::KeyboardKey::Right,  false, false, false, system::KeyboardLayout::UserLayout), FocusDirection::Right),
+                std::make_pair(system::KeyboardShortcutAdapter(system::KeyboardKey::Up,     false, false, false, system::KeyboardLayout::UserLayout), FocusDirection::Up),
+                std::make_pair(system::KeyboardShortcutAdapter(system::KeyboardKey::Down,   false, false, false, system::KeyboardLayout::UserLayout), FocusDirection::Down),
+                std::make_pair(system::KeyboardShortcutAdapter(system::KeyboardKey::Tab,    false, false, false, system::KeyboardLayout::UserLayout), FocusDirection::Next),
+                std::make_pair(system::KeyboardShortcutAdapter(system::KeyboardKey::Tab,    true,  false, false, system::KeyboardLayout::UserLayout), FocusDirection::Previous),
+                std::make_pair(system::KeyboardShortcutAdapter(system::KeyboardKey::Tab,    false, true,  false, system::KeyboardLayout::UserLayout), FocusDirection::MoveIn),
+                std::make_pair(system::KeyboardShortcutAdapter(system::KeyboardKey::Tab,    true,  true,  false, system::KeyboardLayout::UserLayout), FocusDirection::MoveOut),
+                std::make_pair(system::KeyboardShortcutAdapter(system::KeyboardKey::Space,  false, false, false, system::KeyboardLayout::UserLayout), FocusDirection::Activate),
+                std::make_pair(system::KeyboardShortcutAdapter(system::KeyboardKey::Return, false, false, false, system::KeyboardLayout::UserLayout), FocusDirection::Validate),
+                std::make_pair(system::KeyboardShortcutAdapter(system::KeyboardKey::Escape, false, false, false, system::KeyboardLayout::UserLayout), FocusDirection::Cancel),
+            };
+            for(auto const& s : AsArrayView(shortcuts))
+            {
+                if(s.first.IsTriggered_AssumeTriggerableEvent(iEvent))
+                {
+                    direction = s.second;
+                    break;
+                }
+            }
+            if(FocusDirection::None != direction)
+            {
+                bool const hasMoved = focusable->RequestMoveFocusReturnHasMoved(direction);
+                if(hasMoved)
+                    iEvent.SetMasked();
+            }
+        }
     }
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''

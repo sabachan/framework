@@ -17,9 +17,14 @@
 //   positions in order to store the item. Having the item stored near to its
 //   first try index is better for cache coherence.
 // - Collisions with the same hash are always contiguous.
-// - In order to benefit from the cache, we store the entry (a portion of the
-//   hash and some bits for knowing if there is an element or if there is
+// - In order to benefit from the cache, we may store the entries (a portion of
+//   the hash and some bits for knowing if there is an element or if there is
 //   already a collision) in a separate buffer from keys and values.
+
+// Note that entries need to be stored in a buffer with more capacity than the
+// size, specified by the load factor, in order to prevent loss of performance.
+// Separating the keys and entries allows to put them n a buffer with smaller
+// capacity.
 
 namespace sg {
 //=============================================================================
@@ -28,12 +33,12 @@ namespace hashmap_internal {
 template<typename K, typename T, typename H, typename C, typename A>
 struct HashMapAutomaticPolicy
 {
-    // keys_and_values_in_entry can be set to true when keys and values are
-    // light objects with almost 0 move cost.
-    static bool const keys_and_values_in_entry = false;
+    // When keys (and values if hold together) are light objects with almost 0
+    // move cost, this properties can be set to false.
+    static bool const separate_key_from_entry = true;
     // In case values or keys need specific alignment, it may be better to
     // separate buffers.
-    static bool const separate_keys_from_values = false;
+    static bool const separate_value_from_key = false;
     // if keys and values are big and are not in entries, we can allocate 2
     // times more entries to reduce risks of collisions. In that case, a max
     // size allocator will be able to store more items.
@@ -44,8 +49,8 @@ struct HashMapAutomaticPolicy
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 struct HashMapDefaultPolicy
 {
-    static bool const keys_and_values_in_entry = false;
-    static bool const separate_keys_from_values = false;
+    static bool const separate_key_from_entry = true;
+    static bool const separate_value_from_key = false;
 #if 1
     static bool const allocate_double_entries = true;
     static size_t const max_load_factor_size = 1;
@@ -57,6 +62,23 @@ struct HashMapDefaultPolicy
 #endif
 };
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+struct HashSetDefaultPolicy
+{
+    static bool const separate_key_from_entry = true;
+    static bool const separate_value_from_key = false;
+#if 1
+    static bool const allocate_double_entries = true;
+    static size_t const max_load_factor_size = 1;
+    static size_t const max_load_factor_capacity = 2;
+#else
+    static bool const allocate_double_entries = false;
+    static size_t const max_load_factor_size = 15;
+    static size_t const max_load_factor_capacity = 16;
+#endif
+};
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+// HashMapPool implements a free list of the empty slots in a buffer holding
+// objects of type T.
 template<typename T>
 struct HashMapPool
 {
@@ -131,16 +153,11 @@ public:
 template<typename K, typename T>
 struct HashMapPackedItemType
 {
+    static_assert(!std::is_same<T, void>::value, "hash map value type error");
     template<typename KLike, typename... Args>
     SG_FORCE_INLINE HashMapPackedItemType(KLike&& iKey, Args&&... iArgs) : key(std::forward<KLike>(iKey)), value(std::forward<Args>(iArgs)...) {}
     K key;
     T value;
-};
-//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-template<typename K>
-struct HashMapPackedItemType<K, void>
-{
-    K key;
 };
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 template<typename E, typename K>
@@ -149,6 +166,19 @@ struct HashMapKeyInEntryType
     E entry;
     K key;
 };
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+template<typename E, typename K, typename T>
+struct HashMapItemInEntryType
+{
+    E entry;
+    HashMapPackedItemType<K, T> item;
+};
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+//template<typename K, typename T>
+//struct HashMapItemInEntryType<void, K, T>
+//{
+//    HashMapPackedItemType<K, T> item;
+//};
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 template<typename E>
 struct HashMapDoubleEntryType
@@ -160,10 +190,22 @@ struct HashMapDoubleEntryType
 enum class HashMapAllocationPolicy
 {
     OneBuffer,
-    SeparateEntryFromKeyValues,
-    SeparateKeyInEntryFromValues,
+    SeparateEntryFromKeyValue,
+    SeparateKeyInEntryFromValue,
     ThreeBuffers,
+
+    HashSet_OneBuffer,
+    HashSet_SeparateEntryFromKey,
 };
+template <bool separate_key_from_entry, bool separate_value_from_key, typename T> struct ChooseHashMapAllocationPolicy {};
+template <typename T> struct ChooseHashMapAllocationPolicy<false, false, T> { static HashMapAllocationPolicy const value = HashMapAllocationPolicy::OneBuffer; };
+template <typename T> struct ChooseHashMapAllocationPolicy< true, false, T> { static HashMapAllocationPolicy const value = HashMapAllocationPolicy::SeparateEntryFromKeyValue; };
+template <typename T> struct ChooseHashMapAllocationPolicy<false,  true, T> { static HashMapAllocationPolicy const value = HashMapAllocationPolicy::SeparateKeyInEntryFromValue; };
+template <typename T> struct ChooseHashMapAllocationPolicy< true,  true, T> { static HashMapAllocationPolicy const value = HashMapAllocationPolicy::ThreeBuffers; };
+template <> struct ChooseHashMapAllocationPolicy<false, false, void> { static HashMapAllocationPolicy const value = HashMapAllocationPolicy::HashSet_OneBuffer; };
+template <> struct ChooseHashMapAllocationPolicy<false,  true, void> { static HashMapAllocationPolicy const value = HashMapAllocationPolicy::HashSet_OneBuffer; };
+template <> struct ChooseHashMapAllocationPolicy< true, false, void> { static HashMapAllocationPolicy const value = HashMapAllocationPolicy::HashSet_SeparateEntryFromKey; };
+template <> struct ChooseHashMapAllocationPolicy< true,  true, void> { static HashMapAllocationPolicy const value = HashMapAllocationPolicy::HashSet_SeparateEntryFromKey; };
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 template<typename E, typename K, typename T, typename P, typename A, HashMapAllocationPolicy AllocationPolicy>
 class HashMapAllocator
@@ -171,14 +213,14 @@ class HashMapAllocator
 };
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 template<typename E, typename K, typename T, typename P, typename A>
-class HashMapAllocator<E, K, T, P, A, HashMapAllocationPolicy::SeparateEntryFromKeyValues>
+class HashMapAllocator<E, K, T, P, A, HashMapAllocationPolicy::SeparateEntryFromKeyValue>
 {
 public:
     typedef E entry_type;
-    typedef K key_type;
     typedef T value_type;
+    typedef K key_type;
     typedef P policy_type;
-    typedef HashMapPackedItemType<key_type, value_type> item_type;
+    typedef HashMapPackedItemType<K, T> item_type;
     typedef HashMapPool<item_type> item_pool_type;
     typedef typename A::template Rebind<item_type>::type item_allocator_type;
     typedef typename std::conditional<policy_type::allocate_double_entries, HashMapDoubleEntryType<entry_type>, entry_type>::type type_for_entry_allocator;
@@ -233,12 +275,12 @@ public:
     {
         SG_UNUSED(iEntryIndex);
 #if 1
-        auto r = ioBuffers.itemPool.Emplace_GetPtrAndIndex(ioBuffers.items, iKey, iArgs...);
+        auto r = ioBuffers.itemPool.Emplace_GetPtrAndIndex(ioBuffers.items, std::forward<KLike>(iKey), std::forward<Args>(iArgs)...);
         value_type* value = &(r.first->value);
         return std::make_pair(value, r.second);
 #else
         size_t index;
-        item_type* ptr = ioBuffers.itemPool.Emplace_GetPtrAndIndex2(ioBuffers.items, index, iKey, iArgs...);
+        item_type* ptr = ioBuffers.itemPool.Emplace_GetPtrAndIndex2(ioBuffers.items, index, std::forward<KLike>(iKey), std::forward<Args>(iArgs)...);
         value_type* value = &(ptr->value);
         return std::make_pair(value, index);
 #endif
@@ -254,7 +296,7 @@ private:
 };
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 template<typename E, typename K, typename T, typename P, typename A>
-class HashMapAllocator<E, K, T, P, A, HashMapAllocationPolicy::SeparateKeyInEntryFromValues>
+class HashMapAllocator<E, K, T, P, A, HashMapAllocationPolicy::SeparateKeyInEntryFromValue>
 {
 public:
     typedef E entry_type;
@@ -315,8 +357,8 @@ public:
     template<typename KLike, typename... Args>
     /*SG_FORCE_INLINE*/ std::pair<value_type*, size_t> Emplace_GetValuePtrAndIndex(Buffers& ioBuffers, size_t iEntryIndex, KLike&& iKey, Args&&... iArgs)
     {
-        new(&(ioBuffers.entries[iEntryIndex].key)) key_type(iKey);
-        auto r = ioBuffers.itemPool.Emplace_GetPtrAndIndex(ioBuffers.items, iArgs...);
+        new(&(ioBuffers.entries[iEntryIndex].key)) key_type(std::forward<KLike>(iKey));
+        auto r = ioBuffers.itemPool.Emplace_GetPtrAndIndex(ioBuffers.items, std::forward<Args>(iArgs)...);
         return r;
     }
     SG_FORCE_INLINE void EraseItem(Buffers& ioBuffers, size_t iEntryIndex, size_t iItemIndex)
@@ -329,19 +371,239 @@ private:
     item_allocator_type m_itemAllocator;
 };
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+template<typename E, typename K, typename T, typename P, typename A>
+class HashMapAllocator<E, K, T, P, A, HashMapAllocationPolicy::OneBuffer>
+{
+public:
+    typedef E entry_type;
+    typedef K key_type;
+    typedef T value_type;
+    typedef P policy_type;
+    typedef HashMapItemInEntryType<entry_type, key_type, value_type> item_in_entry_type;
+    typedef typename std::conditional<policy_type::allocate_double_entries, HashMapDoubleEntryType<item_in_entry_type>, item_in_entry_type>::type type_for_entry_allocator;
+    typedef typename A::template Rebind<type_for_entry_allocator>::type entry_allocator_type;
+
+    struct Buffers
+    {
+    public:
+        SG_FORCE_INLINE ArrayView<item_in_entry_type> ContiguousEntries() const { return AsArrayView(entries, capacity); }
+        SG_FORCE_INLINE StridedArrayView<entry_type> Entries() const { return StridedArrayView<entry_type>(&entries->entry, capacity, sizeof(item_in_entry_type)); }
+        SG_FORCE_INLINE size_t EntryCapacity() const { return capacity; }
+        SG_FORCE_INLINE StridedArrayView<key_type> Keys() const { return StridedArrayView<key_type>(&entries->item.key, capacity, sizeof(item_in_entry_type)); }
+        SG_FORCE_INLINE size_t KeyCapacity() const { return capacity; }
+        SG_FORCE_INLINE StridedArrayView<value_type> Values() const { return StridedArrayView<value_type>(&entries->item.value, capacity, sizeof(item_in_entry_type)); }
+        SG_FORCE_INLINE size_t ValueCapacity() const { return capacity; }
+        SG_FORCE_INLINE size_t ItemCapacity() const { return capacity; }
+    public:
+        item_in_entry_type* entries;
+        size_t capacity;
+    };
+public:
+    SG_FORCE_INLINE static size_t KeyIndex(size_t iEntryIndex, size_t iItemIndex) { SG_UNUSED(iItemIndex); return iEntryIndex; }
+    SG_FORCE_INLINE static size_t ValueIndex(size_t iEntryIndex, size_t iItemIndex) { SG_UNUSED(iItemIndex); return iEntryIndex; }
+    SG_FORCE_INLINE Buffers AllocateAtLeast(size_t iEntryCapacity, size_t iItemCapacity)
+    {
+        SG_UNUSED(iItemCapacity);
+        Buffers r;
+        if(SG_CONSTANT_CONDITION(policy_type::allocate_double_entries))
+            iEntryCapacity >>= 1;
+        r.entries = reinterpret_cast<item_in_entry_type*>(m_allocator.AllocateAtLeast(iEntryCapacity, r.capacity));
+        if(SG_CONSTANT_CONDITION(policy_type::allocate_double_entries))
+            r.capacity <<= 1;
+        return r;
+    }
+    SG_FORCE_INLINE void Deallocate(Buffers& iBuffers)
+    {
+        size_t capacity = iBuffers.capacity;
+        if(SG_CONSTANT_CONDITION(policy_type::allocate_double_entries))
+            capacity >>= 1;
+        m_allocator.Deallocate(iBuffers.entries, capacity);
+        iBuffers.entries = nullptr;
+        iBuffers.capacity = 0;
+    }
+    template<typename KLike, typename... Args>
+    /*SG_FORCE_INLINE*/ std::pair<value_type*, size_t> Emplace_GetValuePtrAndIndex(Buffers& ioBuffers, size_t iEntryIndex, KLike&& iKey, Args&&... iArgs)
+    {
+        new(&(ioBuffers.entries[iEntryIndex].item.key)) key_type(std::forward<KLike>(iKey));
+        new(&(ioBuffers.entries[iEntryIndex].item.value)) value_type(std::forward<Args>(iArgs)...);
+        return std::make_pair(&(ioBuffers.entries[iEntryIndex].item.value), iEntryIndex);
+    }
+    SG_FORCE_INLINE void EraseItem(Buffers& ioBuffers, size_t iEntryIndex, size_t iItemIndex)
+    {
+        SG_UNUSED(iItemIndex);
+        ioBuffers.entries[iEntryIndex].item.key.~key_type();
+        ioBuffers.entries[iEntryIndex].item.value.~value_type();
+    }
+private:
+    entry_allocator_type m_allocator;
+};
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+template<typename E, typename K, typename T, typename P, typename A>
+class HashMapAllocator<E, K, T, P, A, HashMapAllocationPolicy::HashSet_SeparateEntryFromKey>
+{
+public:
+    typedef E entry_type;
+    typedef K key_type;
+    typedef key_type value_type;
+    typedef P policy_type;
+    typedef key_type item_type;
+    typedef key_type item_type;
+    typedef HashMapPool<item_type> item_pool_type;
+    typedef typename A::template Rebind<item_type>::type item_allocator_type;
+    typedef typename std::conditional<policy_type::allocate_double_entries, HashMapDoubleEntryType<entry_type>, entry_type>::type type_for_entry_allocator;
+    typedef typename A::template Rebind<type_for_entry_allocator>::type entry_allocator_type;
+
+    struct Buffers
+    {
+    public:
+        SG_FORCE_INLINE ArrayView<entry_type> ContiguousEntries() const { return AsArrayView(entries, entryCapacity); }
+        SG_FORCE_INLINE StridedArrayView<entry_type> Entries() const { return StridedArrayView<entry_type>(entries, entryCapacity, sizeof(entry_type)); }
+        SG_FORCE_INLINE size_t EntryCapacity() const { return entryCapacity; }
+        SG_FORCE_INLINE StridedArrayView<key_type> Keys() const { return StridedArrayView<key_type>(items, itemCapacity, sizeof(item_type)); }
+        SG_FORCE_INLINE size_t KeyCapacity() const { return itemCapacity; }
+        SG_FORCE_INLINE StridedArrayView<key_type const> Values() const { return StridedArrayView<key_type const>(items, itemCapacity, sizeof(item_type)); }
+        SG_FORCE_INLINE size_t ValueCapacity() const { return itemCapacity; }
+        SG_FORCE_INLINE size_t ItemCapacity() const { return itemCapacity; }
+    public:
+        entry_type* entries;
+        item_type* items;
+        size_t entryCapacity;
+        size_t itemCapacity;
+        item_pool_type itemPool;
+    };
+public:
+    SG_FORCE_INLINE static size_t KeyIndex(size_t iEntryIndex, size_t iItemIndex) { SG_UNUSED(iEntryIndex); return iItemIndex; }
+    SG_FORCE_INLINE static size_t ValueIndex(size_t iEntryIndex, size_t iItemIndex) { SG_UNUSED(iEntryIndex); return iItemIndex; }
+    SG_FORCE_INLINE Buffers AllocateAtLeast(size_t iEntryCapacity, size_t iItemCapacity)
+    {
+        Buffers r;
+        if(SG_CONSTANT_CONDITION(policy_type::allocate_double_entries))
+            iEntryCapacity >>= 1;
+        r.entries = reinterpret_cast<entry_type*>(m_entryAllocator.AllocateAtLeast(iEntryCapacity, r.entryCapacity));
+        if(SG_CONSTANT_CONDITION(policy_type::allocate_double_entries))
+            r.entryCapacity <<= 1;
+        r.items = reinterpret_cast<item_type*>(m_itemAllocator.AllocateAtLeast(iItemCapacity, r.itemCapacity));
+        return r;
+    }
+    SG_FORCE_INLINE void Deallocate(Buffers& iBuffers)
+    {
+        size_t entryCapacity = iBuffers.entryCapacity;
+        if(SG_CONSTANT_CONDITION(policy_type::allocate_double_entries))
+            entryCapacity >>= 1;
+        m_entryAllocator.Deallocate(iBuffers.entries, entryCapacity);
+        m_itemAllocator.Deallocate(iBuffers.items, iBuffers.itemCapacity);
+        iBuffers.entries = nullptr;
+        iBuffers.items = nullptr;
+        iBuffers.entryCapacity = 0;
+        iBuffers.itemCapacity = 0;
+    }
+    template<typename KLike, typename... Args>
+    SG_FORCE_INLINE std::pair<value_type*, size_t> Emplace_GetValuePtrAndIndex(Buffers& ioBuffers, size_t iEntryIndex, KLike&& iKey)
+    {
+        SG_UNUSED(iEntryIndex);
+#if 1
+        auto r = ioBuffers.itemPool.Emplace_GetPtrAndIndex(ioBuffers.items, std::forward<KLike>(iKey));
+        value_type* value = r.first;
+        return std::make_pair(value, r.second);
+#else
+        size_t index;
+        item_type* ptr = ioBuffers.itemPool.Emplace_GetPtrAndIndex2(ioBuffers.items, index, std::forward<KLike>(iKey));
+        value_type* value = ptr;
+        return std::make_pair(value, index);
+#endif
+    }
+    SG_FORCE_INLINE void EraseItem(Buffers& ioBuffers, size_t iEntryIndex, size_t iItemIndex)
+    {
+        SG_UNUSED(iEntryIndex);
+        ioBuffers.itemPool.Erase(ioBuffers.items, iItemIndex);
+    }
+private:
+    entry_allocator_type m_entryAllocator;
+    item_allocator_type m_itemAllocator;
+};
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+template<typename E, typename K, typename T, typename P, typename A>
+class HashMapAllocator<E, K, T, P, A, HashMapAllocationPolicy::HashSet_OneBuffer>
+{
+public:
+    typedef E entry_type;
+    typedef K key_type;
+    typedef K const value_type;
+    typedef P policy_type;
+    struct ItemInEntryType
+    {
+        E entry;
+        K key;
+    };
+    typedef ItemInEntryType item_in_entry_type;
+    typedef typename std::conditional<policy_type::allocate_double_entries, HashMapDoubleEntryType<item_in_entry_type>, item_in_entry_type>::type type_for_entry_allocator;
+    typedef typename A::template Rebind<type_for_entry_allocator>::type entry_allocator_type;
+
+    struct Buffers
+    {
+    public:
+        SG_FORCE_INLINE ArrayView<item_in_entry_type> ContiguousEntries() const { return AsArrayView(entries, capacity); }
+        SG_FORCE_INLINE StridedArrayView<entry_type> Entries() const { return StridedArrayView<entry_type>(&entries->entry, capacity, sizeof(item_in_entry_type)); }
+        SG_FORCE_INLINE size_t EntryCapacity() const { return capacity; }
+        SG_FORCE_INLINE StridedArrayView<key_type> Keys() const { return StridedArrayView<key_type>(&entries->key, capacity, sizeof(item_in_entry_type)); }
+        SG_FORCE_INLINE size_t KeyCapacity() const { return capacity; }
+        SG_FORCE_INLINE StridedArrayView<value_type> Values() const { return StridedArrayView<value_type>(&entries->key, capacity, sizeof(item_in_entry_type)); }
+        SG_FORCE_INLINE size_t ValueCapacity() const { return capacity; }
+        SG_FORCE_INLINE size_t ItemCapacity() const { return capacity; }
+    public:
+        item_in_entry_type* entries;
+        size_t capacity;
+    };
+public:
+    SG_FORCE_INLINE static size_t KeyIndex(size_t iEntryIndex, size_t iItemIndex) { SG_UNUSED(iItemIndex); return iEntryIndex; }
+    SG_FORCE_INLINE static size_t ValueIndex(size_t iEntryIndex, size_t iItemIndex) { SG_UNUSED(iItemIndex); return iEntryIndex; }
+    SG_FORCE_INLINE Buffers AllocateAtLeast(size_t iEntryCapacity, size_t iItemCapacity)
+    {
+        SG_UNUSED(iItemCapacity);
+        Buffers r;
+        if(SG_CONSTANT_CONDITION(policy_type::allocate_double_entries))
+            iEntryCapacity >>= 1;
+        r.entries = reinterpret_cast<item_in_entry_type*>(m_allocator.AllocateAtLeast(iEntryCapacity, r.capacity));
+        if(SG_CONSTANT_CONDITION(policy_type::allocate_double_entries))
+            r.capacity <<= 1;
+        return r;
+    }
+    SG_FORCE_INLINE void Deallocate(Buffers& iBuffers)
+    {
+        size_t capacity = iBuffers.capacity;
+        if(SG_CONSTANT_CONDITION(policy_type::allocate_double_entries))
+            capacity >>= 1;
+        m_allocator.Deallocate(iBuffers.entries, capacity);
+        iBuffers.entries = nullptr;
+        iBuffers.capacity = 0;
+    }
+    template<typename KLike>
+    /*SG_FORCE_INLINE*/ std::pair<value_type*, size_t> Emplace_GetValuePtrAndIndex(Buffers& ioBuffers, size_t iEntryIndex, KLike&& iKey)
+    {
+        new(&(ioBuffers.entries[iEntryIndex].key)) key_type(std::forward<KLike>(iKey));
+        return std::make_pair(&(ioBuffers.entries[iEntryIndex].key), iEntryIndex);
+    }
+    SG_FORCE_INLINE void EraseItem(Buffers& ioBuffers, size_t iEntryIndex, size_t iItemIndex)
+    {
+        SG_UNUSED(iItemIndex);
+        ioBuffers.entries[iEntryIndex].key.~key_type();
+    }
+private:
+    entry_allocator_type m_allocator;
+};
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 template<typename K, typename T, typename H, typename C, typename P, typename A>
 class HashMapImpl
 {
     typedef K key_type;
-    typedef T value_type;
+    typedef typename std::conditional<std::is_same<T, void>::value, key_type const, T>::type value_type;
     typedef H hasher_type;
     typedef C comparer_type;
     typedef P policy_type;
     typedef size_t entry_type;
-    typedef HashMapPackedItemType<key_type, value_type> item_type;
+    typedef HashMapPackedItemType<K, T> item_type;
 
-    typedef HashMapAllocator<entry_type, key_type, value_type, policy_type, A, HashMapAllocationPolicy::SeparateEntryFromKeyValues> allocator_type;
-    //typedef HashMapAllocator<entry_type, key_type, value_type, policy_type, A, HashMapAllocationPolicy::SeparateKeyInEntryFromValues> allocator_type;
+    typedef HashMapAllocator<entry_type, K, T, policy_type, A, ChooseHashMapAllocationPolicy<P::separate_key_from_entry, P::separate_value_from_key, T>::value> allocator_type;
     typedef typename allocator_type::Buffers buffers_type;
 
     typedef typename ConstPassing<key_type>::type key_type_for_const_passing;
@@ -370,11 +632,12 @@ public:
     template<typename KLike, typename... Args> std::pair<value_type*, bool> Emplace(KLike&& iKey, Args&&... iArgs) { GrowIfLoadFactorTooBig(); return Emplace_AssumeCapacity(iKey, iArgs...); }
 
     template<typename KLike> value_type* Find(KLike&& iKey) const;
+    // TODO: template<typename KLike> value_type const* Find(KLike&& iKey) const;
 
-    value_type& operator[] (key_type_for_const_passing iKey);
-    value_type_for_const_passing operator[] (key_type_for_const_passing iKey) const;
-    template<typename KLike> value_type& operator[] (KLike&& iKey);
-    template<typename KLike> value_type_for_const_passing operator[] (KLike&& iKey) const;
+    value_type& operator[] (key_type_for_const_passing iKey) { value_type* r = Find(iKey); SG_ASSERT(nullptr != r); return *r; }
+    value_type_for_const_passing operator[] (key_type_for_const_passing iKey) const { value_type const* r = Find(iKey); SG_ASSERT(nullptr != r); return *r; }
+    template<typename KLike> value_type& operator[] (KLike&& iKey) { value_type* r = Find(iKey); SG_ASSERT(nullptr != r); return *r; }
+    template<typename KLike> value_type_for_const_passing operator[] (KLike&& iKey) const { value_type const* r = Find(iKey); SG_ASSERT(nullptr != r); return *r; }
 
     template<typename KLike> bool Erase(KLike&& iKey);
 
@@ -387,7 +650,8 @@ public:
     template<typename KLike> iterator_type find(KLike&& iKey) const;
 
     template<typename KLike, typename... Args> std::pair<iterator_type, bool> emplace(KLike&& iKey, Args&&... iArgs);
-    std::pair<iterator_type, bool> insert(std::pair<K, T> const& iKeyValue);
+    typedef typename std::conditional<std::is_same<T, void>::value, K, std::pair<K, T>>::type insert_arg_type;
+    std::pair<iterator_type, bool> insert(insert_arg_type const& iKeyValue);
     iterator_type erase(iterator_type iIterator);
     iterator_type begin() { return iterator_type(this, 0 SG_CODE_FOR_ASSERT(SG_COMMA m_iteratorValidityStamp)); }
     iterator_type end() { return iterator_type(this, m_entryConfig.entryIndexMask SG_CODE_FOR_ASSERT(SG_COMMA m_iteratorValidityStamp)); }
@@ -497,7 +761,7 @@ template<typename K, typename T, typename H, typename C, typename P, typename A>
 void HashMapImpl<K, T, H, C, P, A>::GrowIfLoadFactorTooBig()
 {
     size_t const entryCapacity = m_buffers.EntryCapacity();
-    size_t const itemCapacity = m_buffers.KeyCapacity();
+    size_t const itemCapacity = m_buffers.ItemCapacity();
     SG_ASSERT(itemCapacity <= entryCapacity);
     SG_ASSERT(m_size <= itemCapacity);
     if((m_size + 1) * policy_type::max_load_factor_capacity >= entryCapacity * policy_type::max_load_factor_size)
@@ -505,6 +769,17 @@ void HashMapImpl<K, T, H, C, P, A>::GrowIfLoadFactorTooBig()
              std::max(size_t(policy_type::max_load_factor_capacity), entryCapacity * 2),
              std::max(size_t(policy_type::max_load_factor_size), itemCapacity * 2));
 }
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+template<bool is_set>
+struct HashMapImpl_RehashHelper
+{
+    template <typename HM, typename K, typename V> static void MoveEmplace(HM& hm, K& k, V& v) { hm.Emplace_AssumeCapacity(std::move(k), std::move(v)); }
+};
+template <>
+struct HashMapImpl_RehashHelper<true>
+{
+    template <typename HM, typename K, typename V> static void MoveEmplace(HM& hm, K& k, V&) { hm.Emplace_AssumeCapacity(std::move(k)); }
+};
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 template<typename K, typename T, typename H, typename C, typename P, typename A>
 void HashMapImpl<K, T, H, C, P, A>::ChangeCapacity(size_t iEntryCapacity, size_t iItemCapacity)
@@ -516,7 +791,7 @@ void HashMapImpl<K, T, H, C, P, A>::ChangeCapacity(size_t iEntryCapacity, size_t
     size_t const oldSize = m_size;
     EntryConfig oldEntryConfig = m_entryConfig;
     buffers_type oldBuffers = m_buffers;
-    size_t const oldItemCapacity = oldBuffers.KeyCapacity();
+    size_t const oldItemCapacity = oldBuffers.ItemCapacity();
     SG_ASSERT(oldItemCapacity == oldBuffers.ValueCapacity());
 
     buffers_type newBuffers = m_allocator.AllocateAtLeast(iEntryCapacity, iItemCapacity);
@@ -540,7 +815,9 @@ void HashMapImpl<K, T, H, C, P, A>::ChangeCapacity(size_t iEntryCapacity, size_t
             {
                 // TODO: no need to rehash as it is already in old entry (when grow).
                 size_t const index = ItemIndexFromEntry(oldEntryConfig, oldEntries[i]);
-                Emplace_AssumeCapacity(std::move(oldKeys[allocator_type::KeyIndex(i, index)]), std::move(oldValues[allocator_type::ValueIndex(i, index)]));
+                auto& oldKey = oldKeys[allocator_type::KeyIndex(i, index)];
+                auto& oldValue = oldValues[allocator_type::ValueIndex(i, index)];
+                HashMapImpl_RehashHelper<std::is_same<T, void>::value>::MoveEmplace(*this, oldKey, oldValue);
             }
         }
         ClearImpl(oldBuffers, oldEntryConfig);
@@ -555,7 +832,7 @@ void HashMapImpl<K, T, H, C, P, A>::ClearImpl(buffers_type& ioBuffers, EntryConf
     SG_ASSERT(0 != ioBuffers.ItemCapacity());
     SG_ASSERT(0 != ioBuffers.EntryCapacity());
     auto entries = ioBuffers.Entries();
-    bool const needDestructValues = !std::is_trivially_destructible<value_type>::value;
+    bool const needDestructValues = !std::is_trivially_destructible<value_type>::value && !std::is_same<T, void>::value;
     bool const needDestructKeys = !std::is_trivially_destructible<key_type>::value;
     static_assert(std::is_trivially_destructible<entry_type>::value, "");
 
@@ -783,8 +1060,19 @@ std::pair<typename HashMapImpl<K, T, H, C, P, A>::iterator_type, bool> HashMapIm
     return std::make_pair(iterator_type(this, std::get<1>(r) SG_CODE_FOR_ASSERT(SG_COMMA m_iteratorValidityStamp)), std::get<2>(r));
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+template<bool is_set>
+struct HashMapImpl_InsertHelper
+{
+    template <typename HM, typename A> static void Emplace(HM& hm, A& arg) { hm.Emplace_AssumeCapacity(arg.first, arg.second); }
+};
+template <>
+struct HashMapImpl_InsertHelper<true>
+{
+    template <typename HM, typename A> static void Emplace(HM& hm, A& arg) { hm.Emplace_AssumeCapacity(arg); }
+};
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 template<typename K, typename T, typename H, typename C, typename P, typename A>
-std::pair<typename HashMapImpl<K, T, H, C, P, A>::iterator_type, bool> HashMapImpl<K, T, H, C, P, A>::insert(std::pair<K, T> const& iKeyValue)
+std::pair<typename HashMapImpl<K, T, H, C, P, A>::iterator_type, bool> HashMapImpl<K, T, H, C, P, A>::insert(insert_arg_type const& iKeyValue)
 {
     GrowIfLoadFactorTooBig();
     auto r = EmplaceImpl_AssumeCapacity(iKeyValue.first, iKeyValue.second);
@@ -883,6 +1171,7 @@ class HashMapIterator
 {
     typedef HashMapIterator this_type;
 
+    static bool const is_set = std::is_same<void, T>::value;
     typedef HashMapImpl<K, T, H, C, P, A> hashmap_type;
     typedef typename std::conditional<IsConst, hashmap_type const*, hashmap_type*>::type hashmapptr_type;
     typedef typename hashmap_type::allocator_type allocator_type;
@@ -898,17 +1187,22 @@ class HashMapIterator
         value_type_ref second;
         KeyValuePair(key_type_ref iFirst, value_type_ref iSecond) : first(iFirst), second(iSecond) {}
     };
+    typedef typename std::conditional<is_set, key_type_ref, KeyValuePair>::type key_value_pair;
+
     struct KeyValuePairAsPtr : private KeyValuePair
     {
         KeyValuePair& operator *() { return *static_cast<KeyValuePair*>(this); }
         KeyValuePair* operator ->() { return static_cast<KeyValuePair*>(this); }
         KeyValuePairAsPtr(key_type_ref iFirst, value_type_ref iSecond) : KeyValuePair(iFirst, iSecond) {}
     };
+    typedef typename std::conditional<is_set, key_type const*, KeyValuePairAsPtr>::type key_value_pair_as_ptr;
+    template <bool IsSet> struct MakeKeyValuePairAsPtr { key_value_pair_as_ptr operator() (key_type_ref iKey, value_type_ref iValue) { return KeyValuePairAsPtr(iKey, iValue); } };
+    template <> struct MakeKeyValuePairAsPtr<true> { key_value_pair_as_ptr operator() (key_type_ref iKey, key_type_ref) { return &iKey; } };
 
     typedef std::bidirectional_iterator_tag iterator_category;
 public:
     SG_FORCE_INLINE HashMapIterator() : m_hashmap(nullptr), m_entryIndex(0) {}
-    SG_FORCE_INLINE KeyValuePairAsPtr operator ->() const
+    SG_FORCE_INLINE key_value_pair_as_ptr operator ->() const
     {
         SG_ASSERT(nullptr != m_hashmap);
         SG_ASSERT_MSG(m_validityStamp == m_hashmap->m_iteratorValidityStamp, "Iterator has been invalidated!");
@@ -918,9 +1212,10 @@ public:
         auto keys = m_hashmap->m_buffers.Keys();
         auto values = m_hashmap->m_buffers.Values();
         size_t const itemIndex = hashmap_type::ItemIndexFromEntry(entryconfig, entries[m_entryIndex]);
-        return KeyValuePairAsPtr(keys[allocator_type::KeyIndex(m_entryIndex, itemIndex)], values[allocator_type::ValueIndex(m_entryIndex, itemIndex)]);
+        return MakeKeyValuePairAsPtr<is_set>()(keys[allocator_type::KeyIndex(m_entryIndex, itemIndex)], values[allocator_type::ValueIndex(m_entryIndex, itemIndex)]);
+        //return KeyValuePairAsPtr(keys[allocator_type::KeyIndex(m_entryIndex, itemIndex)], values[allocator_type::ValueIndex(m_entryIndex, itemIndex)]);
     }
-    SG_FORCE_INLINE KeyValuePair operator *() const
+    SG_FORCE_INLINE key_value_pair operator *() const
     {
         return *(this->operator->());
     }
@@ -1001,17 +1296,20 @@ private:
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 }
 //=============================================================================
-//template<typename K, typename A = StandardAllocator<void>, bool IsCopyable = std::is_copy_constructible<T>::value >
-//class HashSet : public internal::HashMapImpl<T, void, A>
-//{
-//public:
-//    HashSet() {}
-//    template <typename... Args> HashSet(size_t iCount, Args&&... iArgs) : ArrayListImpl(iCount, iArgs...) {}
-//    HashSet(ArrayList const& other) = default;
-//    HashSet& operator=(HashSet const& other) = default;
-//    HashSet(ArrayList&& other) : ArrayListImpl(std::move(other)) { }
-//    HashSet& operator=(HashSet&& other) { *static_cast<ArrayListImpl*>(this) = std::move(other); return *this; }
-//};
+template<typename K,
+         typename Hasher = std::hash<K>,
+         typename Comparer = std::equal_to<K>,
+         typename P = hashmap_internal::HashMapDefaultPolicy,
+         typename A = StandardAllocator<void> >
+class HashSet : public hashmap_internal::HashMapImpl<K, void, Hasher, Comparer, P, A>
+{
+public:
+    HashSet() {}
+    HashSet(HashSet const& other) = default;
+    HashSet& operator=(HashSet const& other) = default;
+    HashSet(HashSet&& other) : HashMapImpl(std::move(other)) { }
+    HashSet& operator=(HashSet&& other) { *static_cast<HashMapImpl*>(this) = std::move(other); return *this; }
+};
 //=============================================================================
 template<typename K,
          typename T,

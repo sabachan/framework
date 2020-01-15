@@ -5,6 +5,8 @@
 #include "Container.h"
 #include "Context.h"
 #include "PointerEvent.h"
+#include "Focusable.h"
+#include <core/PerfLog.h>
 
 namespace sg {
 namespace ui {
@@ -25,7 +27,7 @@ Component::Component()
 {
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-Component::Component(IsRootTag)
+Component::Component(ComponentIsRoot_t)
 : m_parent()
 , m_placementBox()
 , m_layerInContainer(0)
@@ -159,6 +161,7 @@ box2f const& Component::PlacementBoxAsIs_AssumeInUpdatePlacement() const
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 void Component::SetPlacementBox(box2f const& iBox)
 {
+    SG_CPU_PERF_LOG_SCOPE(4);
     bool const saved_isInUpdatePlacement = m_isInUpdatePlacement;
     m_isInUpdatePlacement = true;
     m_placementBox = iBox;
@@ -246,13 +249,16 @@ bool Component::IsPlacementUpToDate() const
 void Component::OnInsertInUI()
 {
     SG_ASSERT(!m_isInGUI);
+    SG_ASSERT(nullptr == AsFocusableIFP() || !AsFocusableIFP()->IsInGUIForAssert());
     VirtualOnInsertInUI();
     SG_ASSERT_MSG(m_isInGUI, "Did you forget a call to parent_type::VirtualOnInsertInUI()?");
+    SG_ASSERT_MSG(nullptr == AsFocusableIFP() || AsFocusableIFP()->IsInGUIForAssert(), "did you forget a call to OnInsertFocusableInUI()?");
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 void Component::OnRemoveFromUI()
 {
     SG_ASSERT(m_isInGUI);
+    SG_ASSERT(nullptr == AsFocusableIFP() || AsFocusableIFP()->IsInGUIForAssert());
     // NB: OnRemoveFromUI can do a lot of things, especially sending the reset
     // event that may need some placement boxes. Hence, we do things as in
     // OnDraw or OnPointerEvent.
@@ -264,6 +270,7 @@ void Component::OnRemoveFromUI()
     SG_ASSERT(m_isInDrawOrPointerEvent);
     m_isInDrawOrPointerEvent = false;
     SG_ASSERT_MSG(!m_isInGUI, "Did you forget a call to parent_type::VirtualOnRemoveFromUI()?");
+    SG_ASSERT_MSG(nullptr == AsFocusableIFP() || !AsFocusableIFP()->IsInGUIForAssert(), "did you forget a call to OnRemoveFocusableFromUI()?");
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 void Component::SetParent(Container* iContainer, i32 iLayerInContainer)

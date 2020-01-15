@@ -1,8 +1,14 @@
 #include "stdafx.h"
 
+#if 0
+
 #include "SimpleListLayout.h"
 
 #include "Magnifier.h"
+
+#if SG_ENABLE_ASSERT
+#include "RootContainer.h"
+#endif
 
 namespace sg {
 namespace ui {
@@ -90,6 +96,14 @@ void SimpleListLayout<direction>::RemoveAllItems()
 {
     m_items.clear();
     m_subContainer->RequestRemoveAll();
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+template <size_t direction>
+bool SimpleListLayout<direction>::VirtualMoveFocusReturnHasMoved(FocusDirection iDirection)
+{
+    SG_ASSERT_NOT_IMPLEMENTED();
+    SG_UNUSED(iDirection);
+    return false;
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 //template <typename T>
@@ -271,3 +285,5 @@ template SimpleListLayout<1>;
 //=============================================================================
 }
 }
+
+#endif

@@ -8,6 +8,7 @@
 
 #if SG_PLATFORM_IS_WIN
 #include <Core/WindowsH.h>
+#include <shellapi.h>
 #endif
 
 namespace sg {
@@ -30,8 +31,7 @@ Window::Window()
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 Window::~Window()
 {
-    if(!IsClosed())
-        Close();
+    CloseIFP();
 
     WindowedApplication* app = GetWindowedApplicationIFP();
     SG_ASSERT_AND_UNUSED(nullptr == app->GetWindow(m_hWnd));
@@ -71,6 +71,9 @@ void Window::InitInstance()
    {
        SG_ASSERT_NOT_REACHED();
    }
+
+   // TODO: Should it be always the case?
+   DragAcceptFiles(m_hWnd, true);
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 bool Window::IsVisible()
@@ -98,17 +101,23 @@ void Window::Show(bool iShow)
     }
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-void Window::Close()
+void Window::CloseIFP()
 {
-    // Can't destroy window like that today, as clients like RenderWindow do
+    if(m_isClosed)
+        return;
+
+    // NB: Unregistering window implies that it won't receive messages anymore.
+    // Specificaly, the ShowWindow(.., SW_HIDE) after would send messages but
+    // they won't be seen by window's event listeners
+    WindowedApplication* app = GetWindowedApplicationIFP();
+    SG_ASSERT(nullptr != app);
+    app->UnregisterWindow(this);
+
+    // Can't call DestroyWindow like that today, as clients like RenderWindow do
     // not expect that.
     // For now, window is kept alive, but not shown.
     if(IsVisible())
         ShowWindow(m_hWnd, SW_HIDE);
-
-    WindowedApplication* app = GetWindowedApplicationIFP();
-    SG_ASSERT(nullptr != app);
-    app->UnregisterWindow(this);
 
     m_isClosed = true;
 }
@@ -173,6 +182,7 @@ box2i Window::GetClientPlacement()
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 LRESULT Window::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam, UserInputManager& iManager)
 {
+    SG_ASSERT(!m_isClosed);
     SG_ASSERT_AND_UNUSED(m_hWnd == hWnd);
     switch (message)
     {

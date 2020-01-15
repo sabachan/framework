@@ -9,7 +9,6 @@
 #include <Rendering/RenderDevice.h>
 #include <Rendering/ShaderConstantDatabase.h>
 #include <Rendering/VertexTypes.h>
-#include <d3d11.h>
 
 namespace sg {
 namespace renderengine {
@@ -44,6 +43,11 @@ rendering::Material const* MaterialDescriptorCache::GetMaterial(
         SG_ASSERT(nullptr != material);
         return material;
     }
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+void MaterialDescriptorCache::Clear()
+{
+    m_materials.Clear();
 }
 //=============================================================================
 MaterialDescriptor::MaterialDescriptor()
@@ -83,6 +87,11 @@ void MaterialDescriptor::OnCreatedOrModified()
 {
     if(!m_blendState.IsValid())
         m_blendState = "Premultiplied Alpha Blending";
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+void MaterialDescriptor::ClearCache()
+{
+    m_cache->Clear();
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 #if ENABLE_REFLECTION_PROPERTY_CHECK

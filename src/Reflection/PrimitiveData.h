@@ -17,37 +17,39 @@ class IPrimitiveData;
 typedef std::vector<refptr<IPrimitiveData> > PrimitiveDataList;
 typedef std::vector<std::pair<std::string, refptr<IPrimitiveData> > > PrimitiveDataNamedList;
 //=============================================================================
-#define APPLY_MACRO_TO_PRIMITIVE_DATA_TYPES(MACRO) \
-    MACRO(Null,             nullptr_t)                 \
-    MACRO(Boolean,          bool)                      \
-    MACRO(Int32,            i32)                       \
-    MACRO(UInt32,           u32)                       \
-    MACRO(Float,            float)                     \
-    MACRO(String,           std::string)               \
-    MACRO(List,             PrimitiveDataList )        \
-    MACRO(NamedList,        PrimitiveDataNamedList )   \
-    MACRO(Object,           refptr<BaseClass>)         \
-    MACRO(ObjectReference,  ObjectReference)
+// MACRO( NAME,             CPP_TYPE,                   IS_NUMERIC,     IS_INTEGER)
+#define SG_REFLECTION_APPLY_MACRO_TO_PRIMITIVE_DATA_TYPES(MACRO) \
+    MACRO(Null,             nullptr_t,                  false,          false) \
+    MACRO(Boolean,          bool,                       false,          false) \
+    MACRO(Int32,            i32,                         true,           true) \
+    MACRO(UInt32,           u32,                         true,           true) \
+    MACRO(Float,            float,                       true,          false) \
+    MACRO(String,           std::string,                false,          false) \
+    MACRO(List,             PrimitiveDataList,          false,          false) \
+    MACRO(NamedList,        PrimitiveDataNamedList,     false,          false) \
+    MACRO(Object,           refptr<BaseClass>,          false,          false) \
+    MACRO(ObjectReference,  ObjectReference,            false,          false) \
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 enum class PrimitiveDataType
 {
     Unknown,
-#define DECLARE_ENUM_VALUE(ENUM_VALUE_NAME, CPP_TYPE) ENUM_VALUE_NAME,
-    APPLY_MACRO_TO_PRIMITIVE_DATA_TYPES(DECLARE_ENUM_VALUE)
+#define DECLARE_ENUM_VALUE(NAME, CPP_TYPE, IS_NUMERIC, IS_INTEGER) NAME,
+    SG_REFLECTION_APPLY_MACRO_TO_PRIMITIVE_DATA_TYPES(DECLARE_ENUM_VALUE)
 #undef DECLARE_ENUM_VALUE
-    Last
 };
+//=============================================================================
+struct PrimitiveDataTypeInfo
+{
+    PrimitiveDataType type;
+    char const* name;
+    bool isNumeric;
+    bool isInteger;
+};
+PrimitiveDataTypeInfo const& GetInfo(PrimitiveDataType type);
 //=============================================================================
 inline char const* GetPrimitiveDataTypeName(PrimitiveDataType type)
 {
-    switch(type)
-    {
-#define CASE_RETURN_TYPE_NAME(ENUM_VALUE_NAME, CPP_TYPE) case PrimitiveDataType::ENUM_VALUE_NAME: return #ENUM_VALUE_NAME;
-    APPLY_MACRO_TO_PRIMITIVE_DATA_TYPES(CASE_RETURN_TYPE_NAME)
-#undef CASE_RETURN_TYPE_NAME
-    default:
-        return "unknown";
-    }
+    return GetInfo(type).name;
 }
 //=============================================================================
 class IPrimitiveData : public RefAndSafeCountable
@@ -65,14 +67,16 @@ public:
 };
 //=============================================================================
 template<typename T> struct PrimitiveDataTraits { static const bool is_supported_type = false; };
-#define DECLARE_PRIMITIVE_DATA_TRAITS(ENUM_VALUE_NAME, CPP_TYPE) \
+#define DECLARE_PRIMITIVE_DATA_TRAITS(NAME, CPP_TYPE, IS_NUMERIC, IS_INTEGER) \
     template<> struct PrimitiveDataTraits<STRIP_PARENTHESIS(CPP_TYPE)> \
     { \
         static const bool is_supported_type = true; \
+        static const bool is_numeric = IS_NUMERIC; \
+        static const bool is_integer = IS_INTEGER; \
         typedef STRIP_PARENTHESIS(CPP_TYPE) cpp_type; \
-        static const PrimitiveDataType primitive_data_type = PrimitiveDataType::ENUM_VALUE_NAME; \
+        static const PrimitiveDataType primitive_data_type = PrimitiveDataType::NAME; \
     };
-    APPLY_MACRO_TO_PRIMITIVE_DATA_TYPES(DECLARE_PRIMITIVE_DATA_TRAITS)
+    SG_REFLECTION_APPLY_MACRO_TO_PRIMITIVE_DATA_TYPES(DECLARE_PRIMITIVE_DATA_TRAITS)
 #undef DECLARE_PRIMITIVE_DATA_TRAITS
 //=============================================================================
 template<typename T>
@@ -103,28 +107,27 @@ template<typename U> bool IPrimitiveData::AsROK(U* oValue) const
     SG_ASSERT(nullptr != oValue);
     switch(GetType())
     {
-#define CASE_CAST_AND_CONVERT(ENUM_VALUE_NAME, CPP_TYPE) \
-    case PrimitiveDataType::ENUM_VALUE_NAME: \
+#define CASE_CAST_AND_CONVERT(NAME, CPP_TYPE, IS_NUMERIC, IS_INTEGER) \
+    case PrimitiveDataType::NAME: \
         { \
             PrimitiveData<STRIP_PARENTHESIS(CPP_TYPE)> const* data =  \
                 checked_cast<PrimitiveData<STRIP_PARENTHESIS(CPP_TYPE)> const*>(this); \
             return data->AsROK(oValue); \
         } \
         break;
-    APPLY_MACRO_TO_PRIMITIVE_DATA_TYPES(CASE_CAST_AND_CONVERT)
+    SG_REFLECTION_APPLY_MACRO_TO_PRIMITIVE_DATA_TYPES(CASE_CAST_AND_CONVERT)
 #undef CASE_CAST_AND_CONVERT
     default:
         SG_ASSERT_NOT_REACHED();
     }
     return false;
 }
-#undef APPLY_MACRO_TO_PRIMITIVE_DATA_TYPES
 //=============================================================================
 template<typename T, typename U>
 struct PrimitiveDataConversion
 {
     static const bool is_supported = false;
-    inline bool operator() (T* oValue, U const& iValue) { SG_UNUSED(iValue); SG_ASSERT(nullptr != oValue); return is_supported; }
+    inline bool operator() (T* oValue, U const& iValue) { SG_UNUSED((oValue, iValue)); SG_ASSERT(nullptr != oValue); return is_supported; }
 };
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 template<typename T>
@@ -134,7 +137,7 @@ struct PrimitiveDataConversion<T,T>
     inline bool operator() (T* oValue, T const& iValue) { SG_ASSERT(nullptr != oValue); *oValue = iValue ; return is_supported; }
 };
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-#define DEFINE_PRIMITIVE_DATA_CONVERSION_FROM_CAST(DST, SRC) \
+#define DEFINE_PRIMITIVE_DATA_CONVERSION_FROM_CTOR(DST, SRC) \
     template<> \
     struct PrimitiveDataConversion<DST,SRC> \
     { \
@@ -142,16 +145,27 @@ struct PrimitiveDataConversion<T,T>
         inline bool operator() (DST* oValue, SRC const& iValue) \
         { \
             SG_ASSERT(nullptr != oValue); \
-            *oValue = (DST)iValue ; \
+            *oValue = DST(iValue); \
             return is_supported; \
         } \
     };
-DEFINE_PRIMITIVE_DATA_CONVERSION_FROM_CAST(float, i32)
-DEFINE_PRIMITIVE_DATA_CONVERSION_FROM_CAST(float, u32)
-DEFINE_PRIMITIVE_DATA_CONVERSION_FROM_CAST(i32, u32)
-DEFINE_PRIMITIVE_DATA_CONVERSION_FROM_CAST(u32, i32)
-DEFINE_PRIMITIVE_DATA_CONVERSION_FROM_CAST(std::string, nullptr_t)
-#undef DEFINE_PRIMITIVE_DATA_CONVERSION_FROM_CAST
+DEFINE_PRIMITIVE_DATA_CONVERSION_FROM_CTOR(float, i32)
+DEFINE_PRIMITIVE_DATA_CONVERSION_FROM_CTOR(float, u32)
+DEFINE_PRIMITIVE_DATA_CONVERSION_FROM_CTOR(i32, u32)
+DEFINE_PRIMITIVE_DATA_CONVERSION_FROM_CTOR(u32, i32)
+#undef DEFINE_PRIMITIVE_DATA_CONVERSION_FROM_CTOR
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+template<>
+struct PrimitiveDataConversion<std::string, nullptr_t>
+{
+    static const bool is_supported = true;
+    inline bool operator() (std::string* oValue, nullptr_t)
+    {
+        SG_ASSERT(nullptr != oValue);
+        oValue->clear();
+        return is_supported;
+    }
+};
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 template<>
 struct PrimitiveDataConversion<refptr<BaseClass>, ObjectReference>
@@ -186,7 +200,6 @@ bool DoesContainObjectReference(IPrimitiveData* iData);
 std::string ToString(IPrimitiveData* iData);
 #endif
 //=============================================================================
-
 }
 }
 

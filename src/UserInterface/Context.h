@@ -68,7 +68,7 @@ class DrawContext : public Context
 {
 public:
     DrawContext(LayerManager& iLayerManager, renderengine::CompositingLayer* iLayer, box2f const& iBoundingClippingBox);
-    DrawContext(DrawContext const& iParent, float4x4 const& iTransform, TransformType iTransformType);
+    DrawContext(DrawContext const& iParent, float4x4 const& iTransform, float4x4 const& iInverseTransform, TransformType iTransformType);
     ~DrawContext();
     box2f const& BoundingClippingBox() const { return m_boundingClippingBox; }
     LayerManager* GetLayerManager() const { return m_layerManager.get(); }

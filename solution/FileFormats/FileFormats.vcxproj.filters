@@ -29,6 +29,9 @@
     <ClInclude Include="..\..\src\FileFormats\stb_image.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\src\FileFormats\stb_image.c">
+      <Filter>Source Files</Filter>
+    </ClInclude>
     <ClInclude Include="..\..\src\FileFormats\stdafx.h">
       <Filter>Header Files</Filter>
     </ClInclude>

@@ -34,7 +34,7 @@ public:
     void SetContent(IMovable* iContent);
     void ScrollInUnitIFP(float2 const& iOffset);
     void ScrollToBoxInContentIFP(box2f const& iBoxInContent);
-    float2 GetRelativeScrollPosition() const { return m_relativeScrollPosition; }
+    float2 GetRelativeScrollPosition() const;
     box2f GetRelativeWindowOnContent() const;
     void GetWindowAndContentBox(box2f& oWindowBox, box2f& oContentBox) const;
     Properties const& GetProperties() const { return m_properties; }
@@ -56,7 +56,7 @@ private:
     refptr<ClippingContainer> m_clippingContainer;
     safeptr<IMovable> m_content;
     Properties m_properties;
-    float2 m_relativeScrollPosition;
+    float2 m_relativeScrollToApply;
     box2f m_barsMargins;
     bool2 m_visibleBars;
 };

@@ -24,7 +24,26 @@ int CompareCharCode(u8 const* a, u8 const* b, size_t sizeInBytes)
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 }
 //=============================================================================
-void BitMapFont::GetGlyphInfo(GlyphInfo& oInfo, u32 iCharCode) const
+u32 BitMapFont::GetGlyphCharCode(size_t iIndex) const
+{
+    u8 const* const charCodesAsu8 = reinterpret_cast<u8 const*>(charCodes);
+#if SG_ENABLE_ASSERT
+    u8 const zeroAsu8[] = {0,0,0,0};
+    SG_ASSERT(0 == CompareCharCode(zeroAsu8, charCodesAsu8, charCodeSizeInBytes));
+#endif
+    u8 const* s = charCodesAsu8 + iIndex * charCodeSizeInBytes;
+    u8 const* const e = s + charCodeSizeInBytes;
+    u32 code = 0;
+    while(s != e)
+    {
+        code <<= 8;
+        code |= *s;
+        ++s;
+    }
+    return code;
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+size_t BitMapFont::GetGlyphIndex(u32 iCharCode) const
 {
     u8 const* const charCodesAsu8 = reinterpret_cast<u8 const*>(charCodes);
 #if SG_ENABLE_ASSERT
@@ -34,9 +53,7 @@ void BitMapFont::GetGlyphInfo(GlyphInfo& oInfo, u32 iCharCode) const
     u32 const maxCharCode = (1 << (charCodeSizeInBytes * 8)) - 1;
     if(iCharCode > maxCharCode || 0 == iCharCode)
     {
-        oInfo.glyphDataAdressInBits = 0;
-        oInfo.advance = GetAdvance(0);
-        return;
+        return 0;
     }
     u8 inCharCodeBuffer[4];
     u8* const inCharCodeEnd = inCharCodeBuffer + SG_ARRAYSIZE(inCharCodeBuffer);
@@ -49,7 +66,7 @@ void BitMapFont::GetGlyphInfo(GlyphInfo& oInfo, u32 iCharCode) const
         {
             --inCharCodeCursor;
             *inCharCodeCursor = tmp & 0xFF;
-            tmp >>= 1;
+            tmp >>= 8;
         } while(inCharCodeCursor != inCharCodeBegin);
     }
     u8 const* const inCharCodeAsu8 = inCharCodeBegin;
@@ -64,9 +81,7 @@ void BitMapFont::GetGlyphInfo(GlyphInfo& oInfo, u32 iCharCode) const
         int const r = CompareCharCode(inCharCodeAsu8, charCodesAsu8 + m * charCodeSizeInBytes, charCodeSizeInBytes);
         if(0 == r)
         {
-            oInfo.glyphDataAdressInBits = m * glyphSize.x() * glyphSize.y();
-            oInfo.advance = GetAdvance(m);
-            return;
+            return m;
         }
         else if(r > 0)
         {
@@ -77,8 +92,21 @@ void BitMapFont::GetGlyphInfo(GlyphInfo& oInfo, u32 iCharCode) const
             e = m;
         }
     } while(b+1 != e);
-    oInfo.glyphDataAdressInBits = 0;
-    oInfo.advance = GetAdvance(0);
+    return 0;
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+void BitMapFont::GetGlyphInfoFromIndex(GlyphInfo& oInfo, size_t iIndex) const
+{
+    SG_ASSERT(iIndex < glyphCount);
+    oInfo.glyphDataAdressInBits = iIndex * glyphSize.x() * glyphSize.y();
+    oInfo.advance = GetAdvance(iIndex);
+    return;
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+void BitMapFont::GetGlyphInfo(GlyphInfo& oInfo, u32 iCharCode) const
+{
+    size_t const index = GetGlyphIndex(iCharCode);
+    GetGlyphInfoFromIndex(oInfo, index);
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 int BitMapFont::GetKerning(u32 iCharCode1, u32 iCharCode2) const

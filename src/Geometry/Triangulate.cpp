@@ -485,7 +485,7 @@ SG_TEST((sg, geometry), Triangulate, (Geometry, slow))
         std::vector<size_t> trianglebuffer(3*(points.size()-2));
         ArrayView<size_t> triangles = AsArrayView(trianglebuffer);
         {
-            SIMPLE_CPU_PERF_LOG_SCOPE("Triangulate");
+            SG_SIMPLE_CPU_PERF_LOG_SCOPE("Triangulate");
             TriangulateParameters param;
             param.epsilon = 0.0001f;
             TriangulateReturnCode const rc = Triangulate(AsArrayView(points), triangles, &param);

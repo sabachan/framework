@@ -77,6 +77,20 @@
 { "lone return",                "const a = 0 return a",                         "",         false,      ErrorType::unexpected_use_of_jump_statement},
 { "return missing value",       "function f(x) { const y = x*x return }",       "",         false,      ErrorType::missing_term_after_prefix_operator},
 { "lone return missing value",  "return",                                       "",         false,      ErrorType::missing_term_after_prefix_operator},
+{ "function f() {)",            "function f(x, y) { return x + y )",            "",         false,      ErrorType::unexpected_closing_token},
+{ "function f() {]",            "function f(x, y) { return x + y ]",            "",         false,      ErrorType::unexpected_closing_token},
+{ "function f(}",               "function f(x, y} { return x + y }",            "",         false,      ErrorType::unexpected_closing_token},
+{ "function f(]",               "function f(x, y] { return x + y }",            "",         false,      ErrorType::unexpected_closing_token},
+{ "{)",                         "sg::reflectionTest::TestClass_A{u: 0)",        "",         false,      ErrorType::unexpected_closing_token},
+{ "[}",                         "var v = [ 0, 1, 2 }",                          "",         false,      ErrorType::unexpected_closing_token},
+
+{ "unknown property name",      "sg::reflectionTest::TestClass_A{zz: 0}",       "",         false,      ErrorType::unknown_property_name},
+{ "function as property name",  "sg::reflectionTest::TestClass_A{function: 0}", "",         false,      ErrorType::missing_function_name},
+{ "for as property name",       "sg::reflectionTest::TestClass_A{for: 0}",      "",         false,      ErrorType::for_missing_parentheses},
+{ "return as property name",    "sg::reflectionTest::TestClass_A{return: 0}",   "",         false,      ErrorType::incorrect_use_of_operator},
+{ "missing namespace name",     "namespace{ var a = 0 }",                       "",         false,      ErrorType::missing_namespace_name},
+
+{ "missing comma in array",     "var t = [0, 1 2]",                             "",         false,      ErrorType::syntax_error_missing_comma},
 
 {
     // description
@@ -97,12 +111,20 @@
     "export obj1 is sg::reflectionTest::TestClass_A {u:1}"      "\n"
     "public obj2 is sg::reflectionTest::TestClass_A {u:2}"      "\n"
     "protected obj3 is sg::reflectionTest::TestClass_A {u:3}"   "\n"
-    "private obj4 is sg::reflectionTest::TestClass_A {u:4}"     "\n",
+    "private obj4 is sg::reflectionTest::TestClass_A {u:4}"     "\n"
+    "export sg::reflectionTest::TestClass_A {u:5}"              "\n"
+    "public sg::reflectionTest::TestClass_A {u:6}"              "\n"
+    "protected sg::reflectionTest::TestClass_A {u:7}"           "\n"
+    "private sg::reflectionTest::TestClass_A {u:8}"             "\n",
     // equivalent file
     "export obj1 is sg::reflectionTest::TestClass_A {u:1}"      "\n"
     "public obj2 is sg::reflectionTest::TestClass_A {u:2}"      "\n"
     "protected obj3 is sg::reflectionTest::TestClass_A {u:3}"   "\n"
-    "private obj4 is sg::reflectionTest::TestClass_A {u:4}"     "\n",
+    "private obj4 is sg::reflectionTest::TestClass_A {u:4}"     "\n"
+    "export sg::reflectionTest::TestClass_A {u:5}"              "\n"
+    "public sg::reflectionTest::TestClass_A {u:6}"              "\n"
+    "protected sg::reflectionTest::TestClass_A {u:7}"           "\n"
+    "private sg::reflectionTest::TestClass_A {u:8}"             "\n",
     // return value
     true,
     // first error
@@ -150,6 +172,38 @@
     // equivalent file
     "sg::reflectionTest::TestClass_C {"         "\n"
     "   vectorPair : [ [10, 0.02] ]"            "\n"
+    "}"                                         "\n",
+    // return value
+    true,
+    // first error
+    ErrorType::unknown
+},
+{
+    // description
+    "struct property as array",
+    // file content
+    "sg::reflectionTest::TestClass_C {"         "\n"
+    "   structB : [ 2, 0.5 ]"                   "\n"
+    "}"                                         "\n",
+    // equivalent file
+    "sg::reflectionTest::TestClass_C {"         "\n"
+    "   structB : [ 2, 0.5 ]"                   "\n"
+    "}"                                         "\n",
+    // return value
+    true,
+    // first error
+    ErrorType::unknown
+},
+{
+    // description
+    "struct property as struct",
+    // file content
+    "sg::reflectionTest::TestClass_C {"         "\n"
+    "   structB : { u:2 f:0.5 }"                "\n"
+    "}"                                         "\n",
+    // equivalent file
+    "sg::reflectionTest::TestClass_C {"         "\n"
+    "   structB : [ 2, 0.5 ]"                   "\n"
     "}"                                         "\n",
     // return value
     true,
@@ -325,6 +379,66 @@
 },
 {
     // description
+    "one instruction loops",
+    // file content
+    "function abs(x)"                                   "\n"
+    "{"                                                 "\n"
+    "    if(x < 0)"                                     "\n"
+    "        return -x"                                 "\n"
+    "    else"                                          "\n"
+    "        return x"                                  "\n"
+    "}"                                                 "\n"
+    "function f(x, y)"                                  "\n"
+    "{"                                                 "\n"
+    "    var v = x"                                     "\n"
+    "    if(v < y)"                                     "\n"
+    "    {"                                             "\n"
+    "        while(v < y)"                              "\n"
+    "            v += 10"                               "\n"
+    "    }"                                             "\n"
+    "    return v"                                      "\n"
+    "}"                                                 "\n"
+    "function m(x, y)"                                  "\n"
+    "{"                                                 "\n"
+    "    var v = 0"                                     "\n"
+    "    for(var i = 0; i < x; ++i)"                    "\n"
+    "    {"                                             "\n"
+    "       for(var j = 0; j < y; ++j)"                 "\n"
+    "            v += 1"                                "\n"
+    "    }"                                             "\n"
+    "    return v"                                      "\n"
+    "}"                                                 "\n"
+    "function g(x, y)"                                  "\n"
+    "{"                                                 "\n"
+    "    var v = 0"                                     "\n"
+    "    for(var i = 0; i < x; ++i)"                    "\n"
+    "    {"                                             "\n"
+    "       v += 10"                                    "\n"
+    "       if( v > y )"                                "\n"
+    "            return v"                              "\n"
+    "    }"                                             "\n"
+    "    return v"                                      "\n"
+    "}"                                                 "\n"
+    "sg::reflectionTest::TestClass_A { u : abs(2) }"    "\n"
+    "sg::reflectionTest::TestClass_A { u : abs(-6) }"   "\n"
+    "sg::reflectionTest::TestClass_A { u : f(4, 55) }"  "\n"
+    "sg::reflectionTest::TestClass_A { u : m(4, 3) }"   "\n"
+    "sg::reflectionTest::TestClass_A { u : g(6, 34) }"  "\n"
+    "sg::reflectionTest::TestClass_A { u : g(6, 99) }"  "\n",
+    // equivalent file
+    "sg::reflectionTest::TestClass_A { u : 2 }"         "\n"
+    "sg::reflectionTest::TestClass_A { u : 6 }"         "\n"
+    "sg::reflectionTest::TestClass_A { u : 64 }"        "\n"
+    "sg::reflectionTest::TestClass_A { u : 12 }"        "\n"
+    "sg::reflectionTest::TestClass_A { u : 40 }"        "\n"
+    "sg::reflectionTest::TestClass_A { u : 60 }"        "\n",
+    // return value
+    true,
+    // first error
+    ErrorType::unknown
+},
+{
+    // description
     "visibility keywords and templates",
     // file content
     "template tplObj("                                          "\n"
@@ -417,6 +531,55 @@
     false,
     // first error
     ErrorType::object_name_collision_with_script_object
+},
+{
+    // description
+    "variable name collision",
+    // file content
+    "namespace myNamespace {"   "\n"
+    "   const i = 0"            "\n"
+    "   var i = 2"              "\n"
+    "}"                         "\n",
+    // equivalent file
+    "",
+    // return value
+    false,
+    // first error
+    ErrorType::name_already_defined
+},
+{
+    // description
+    "variable name collision, non exact",
+    // file content
+    "namespace myNamespace {"   "\n"
+    "   const i = 0"            "\n"
+    "   namespace subns {"      "\n"
+    "       var i = 2"          "\n"
+    "   }"                      "\n"
+    "}"                         "\n",
+    // equivalent file
+    "",
+    // return value
+    false,
+    // first error
+    ErrorType::name_already_defined_in_outer_scope
+},
+{
+    // description
+    "variable name collision, non exact",
+    // file content
+    "namespace myNamespace {"   "\n"
+    "   const i = 0"            "\n"
+    "   function f(n) {"        "\n"
+    "       var i = n"          "\n"
+    "   }"                      "\n"
+    "}"                         "\n",
+    // equivalent file
+    "",
+    // return value
+    false,
+    // first error
+    ErrorType::name_already_defined_in_outer_scope
 },
 {
     // description
@@ -672,3 +835,134 @@
     // first error
     ErrorType::unknown
 },
+{
+    // description
+    "invalid value type for property (1)",
+    // file content
+    "D is sg::reflectionTest::TestClass_D { vectorStructC : [ A, B, ] }"      "\n"
+    "A is ::sg::reflectionTest::TestClass_A { u: 1 }"                         "\n"
+    "B is ::sg::reflectionTest::TestClass_A { u: 2 }"                         "\n",
+    // equivalent file
+    "",
+    // return value
+    false,
+    // first error
+    ErrorType::invalid_value_type_for_property
+},
+{
+    // description
+    "invalid value type for property (2)",
+    // file content
+    "D is sg::reflectionTest::TestClass_D { objectlist : [ { u: 1 o: A}, { u: 2 o: B}, ] }"     "\n"
+    "A is ::sg::reflectionTest::TestClass_A { u: 1 }"                                           "\n"
+    "B is ::sg::reflectionTest::TestClass_A { u: 2 }"                                           "\n",
+    // equivalent file
+    "",
+    // return value
+    false,
+    // first error
+    ErrorType::invalid_value_type_for_property
+},
+{
+    // description
+    "object reference in array of structs",
+    // file content
+    "D is sg::reflectionTest::TestClass_D { vectorStructC : ["      "\n"
+    "    { u: 1 o: A},"                                             "\n"
+    "    { u: 2 o: B},"                                             "\n"
+    "] }"                                                           "\n"
+    "A is sg::reflectionTest::TestClass_A { u : 1 }"                "\n"
+    "B is sg::reflectionTest::TestClass_A { u : 2 }"                "\n",
+    // equivalent file
+    "D is ::sg::reflectionTest::TestClass_D { vectorStructC: ["     "\n"
+    "    { u: 1 f: 0 o: ::A },"                                     "\n"
+    "    { u: 2 f: 0 o: ::B },"                                     "\n"
+    "] }"                                                           "\n"
+    "A is ::sg::reflectionTest::TestClass_A { u: 1 }"               "\n"
+    "B is ::sg::reflectionTest::TestClass_A { u: 2 }"               "\n",
+    // return value
+    true,
+    // first error
+    ErrorType::unknown
+},
+{
+    // description
+    "object reference in array of structs in variable",
+    // file content
+    "var T = [ { u: 1 o: A} ]"                                      "\n"
+    "T += [ { u: 2 o: B} ]"                                         "\n"
+    "D is sg::reflectionTest::TestClass_D { vectorStructC : T }"    "\n"
+    "A is sg::reflectionTest::TestClass_A { u : 1 }"                "\n"
+    "B is sg::reflectionTest::TestClass_A { u : 2 }"                "\n",
+    // equivalent file
+    "D is ::sg::reflectionTest::TestClass_D { vectorStructC: ["     "\n"
+    "    { u: 1 f: 0 o: ::A },"                                     "\n"
+    "    { u: 2 f: 0 o: ::B },"                                     "\n"
+    "] }"                                                           "\n"
+    "A is ::sg::reflectionTest::TestClass_A { u: 1 }"               "\n"
+    "B is ::sg::reflectionTest::TestClass_A { u: 2 }"               "\n",
+    // return value
+    true,
+    // first error
+    ErrorType::unknown
+},
+{
+    // description
+    "object reference in array in for loop",
+    // file content
+    "var T = []"                                                    "\n"
+    "for(var i = 0; i < 10; ++i)"                                   "\n"
+    "{"                                                             "\n"
+    "    if(i%2 == 0)      T += [A]"                                "\n"
+    "    else if(i%3 == 0) T += [B]"                                "\n"
+    "    else              T += [null]"                             "\n"
+    "}"                                                             "\n"
+    "D is sg::reflectionTest::TestClass_D { objectlist : T }"       "\n"
+    "A is sg::reflectionTest::TestClass_A { u : 1 }"                "\n"
+    "B is sg::reflectionTest::TestClass_A { u : 2 }"                "\n",
+    // equivalent file
+    "D is ::sg::reflectionTest::TestClass_D { objectlist: ["         "\n"
+    "    A, null, A, B, A, null, A, null, A, B"                      "\n"
+    "] }"                                                            "\n"
+    "A is ::sg::reflectionTest::TestClass_A { u: 1 }"                "\n"
+    "B is ::sg::reflectionTest::TestClass_A { u: 2 }"                "\n",
+    // return value
+    true,
+    // first error
+    ErrorType::unknown
+},
+{
+    // description
+    "object reference in array of structs in for loop",
+    // file content
+    "var T = []"                                                    "\n"
+    "for(var i = 0; i < 10; ++i)"                                   "\n"
+    "{"                                                             "\n"
+    "    if(i%2 == 0)      T += [{ u: 1 o: A}]"                     "\n"
+    "    else if(i%3 == 0) T += [{ u: 2 o: B}]"                     "\n"
+    "    else              T += [{ u: 0 o: null}]"                  "\n"
+    "}"                                                             "\n"
+    "D is sg::reflectionTest::TestClass_D { vectorStructC : T }"    "\n"
+    "A is sg::reflectionTest::TestClass_A { u : 1 }"                "\n"
+    "B is sg::reflectionTest::TestClass_A { u : 2 }"                "\n",
+    // equivalent file
+    "D is ::sg::reflectionTest::TestClass_D { vectorStructC: ["     "\n"
+    "    { u: 1 o: A },"                                            "\n"
+    "    { u: 0 o: null },"                                         "\n"
+    "    { u: 1 o: A },"                                            "\n"
+    "    { u: 2 o: B },"                                            "\n"
+    "    { u: 1 o: A },"                                            "\n"
+    "    { u: 0 o: null },"                                         "\n"
+    "    { u: 1 o: A },"                                            "\n"
+    "    { u: 0 o: null },"                                         "\n"
+    "    { u: 1 o: A },"                                            "\n"
+    "    { u: 2 o: B },"                                            "\n"
+    "] }"                                                           "\n"
+    "A is ::sg::reflectionTest::TestClass_A { u: 1 }"               "\n"
+    "B is ::sg::reflectionTest::TestClass_A { u: 2 }"               "\n",
+    // return value
+    true,
+    // first error
+    ErrorType::unknown
+},
+

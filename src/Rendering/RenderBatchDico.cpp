@@ -2,10 +2,10 @@
 
 #include "RenderBatchDico.h"
 
+#include "IShaderResource.h"
 #include "Material.h"
 #include "RenderBatchSet.h"
 #include "RenderDevice.h"
-#include "ShaderResource.h"
 #include <unordered_map>
 
 namespace sg {
@@ -35,8 +35,7 @@ TransientRenderBatch* RenderBatchDico::GetOrCreateTransientRenderBatch(
 
     SG_ASSERT(0 == (uintptr_t(&iMaterial) & 0x3));
     SG_ASSERT(2 == iProperties.indexSize || 4 == iProperties.indexSize);
-    uintptr_t ptrHash = uintptr_t(&iMaterial)
-        ^ (iProperties.indexSize >> 2);
+    uintptr_t ptrHash = uintptr_t(&iMaterial) ^ (iProperties.indexSize >> 2);
 
     auto fromPtrRange = m_transientDico.indexFromPtr.equal_range(ptrHash);
     for(auto it = fromPtrRange.first; it != fromPtrRange.second; ++it)

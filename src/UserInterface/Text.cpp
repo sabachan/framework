@@ -12,6 +12,23 @@
 namespace sg {
 namespace ui {
 //=============================================================================
+float2 ComputeTextBoxOffset(TextRenderer::Cache const& iTextCache, TextBoxAlignment const& iAlignment)
+{
+    box2f box = iTextCache.BoundingBox();
+    SG_ASSERT(0 <= iAlignment.useBaselinesInY && iAlignment.useBaselinesInY <= 1.f);
+    if(iAlignment.useBaselinesInY > 0)
+    {
+        box.min.y() = lerp(box.min.y(), 0.f, iAlignment.useBaselinesInY);
+        box.max.y() = lerp(box.max.y(), iTextCache.LastBaseline(), iAlignment.useBaselinesInY);
+    }
+    float2 offset;
+    offset = -lerp(box.Min(), box.Max(), iAlignment.alignementToAnchor);
+    SG_ASSERT(0 <= iAlignment.useTextAlignmentInX && iAlignment.useTextAlignmentInX <= 1.f);
+    if(iAlignment.useTextAlignmentInX > 0)
+        offset.x() *= (1.f-iAlignment.useTextAlignmentInX);
+    return offset;
+}
+//=============================================================================
 Text::Text()
     : m_text()
     , m_tfs(nullptr)
@@ -106,28 +123,52 @@ void Text::Draw(ui::DrawContext const& iContext, float2 const& iPosition, size_t
                              iLayer);
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-void Text::Draw(ui::DrawContext const& iContext, float2 const& iPosition, Alignment const& iAlignment, size_t iLayer)
+void Text::Draw(ui::DrawContext const& iContext, float2 const& iPosition, TextBoxAlignment const& iAlignment, size_t iLayer)
 {
     float2 const offset = ComputeOffset(iAlignment);
     Draw(iContext, iPosition + offset, iLayer);
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-float2 Text::ComputeOffset(Alignment const& iAlignment)
+float2 Text::ComputeOffset(TextBoxAlignment const& iAlignment)
 {
     PrepareIFN();
-    box2f box = Box();
-    SG_ASSERT(0 <= iAlignment.useBaselinesInY && iAlignment.useBaselinesInY <= 1.f);
-    if(iAlignment.useBaselinesInY > 0)
-    {
-        box.min.y() *= 1.f-iAlignment.useBaselinesInY;
-        box.max.y() = lerp(box.max.y(), m_textCache.LastBaseline(), iAlignment.useBaselinesInY);
-    }
-    float2 offset;
-    offset = -lerp(box.Min(), box.Max(), iAlignment.alignementToAnchor);
-    SG_ASSERT(0 <= iAlignment.useTextAlignmentInX && iAlignment.useTextAlignmentInX <= 1.f);
-    if(iAlignment.useTextAlignmentInX > 0)
-        offset.x() *= (1.f-iAlignment.useTextAlignmentInX);
-    return offset;
+    return ComputeTextBoxOffset(m_textCache, iAlignment);
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+size_t Text::GetGlyphCount()
+{
+    PrepareIFN();
+    return TextRenderer::GetGlyphCount(m_positionCache);
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+box2f Text::GetGlyphBox(size_t i)
+{
+    PrepareIFN();
+    return TextRenderer::GetGlyphBox(m_positionCache, i);
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+float2 Text::GetPenPosition(size_t i)
+{
+    PrepareIFN();
+    return TextRenderer::GetPenPosition(m_positionCache, i);
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+size_t Text::GetNearestGlyph(float2 const& iPosition)
+{
+    PrepareIFN();
+    return TextRenderer::GetNearestGlyph(m_positionCache, iPosition);
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+size_t Text::GetNearestInterGlyph(float2 const& iPosition)
+{
+    PrepareIFN();
+    return TextRenderer::GetNearestInterGlyph(m_positionCache, iPosition);
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+void Text::GetSelectionBoxes(std::vector<box2f>& oBoxes, size_t b, size_t e)
+{
+    PrepareIFN();
+    return TextRenderer::GetSelectionBoxes(m_positionCache, oBoxes, b, e);
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 void Text::Prepare()
@@ -146,7 +187,8 @@ void Text::Prepare()
     SG_ASSERT(nullptr != m_typeface);
     SG_ASSERT(nullptr != m_textStyle);
     SG_ASSERT(nullptr != m_paragraphStyle);
-    ui::TextRenderer::Prepare(m_textCache,
+    ui::TextRenderer::Prepare(m_positionCache,
+                              m_textCache,
                               m_text,
                               *m_typeface,
                               *m_textStyle,

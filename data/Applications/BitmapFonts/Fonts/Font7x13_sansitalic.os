@@ -1731,7 +1731,7 @@ export font is sg::image::tool::Font
                 ""
         },
         {
-            character : "°"
+            character : "Â°"
             advanceReduction : 1
             representation :
                 " . . X X . . . . \n" +

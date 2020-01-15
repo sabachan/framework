@@ -20,7 +20,6 @@ class RenderDevice;
 class ShaderConstantBuffers;
 class ShaderResourceBuffer;
 //=============================================================================
-// TODO: Rename to TransientRenderBatch
 // A transient render batch is used to display a geometry for one frame only.
 class TransientRenderBatch : public IRenderBatch
 {
@@ -214,17 +213,19 @@ public:
 #endif
     };
 
-    virtual int GetPriority() override;
-    virtual void PreExecute(RenderDevice const* iRenderDevice,
+    virtual int GetPriority(RenderBatchPassId iPassId) override;
+    virtual void PreExecute(RenderBatchPassId iPassId,
+                            RenderDevice const* iRenderDevice,
                             IShaderConstantDatabase const* iShaderConstantDatabase,
                             IShaderResourceDatabase const* iShaderResourceDatabase) override;
-    virtual size_t GetSubLayerCount() override;
-    virtual void Execute(RenderDevice const* iRenderDevice,
+    virtual size_t GetSubLayerEnd(RenderBatchPassId iPassId) override;
+    virtual void Execute(RenderBatchPassId iPassId,
+                         RenderDevice const* iRenderDevice,
                          IShaderConstantDatabase const* iShaderConstantDatabase,
                          IShaderResourceDatabase const* iShaderResourceDatabase,
                          size_t iSubLayer,
                          size_t& ioNextSubLayer) override;
-    virtual void PostExecute() override;
+    virtual void PostExecute(RenderBatchPassId iPassId) override;
 
 #if SG_ENABLE_UNIT_TESTS
     static void Test();
@@ -251,7 +252,7 @@ private:
     };
     std::vector<LayerData> m_layerData;
     size_t m_layerDataIndex;
-    size_t m_layerCount;
+    size_t m_layerEnd;
     static size_t const BUFFER_COUNT = 2;
     size_t m_bufferIndex;
     // TODO: vertexBuffer can be implemented only by one circular buffer on a ID3D11Buffer

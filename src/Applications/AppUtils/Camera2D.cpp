@@ -31,6 +31,14 @@ void Camera2D::UpdateViewToWorld()
     m_viewToWorld.SetSubMatrix(0,0, invM);
     m_viewToWorld.SetCol(2, invt);
 }
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+void Camera2D::SetViewportCenterAndScale(box2f iViewport, float2 iCenter, float scale)
+{
+    m_worldToView.SetSubMatrix(0,0, matrix::Diagonal(float2(scale)));
+    float2 const t = iViewport.Center() - iCenter;
+    m_worldToView.SetCol(2, iViewport.Center() - iCenter);
+    UpdateViewToWorld();
+}
 //=============================================================================
 }
 }

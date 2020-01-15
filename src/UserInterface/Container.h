@@ -32,7 +32,7 @@ protected:
     virtual void VirtualOnInsertInUI();
     virtual void VirtualOnRemoveFromUI();
 private:
-    Container(Component::IsRootTag);
+    Container(ComponentIsRoot_t);
     void AddToFront(Component* iComponent, i32 iLayer);
     void AddToBack(Component* iComponent, i32 iLayer);
     void MoveToFront(Component* iComponent, i32 iLayer);
@@ -41,6 +41,7 @@ private:
     void RemoveAll();
     void ExecuteRequests();
     void OnChildInvalidatePlacement();
+    virtual IFocusable* VirtualFindFocusableIFP() override;
 private:
     IntrusiveList<Component> m_children;
     struct Request
@@ -54,17 +55,6 @@ private:
     };
     std::vector<Request> m_requests;
     bool m_requestLocked;
-};
-//=============================================================================
-class RootContainer final : public Container
-{
-    typedef Container parent_type;
-public:
-    RootContainer();
-    ~RootContainer();
-    void SetPlacementBox(box2f const& iBox);
-private:
-    virtual void VirtualUpdatePlacement() override;
 };
 //=============================================================================
 // This sub container is useful to handle margins inside another container.

@@ -340,6 +340,7 @@
     <ClCompile Include="..\..\src\ObjectScript\Writer.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\src\ObjectScript\DeclareMetaclasses.h" />
     <ClInclude Include="..\..\src\ObjectScript\DeclareTests.h" />
     <ClInclude Include="..\..\src\ObjectScript\ImportDatabase.h" />
     <ClInclude Include="..\..\src\ObjectScript\Intrinsics.h" />
@@ -355,14 +356,6 @@
     <ClInclude Include="..\..\src\ObjectScript\stdafx.h" />
     <ClInclude Include="..\..\src\ObjectScript\Tokenizer_CharTraits.h" />
     <ClInclude Include="..\..\src\ObjectScript\Writer.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\Core\Core.vcxproj">
-      <Project>{d102ece8-5875-4b91-8d63-b1ad580d37b1}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\Reflection\Reflection.vcxproj">
-      <Project>{6c660e3f-ba2c-456a-8c69-b6be81c65f20}</Project>
-    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

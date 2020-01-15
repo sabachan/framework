@@ -2,6 +2,7 @@
 #define Applications_AppUtils_Camera2D_H
 
 #include <Core/SmartPtr.h>
+#include <Math/Box.h>
 #include <Math/Matrix.h>
 
 namespace sg {
@@ -15,6 +16,7 @@ public:
     float2x3 const& ViewToWorld() const { return m_viewToWorld; }
     void TranslateWorldInCameraSpace(float2 const& iTranslationInCameraSpace);
     void ApplyZoomInCameraSpace(float2 const& iCenterInCameraSpace, float iZoomFactor);
+    void SetViewportCenterAndScale(box2f iViewport, float2 iCenter, float scale);
 private:
     void UpdateViewToWorld();
 private:

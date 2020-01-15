@@ -8,8 +8,12 @@
 namespace sg {
 namespace ui {
 //=============================================================================
+SG_DEFINE_TYPED_TAG(ComponentIsRoot)
+//=============================================================================
+class Component;
 class Container;
 class DrawContext;
+class IFocusable;
 class PointerEvent;
 class PointerEventContext;
 //=============================================================================
@@ -34,6 +38,12 @@ public:
     Container* Parent() const;
     void MoveToFrontOfAllUI();
     void SendResetPointerEvent();
+    IFocusable* AsFocusableIFP() { return VirtualAsFocusableIFP(); }
+    IFocusable* FindFocusableIFP() { return VirtualFindFocusableIFP(); }
+#if SG_ENABLE_TOOLS
+    void SetNameForTools(std::string const& iName) { m_nameForTools = iName; }
+    std::string const& GetNameForTools() const { return m_nameForTools; }
+#endif
 protected:
     box2f const& PlacementBoxAsIs_AssumeInUpdatePlacement() const;
     void SetPlacementBox(box2f const& iBox);
@@ -44,10 +54,13 @@ protected:
     virtual void VirtualOnPointerEvent(PointerEventContext const& iContext, PointerEvent const& iPointerEvent);
     virtual void VirtualOnInsertInUI();
     virtual void VirtualOnRemoveFromUI();
+    //virtual Component* VirtualAsComponent() override { return this; }
+    virtual IFocusable* VirtualAsFocusableIFP() { return nullptr; }
 #if SG_ENABLE_ASSERT
     void CheckParentDrawAndPointerEventAreCalled(bool iValue) { m_checkParentDrawAndPointerEventAreCalled = iValue; }
 #endif
 private:
+    virtual IFocusable* VirtualFindFocusableIFP() { return VirtualAsFocusableIFP(); }
     bool IsPlacementUpToDate() const;
     void ForceInvalidatePlacement();
     void OnInsertInUI();
@@ -55,8 +68,7 @@ private:
     void SetParent(Container* iContainer, i32 iLayerInContainer);
     void SetLayerInContainer(Container* iContainer, i32 iLayerInContainer);
     i32 LayerInContainer() const { return m_layerInContainer; }
-    struct IsRootTag {};
-    Component(IsRootTag);
+    Component(ComponentIsRoot_t);
 private:
     safeptr<Container> m_parent;
     box2f m_placementBox;
@@ -69,6 +81,9 @@ private:
 #if SG_ENABLE_ASSERT
     bool m_checkParentDrawAndPointerEventAreCalled;
     bool m_parentDrawOrPointerEventHasBeenCalled;
+#endif
+#if SG_ENABLE_TOOLS
+    std::string m_nameForTools;
 #endif
 };
 //=============================================================================

@@ -320,14 +320,17 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\src\Rendering\CameraUtils.h" />
     <ClInclude Include="..\..\src\Rendering\Color.h" />
     <ClInclude Include="..\..\src\Rendering\ColorSpace.h" />
     <ClInclude Include="..\..\src\Rendering\ColorUtils.h" />
     <ClInclude Include="..\..\src\Rendering\DeclareTests.h" />
     <ClInclude Include="..\..\src\Rendering\ExampleObjects.h" />
     <ClInclude Include="..\..\src\Rendering\InitShutdown.h" />
+    <ClInclude Include="..\..\src\Rendering\ISurface.h" />
     <ClInclude Include="..\..\src\Rendering\Material.h" />
     <ClInclude Include="..\..\src\Rendering\MipmapGenerator.h" />
+    <ClInclude Include="..\..\src\Rendering\RenderBatchPassId.h" />
     <ClInclude Include="..\..\src\Rendering\SurfaceFormat.h" />
     <ClInclude Include="..\..\src\Rendering\TextureCache.h" />
     <ClInclude Include="..\..\src\Rendering\TransientRenderBatch.h" />
@@ -338,14 +341,14 @@
     <ClInclude Include="..\..\src\Rendering\RenderState.h" />
     <ClInclude Include="..\..\src\Rendering\RenderStateDico.h" />
     <ClInclude Include="..\..\src\Rendering\RenderStateUtils.h" />
-    <ClInclude Include="..\..\src\Rendering\RenderTarget.h" />
+    <ClInclude Include="..\..\src\Rendering\IRenderTarget.h" />
     <ClInclude Include="..\..\src\Rendering\RenderWindow.h" />
     <ClInclude Include="..\..\src\Rendering\ResolutionServer.h" />
     <ClInclude Include="..\..\src\Rendering\Shader.h" />
     <ClInclude Include="..\..\src\Rendering\ShaderCache.h" />
     <ClInclude Include="..\..\src\Rendering\ShaderConstantBuffers.h" />
     <ClInclude Include="..\..\src\Rendering\ShaderConstantDatabase.h" />
-    <ClInclude Include="..\..\src\Rendering\ShaderResource.h" />
+    <ClInclude Include="..\..\src\Rendering\IShaderResource.h" />
     <ClInclude Include="..\..\src\Rendering\ShaderResourceBuffer.h" />
     <ClInclude Include="..\..\src\Rendering\ShaderResourceDatabase.h" />
     <ClInclude Include="..\..\src\Rendering\stdafx.h" />
@@ -353,8 +356,17 @@
     <ClInclude Include="..\..\src\Rendering\TextureFromFile.h" />
     <ClInclude Include="..\..\src\Rendering\TextureFromMemory.h" />
     <ClInclude Include="..\..\src\Rendering\VertexTypes.h" />
+    <ClInclude Include="..\..\src\Rendering\WTF\IncludeD3D11.h" />
+    <ClInclude Include="..\..\src\Rendering\WTF\IncludeD3D11SDKLayers.h" />
+    <ClInclude Include="..\..\src\Rendering\WTF\IncludeD3D11Shader.h" />
+    <ClInclude Include="..\..\src\Rendering\WTF\IncludeD3DCommon.h" />
+    <ClInclude Include="..\..\src\Rendering\WTF\IncludeD3DCompiler.h" />
+    <ClInclude Include="..\..\src\Rendering\WTF\IncludeDxgi.h" />
+    <ClInclude Include="..\..\src\Rendering\WTF\IncludeDxgiFormat.h" />
+    <ClInclude Include="..\..\src\Rendering\WTF\IncludeWincodec.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\src\Rendering\CameraUtils.cpp" />
     <ClCompile Include="..\..\src\Rendering\ColorSpace.cpp" />
     <ClCompile Include="..\..\src\Rendering\dxguid.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='FastDebug|Win32'">NotUsing</PrecompiledHeader>

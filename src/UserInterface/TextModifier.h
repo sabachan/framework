@@ -15,7 +15,7 @@ class ITextModifier : public SafeCountable
     friend class TextRenderer_internal;
 public:
     virtual ~ITextModifier() {}
-    enum class Type : u8 { DynamicColor, Insert, Jump, MovePen, StyleChange, RelativeStyleChange, StylePush, StylePop };
+    enum class Type : u8 { DynamicColor, Insert, Jump, MovePen, StyleChange, RelativeStyleChange, StylePush, StylePop, HidePush, HidePop };
     Type GetType() const { return m_type; }
     size_t Position() const { return m_position; }
 protected:
@@ -93,6 +93,22 @@ class TextModifier_StylePop : public ITextModifier
 public:
     TextModifier_StylePop(size_t iPos)
         : ITextModifier(ITextModifier::Type::StylePop, iPos)
+    {}
+};
+//=============================================================================
+class TextModifier_HidePush : public ITextModifier
+{
+public:
+    TextModifier_HidePush(size_t iPos)
+        : ITextModifier(ITextModifier::Type::HidePush, iPos)
+    {}
+};
+//=============================================================================
+class TextModifier_HidePop : public ITextModifier
+{
+public:
+    TextModifier_HidePop(size_t iPos)
+        : ITextModifier(ITextModifier::Type::HidePop, iPos)
     {}
 };
 //=============================================================================

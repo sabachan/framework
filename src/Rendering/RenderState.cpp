@@ -2,7 +2,7 @@
 
 #include "RenderState.h"
 
-#include <d3d11.h>
+#include "WTF/IncludeD3D11.h"
 
 namespace sg {
 namespace rendering {

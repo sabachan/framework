@@ -108,7 +108,10 @@ void Slider::OnButtonUpToDown(SG_UI_SENSITIVE_AREA_LISTENER_PARAMETERS_ONE_BUTTO
 {
     SG_ASSERT(&m_sensitiveArea == iSensitiveArea);
     if(0 == iButton)
+    {
+        RequestFocusIFN();
         MoveToFrontOfAllUI();
+    }
     m_prevPointerPosition = iPointerLocalPosition.xy();
     OnDrag(iContext, iEvent, iPointerLocalPosition, iButton);
 }
@@ -163,8 +166,43 @@ void Slider::OnDrag(ui::PointerEventContext const& iContext, ui::PointerEvent co
         float const x = iPointerLocalPosition.x();
 #endif
         float const v = (x - lo) * m_maxValue / delta;
-        size_t const value = clamp(size_t(roundi(v)), size_t(0), m_maxValue);
+        size_t const value = v <= 0.f ? 0 : std::min(size_t(roundi(v)), m_maxValue);
         SetInternalValue(value);
+    }
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+void Slider::VirtualOnFocusableEvent(ui::FocusableEvent const& iFocusableEvent)
+{
+    focusable_parent_type::VirtualOnFocusableEvent(iFocusableEvent);
+    // TODO:
+    // - shift + left/right (big steps)
+    // - ctrl + left/right (smallest steps)
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+bool Slider::VirtualMoveFocusReturnHasMoved(ui::FocusDirection iDirection)
+{
+    if(!HasFocus())
+    {
+        RequestFocusIFN();
+        return true;
+    }
+    size_t const x = m_value;
+    switch(iDirection)
+    {
+    case ui::FocusDirection::Left:
+    {
+        size_t const value = x > 0 ? x-1 : 0;
+        SetInternalValue(value);
+        return true;
+    }
+    case ui::FocusDirection::Right:
+    {
+        size_t const value = x < m_maxValue ? x+1 : m_maxValue;
+        SetInternalValue(value);
+        return true;
+    }
+    default:
+        return false;
     }
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
@@ -177,7 +215,7 @@ void Slider::VirtualOnDraw(ui::DrawContext const& iContext)
     box2f const& placementBox = PlacementBox();
 
     ButtonLikeRenderParam renderParam;
-    GetButtonLikeRenderParam(renderParam, placementBox, true, IsHover() || IsClicked(), false);
+    GetButtonLikeRenderParam(renderParam, placementBox, true, IsHover() || IsClicked(), false, HasTerminalFocus());
 
     float2 const outDelta = renderParam.outBox.Delta();
     float2 const inDelta = renderParam.inBox.Delta();
@@ -185,11 +223,16 @@ void Slider::VirtualOnDraw(ui::DrawContext const& iContext)
     {
         float const x = lerp(placementBox.Min().x(), placementBox.Max().x(), float(m_value) / float(m_maxValue));
         Color4f const colorRight = renderParam.fillColor;
-        Color4f const colorLeft = renderParam.highlightColor;
+        Color4f const colorLeft = renderParam.fillColor2;
         box2f const leftBox = box2f::FromMinMax(renderParam.inBox.Min(), float2(x, renderParam.inBox.Max().y()));
         box2f const rightBox = box2f::FromMinMax(float2(x, renderParam.inBox.Min().y()), renderParam.inBox.Max());
         if(0 < leftBox.NVolume_NegativeIfNonConvex()) drawer->DrawQuad(iContext, leftBox, colorLeft);
         if(0 < rightBox.NVolume_NegativeIfNonConvex()) drawer->DrawQuad(iContext, rightBox, colorRight);
+        if(IsHover() || IsClicked())
+        {
+            box2f const hlbox = box2f::FromCenterDelta(leftBox.Center(), leftBox.Delta() - 4);
+            if(0 < hlbox.NVolume_NegativeIfNonConvex()) drawer->DrawQuad(iContext, hlbox, lerp(colorLeft, colorRight, 0.5f));
+        }
     }
     if(outDelta != inDelta && AllGreaterStrict(outDelta, float2(0.f)))
         drawer->DrawFrame(iContext, renderParam.inBox, renderParam.outBox, renderParam.lineColor);

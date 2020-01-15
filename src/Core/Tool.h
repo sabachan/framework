@@ -2,20 +2,40 @@
 #define Core_Tool_H
 
 #include "Config.h"
+#include "Utils.h"
+
+#define SG_TOOL_FUNCTION_TRIGGER(NAME, DOC, FUNCTION) \
+    do { \
+        auto* tb = ::sg::tools::Toolbox::GetIFP(); \
+        if(nullptr != tb && nullptr == tb->GetToolIFP(NAME)) \
+        { tb->RegisterTool(new ::sg::tools::FunctionTrigger(sg::tools::ForwardString(NAME), sg::tools::ForwardString(DOC), FUNCTION)); } \
+    } while(false)
 
 namespace sg {
+namespace tools {
 #if SG_ENABLE_TOOLS
 // iName is a path separated by '/'
-bool GetEditableValue(char const* iName, char const* iDoc, bool iDefault);
-int GetEditableValue(char const* iName, char const* iDoc, int iDefault, int iMin, int iMax, int iStep);
-size_t GetEditableValue(char const* iName, char const* iDoc, size_t iDefault, size_t iMin, size_t iMax, size_t iStep);
-float GetEditableValue(char const* iName, char const* iDoc, float iDefault, float iMin, float iMax, float iStep);
+bool GetEditable_bool(char const* iName, char const* iDoc, bool iDefault);
+bool GetAndResetEditable_bool(char const* iName, char const* iDoc);
+void SetEditable_bool(char const* iName, bool iValue);
+int GetEditable_int(char const* iName, char const* iDoc, int iDefault, int iMin, int iMax, int iStep);
+size_t GetEditable_size_t(char const* iName, char const* iDoc, size_t iDefault, size_t iMin, size_t iMax, size_t iStep);
+float GetEditable_float(char const* iName, char const* iDoc, float iDefault, float iMin, float iMax, float iStep);
+void SetEditable_int(char const* iName, int iValue);
+void SetEditable_size_t(char const* iName, size_t iValue);
+void SetEditable_float(char const* iName, float iValue);
 #else
-SG_FORCE_INLINE bool GetEditableValue(char const* iName, char const* iDoc, bool iDefault) { SG_UNUSED((iName, iDoc)); return iDefault; }
-SG_FORCE_INLINE int GetEditableValue(char const* iName, char const* iDoc, int iDefault, int iMin, int iMax, int iStep) { SG_UNUSED((iName, iDoc, iMin, iMax, iStep)); return iDefault; }
-SG_FORCE_INLINE size_t GetEditableValue(char const* iName, char const* iDoc, size_t iDefault, size_t iMin, size_t iMax, size_t iStep) { SG_UNUSED((iName, iDoc, iMin, iMax, iStep)); return iDefault; }
-SG_FORCE_INLINE float GetEditableValue(char const* iName, char const* iDoc, float iDefault, float iMin, float iMax, float iStep) { SG_UNUSED((iName, iDoc, iMin, iMax, iStep)); return iDefault; }
+SG_FORCE_INLINE void SetEditable_bool(char const* iName, bool iValue) { SG_UNUSED((iName, iValue)); }
+SG_FORCE_INLINE bool GetAndResetEditable_bool(char const* iName, char const* iDoc) { SG_UNUSED((iName, iDoc)); return false; }
+SG_FORCE_INLINE bool GetEditable_bool(char const* iName, char const* iDoc, bool iDefault) { SG_UNUSED((iName, iDoc, iDefault)); return iDefault; }
+SG_FORCE_INLINE int GetEditable_int(char const* iName, char const* iDoc, int iDefault, int iMin, int iMax, int iStep) { SG_UNUSED((iName, iDoc, iDefault, iMin, iMax, iStep)); return iDefault; }
+SG_FORCE_INLINE size_t GetEditable_size_t(char const* iName, char const* iDoc, size_t iDefault, size_t iMin, size_t iMax, size_t iStep) { SG_UNUSED((iName, iDoc, iDefault, iMin, iMax, iStep)); return iDefault; }
+SG_FORCE_INLINE float GetEditable_float(char const* iName, char const* iDoc, float iDefault, float iMin, float iMax, float iStep) { SG_UNUSED((iName, iDoc, iDefault, iMin, iMax, iStep)); return iDefault; }
+SG_FORCE_INLINE void SetEditable_int(char const* iName, int iValue) { SG_UNUSED((iName, iValue));}
+SG_FORCE_INLINE void SetEditable_size_t(char const* iName, size_t iValue) { SG_UNUSED((iName, iValue));}
+SG_FORCE_INLINE void SetEditable_float(char const* iName, float iValue) { SG_UNUSED((iName, iValue));}
 #endif
+}
 }
 
 #if SG_ENABLE_TOOLS
@@ -68,8 +88,6 @@ SG_FORCE_INLINE float GetEditableValue(char const* iName, char const* iDoc, floa
 namespace sg {
 namespace tools {
 //=============================================================================
-class ToolBox;
-//=============================================================================
 void Init();
 bool IsInitialized();
 void Shutdown();
@@ -79,6 +97,7 @@ template <> struct ForwardString_t<char const*>        { SG_NO_COPY_OPERATOR(For
 template <> struct ForwardString_t<std::string const&> { SG_NO_COPY_OPERATOR(ForwardString_t) ForwardString_t(std::string const& iValue) : value(iValue) {} ForwardString_t(ForwardString_t&& iOther) : value(iOther.value) {} std::string const& Value() const { return value; }            private: std::string const& value; };
 template <> struct ForwardString_t<std::string&&>      { SG_NO_COPY_OPERATOR(ForwardString_t) ForwardString_t(std::string&&      iValue) : value(iValue) {} ForwardString_t(ForwardString_t&& iOther) : value(iOther.value) {} std::string&& Value() const      { return std::move(value); } private: std::string& value; };
 template <typename T> ForwardString_t<T> ForwardString(T iString) { return ForwardString_t<T>(iString); }
+template <typename T> ForwardString_t<T> ForwardString(ForwardString_t<T> iString) { return iString; }
 //=============================================================================
 enum class ToolType { Trigger, EditableValue_bool, EditableValue_int, EditableValue_size_t, EditableValue_float, Command };
 //=============================================================================
@@ -90,6 +109,7 @@ public:
     ITool(ToolType iType, ForwardString_t<T> const& iName, ForwardString_t<U> const& iDocumentation) : m_type(iType),  m_name(iName.Value()), m_documentation(iDocumentation.Value()) {}
     virtual ~ITool() {}
     std::string const& Name() const { return m_name; }
+    char const* ShortName() const { char const* s = strrchr(m_name.c_str(), '/'); return (nullptr != s) ? s+1 : m_name.c_str(); }
     ToolType GetType() const { return m_type; }
 private:
     ToolType const m_type;
@@ -99,8 +119,24 @@ private:
 //=============================================================================
 class Trigger : public ITool, public Observable<Trigger>
 {
+    PARENT_SAFE_COUNTABLE(ITool)
+public:
     template<typename T, typename U>
-    Trigger(ForwardString_t<T> const& iName, ForwardString_t<U> const& iDocumentation) : ITool(ToolType::Trigger, iName, iDocumentation) {}
+    Trigger(T&& iName, U&& iDocumentation) : ITool(ToolType::Trigger, ForwardString(std::forward<T>(iName)), ForwardString(std::forward<U>(iDocumentation))) {}
+};
+//=============================================================================
+class FunctionTrigger : public Trigger, public Observer<Trigger>
+{
+    PARENT_SAFE_COUNTABLE(Trigger)
+public:
+    FunctionTrigger();
+    template<typename T, typename U, typename F>
+    FunctionTrigger(T&& iName, U&& iDocumentation, F&& f) : Trigger(std::forward<T>(iName), std::forward<U>(iDocumentation)), m_function(std::forward<F>(f)) { RegisterObserver(this); }
+    ~FunctionTrigger() { UnregisterObserver(this); }
+protected:
+    virtual void VirtualOnNotified(Trigger const*) override { m_function(); }
+private:
+    std::function<void()> m_function;
 };
 //=============================================================================
 class EditableValueBool : public ITool

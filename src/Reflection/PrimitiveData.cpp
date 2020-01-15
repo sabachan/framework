@@ -9,6 +9,28 @@
 namespace sg {
 namespace reflection {
 //=============================================================================
+namespace {
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+    PrimitiveDataTypeInfo const primitiveDataTypeInfos[] =
+    {
+        { PrimitiveDataType::Unknown, "Unknown", false, false },
+
+#define DECLARE_PRIMITIVE_TYPE_INFO(NAME, CPP_TYPE, IS_NUMERIC, IS_INTEGER) { PrimitiveDataType::NAME, #NAME, IS_NUMERIC, IS_INTEGER },
+    SG_REFLECTION_APPLY_MACRO_TO_PRIMITIVE_DATA_TYPES(DECLARE_PRIMITIVE_TYPE_INFO)
+#undef DECLARE_PRIMITIVE_TYPE_INFO
+    };
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+PrimitiveDataTypeInfo const& GetInfo(PrimitiveDataType type)
+{
+    size_t const index = size_t(type);
+    SG_ASSERT(index < SG_ARRAYSIZE(primitiveDataTypeInfos));
+    PrimitiveDataTypeInfo const& info = primitiveDataTypeInfos[index];
+    SG_ASSERT(info.type == type);
+    return info;
+}
+//=============================================================================
 void IPrimitiveData::CopyTo(refptr<IPrimitiveData>& oCopy) const
 {
     switch(GetType())

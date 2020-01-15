@@ -1,10 +1,12 @@
 #ifndef Rendering_Shader_H
 #define Rendering_Shader_H
 
+#include <Core/ArrayList.h>
+#include <Core/ArrayView.h>
 #include <Core/FilePath.h>
 #include <Core/SmartPtr.h>
-#include <Core/ArrayView.h>
 #include <Core/Utils.h>
+#include <algorithm>
 
 struct D3D11_INPUT_ELEMENT_DESC;
 struct ID3D11InputLayout;
@@ -17,6 +19,12 @@ namespace rendering {
 namespace shadercache {
     class ShaderCache;
 }
+//=============================================================================
+enum class ShaderType
+{
+    Pixel,
+    Vertex,
+};
 //=============================================================================
 struct ShaderBaseProxy
 {
@@ -92,24 +100,23 @@ class ShaderBaseDescriptor
 public:
     FilePath const& GetFilePath() const { return m_filepath; }
     std::string const& EntryPoint() const { return m_entryPoint; }
+    ArrayView<std::pair<std::string, std::string> const> Defines() const { return m_defines.View(); }
 protected:
-    ShaderBaseDescriptor(FilePath const& iFilePath, std::string const& iEntryPoint)
-        : m_filepath(iFilePath)
-        , m_entryPoint(iEntryPoint)
-    { }
+    ShaderBaseDescriptor(FilePath const& iFilePath, std::string const& iEntryPoint, ArrayView<std::pair<std::string, std::string> const> iDefines);
     size_t Hash() const;
     bool Equals(ShaderBaseDescriptor const& b) const;
 private:
     FilePath m_filepath;
     std::string m_entryPoint;
+    ArrayList<std::pair<std::string, std::string>> m_defines;
 };
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 class VertexShaderDescriptor : public RefAndSafeCountable
                              , public ShaderBaseDescriptor
 {
 public:
-    VertexShaderDescriptor(FilePath const& iFilePath, std::string const& iEntryPoint)
-        : ShaderBaseDescriptor(iFilePath, iEntryPoint) {}
+    VertexShaderDescriptor(FilePath const& iFilePath, std::string const& iEntryPoint, ArrayView<std::pair<std::string, std::string> const> iDefines = nullptr)
+        : ShaderBaseDescriptor(iFilePath, iEntryPoint, iDefines) {}
     VertexShaderProxy GetProxy() const;
     size_t Hash() const;
     bool Equals(VertexShaderDescriptor const& b) const;
@@ -120,8 +127,8 @@ class PixelShaderDescriptor : public RefAndSafeCountable
                             , public ShaderBaseDescriptor
 {
 public:
-    PixelShaderDescriptor(FilePath const& iFilePath, std::string const& iEntryPoint)
-        : ShaderBaseDescriptor(iFilePath, iEntryPoint) {}
+    PixelShaderDescriptor(FilePath const& iFilePath, std::string const& iEntryPoint, ArrayView<std::pair<std::string, std::string> const> iDefines = nullptr)
+        : ShaderBaseDescriptor(iFilePath, iEntryPoint, iDefines) {}
     PixelShaderProxy GetProxy() const;
     size_t Hash() const;
     bool Equals(PixelShaderDescriptor const& b) const;

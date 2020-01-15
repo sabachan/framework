@@ -65,6 +65,7 @@ public:
     bool returnValueIsLValue : 8;
     bool returnValueIsCommaSeparatedList : 8;
     bool returnValueContainsUnresolvedIdentifier : 8;
+    bool returnNoValueFromTemplateNamespace : 8;
 public:
     EvaluationInputOutput(reflection::ObjectDatabase* iObjectDatabase,
                           reflection::ObjectDatabase* iScriptDatabase,
@@ -100,6 +101,7 @@ public:
         , returnValueIsLValue(false)
         , returnValueIsCommaSeparatedList(false)
         , returnValueContainsUnresolvedIdentifier(false)
+        , returnNoValueFromTemplateNamespace(false)
     {
     }
     explicit EvaluationInputOutput(EvaluationInputOutput const& parentio)
@@ -132,6 +134,7 @@ public:
         , returnValueIsLValue(false)
         , returnValueIsCommaSeparatedList(false)
         , returnValueContainsUnresolvedIdentifier(false)
+        , returnNoValueFromTemplateNamespace(false)
     {
         SG_ASSERT(nullptr == parentio.jumpStatement);
     }
@@ -146,6 +149,7 @@ public:
         io.returnValueContainsUnresolvedIdentifier = returnValueContainsUnresolvedIdentifier;
         io.returnValueIsCommaSeparatedList = returnValueIsCommaSeparatedList;
         io.returnValueIsLValue = returnValueIsLValue;
+        io.returnNoValueFromTemplateNamespace = returnNoValueFromTemplateNamespace;
         SG_ASSERT(qualifiers.empty());
         SG_ASSERT(nullptr == objectIdentifier);
         jumpStatement = nullptr;
@@ -158,13 +162,41 @@ public:
     ITreeNode() : m_token() {}
     virtual ~ITreeNode() {}
     virtual void SetArgument(size_t i, ITreeNode* iArg) { SG_UNUSED((i, iArg)); SG_ASSERT_NOT_REACHED(); } // = 0;
-    virtual void SetSubNodes(std::vector<refptr<ITreeNode> >& iSubNodesCanBeCleared) { SG_UNUSED(iSubNodesCanBeCleared); SG_ASSERT_NOT_REACHED(); } // = 0;
+    virtual void SetSubNodes(std::vector<refptr<ITreeNode> >& iSubNodesCanBeCleared, IErrorHandler* iErrorHandler) { SG_UNUSED(iSubNodesCanBeCleared); SG_UNUSED(iErrorHandler); SG_ASSERT_NOT_REACHED(); } // = 0;
     virtual bool EvaluateROK(EvaluationInputOutput& io) = 0; // { SG_ASSERT_NOT_REACHED(); } // = 0; // TODO : return IPrimitiveData
     virtual bool IsValue() const = 0;
     virtual bool IsImport() const { return false; }
     virtual bool IsInstruction() const { return false; }
     void SetToken(Token const& iToken) { m_token = iToken; }
     Token const& GetToken() const { return m_token; }
+protected:
+    void PushErrorImpl(IErrorHandler* iErrorHandler, Token const& iToken, ErrorType iErrorType, char const* msg)
+    {
+        Error err;
+        err.type = iErrorType;
+        err.filebegin = iToken.filebegin;
+        err.begin = iToken.begin;
+        err.end = iToken.end;
+        err.fileid = iToken.fileid;
+        err.col = iToken.col;
+        err.line = iToken.line;
+        err.msg = msg;
+        iErrorHandler->OnObjectScriptError(err);
+    }
+    void CheckSubNodesIsCommaList(std::vector<refptr<ITreeNode> >& iSubNodesCanBeCleared, IErrorHandler* iErrorHandler)
+    {
+        if(iSubNodesCanBeCleared.size() > 1)
+        {
+            PushErrorImpl(iErrorHandler, iSubNodesCanBeCleared[1]->GetToken(), ErrorType::syntax_error_missing_comma, "Syntax error, missing comma");
+        }
+    }
+    void AssertPushSyntaxError(bool expr, IErrorHandler* iErrorHandler)
+    {
+        if(!expr)
+        {
+            PushErrorImpl(iErrorHandler, m_token, ErrorType::syntax_error, "Syntax erro");
+        }
+    }
 private:
     Token m_token;
 };
@@ -275,7 +307,7 @@ class Identifierize : public ITreeNode
 {
 public:
     virtual ~Identifierize() override {}
-    virtual void SetArgument(size_t i, ITreeNode* iArg) override { SG_ASSERT(i < 1); SG_ASSERT(nullptr == m_arg); m_arg = iArg; }
+    virtual void SetArgument(size_t i, ITreeNode* iArg) override { SG_ASSERT_AND_UNUSED(i < 1); SG_ASSERT(nullptr == m_arg); m_arg = iArg; }
     virtual bool EvaluateROK(EvaluationInputOutput& io) override;
     virtual bool IsValue() const override { return true; }
 private:
@@ -303,7 +335,7 @@ class Object : public ITreeNode // type { ... }
 {
 public:
     virtual void SetArgument(size_t i, ITreeNode* iArg) override { SG_ASSERT_AND_UNUSED(0 == i); m_type = iArg; }
-    virtual void SetSubNodes(std::vector<refptr<ITreeNode> >& iSubNodesCanBeCleared) override { SG_ASSERT(m_instructions.empty()); using std::swap; swap(iSubNodesCanBeCleared, m_instructions); }
+    virtual void SetSubNodes(std::vector<refptr<ITreeNode> >& iSubNodesCanBeCleared, IErrorHandler* iErrorHandler) override { SG_UNUSED(iErrorHandler); SG_ASSERT(m_instructions.empty()); using std::swap; swap(iSubNodesCanBeCleared, m_instructions); }
     virtual bool EvaluateROK(EvaluationInputOutput& io) override;
     virtual bool IsValue() const override { return true; }
     virtual bool IsInstruction() const { return true; }
@@ -316,7 +348,7 @@ class Struct : public ITreeNode // { ... }
 {
 public:
     virtual void SetArgument(size_t i, ITreeNode* iArg) override { SG_UNUSED((i, iArg)); SG_ASSERT_NOT_REACHED(); }
-    virtual void SetSubNodes(std::vector<refptr<ITreeNode> >& iSubNodesCanBeCleared) override { SG_ASSERT(m_instructions.empty()); using std::swap; swap(iSubNodesCanBeCleared, m_instructions); }
+    virtual void SetSubNodes(std::vector<refptr<ITreeNode> >& iSubNodesCanBeCleared, IErrorHandler* iErrorHandler) override { SG_UNUSED(iErrorHandler); SG_ASSERT(m_instructions.empty()); using std::swap; swap(iSubNodesCanBeCleared, m_instructions); }
     virtual bool EvaluateROK(EvaluationInputOutput& io) override;
     virtual bool IsValue() const override { return true; }
 private:
@@ -327,7 +359,7 @@ class List : public ITreeNode
 {
 public:
     virtual void SetArgument(size_t i, ITreeNode* iArg) override { SG_UNUSED((i, iArg)); SG_ASSERT_NOT_REACHED(); }
-    virtual void SetSubNodes(std::vector<refptr<ITreeNode> >& iSubNodesCanBeCleared) override { SG_ASSERT(nullptr == m_values); SG_ASSERT(iSubNodesCanBeCleared.size() == 1); m_values = iSubNodesCanBeCleared[0]; }
+    virtual void SetSubNodes(std::vector<refptr<ITreeNode> >& iSubNodesCanBeCleared, IErrorHandler* iErrorHandler) override { SG_ASSERT(nullptr == m_values); SG_ASSERT(!iSubNodesCanBeCleared.empty()); CheckSubNodesIsCommaList(iSubNodesCanBeCleared, iErrorHandler); m_values = iSubNodesCanBeCleared[0]; }
     virtual bool EvaluateROK(EvaluationInputOutput& io) override;
     virtual bool IsValue() const override { return true; }
 private:
@@ -338,7 +370,7 @@ class Parenthesis : public ITreeNode
 {
 public:
     virtual void SetArgument(size_t i, ITreeNode* iArg) override { SG_UNUSED((i, iArg)); SG_ASSERT_NOT_REACHED(); }
-    virtual void SetSubNodes(std::vector<refptr<ITreeNode> >& iSubNodesCanBeCleared) override { SG_ASSERT(nullptr == m_expression); SG_ASSERT(iSubNodesCanBeCleared.size() == 1); m_expression = iSubNodesCanBeCleared[0]; }
+    virtual void SetSubNodes(std::vector<refptr<ITreeNode> >& iSubNodesCanBeCleared, IErrorHandler* iErrorHandler) override { SG_ASSERT(nullptr == m_expression); AssertPushSyntaxError(iSubNodesCanBeCleared.size() == 1, iErrorHandler); m_expression = iSubNodesCanBeCleared[0]; }
     virtual bool EvaluateROK(EvaluationInputOutput& io) override;
     virtual bool IsValue() const override { return true; }
 private:
@@ -350,7 +382,7 @@ class Indexing : public ITreeNode
 public:
     virtual ~Indexing() override {}
     virtual void SetArgument(size_t i, ITreeNode* iArg) override { SG_ASSERT_AND_UNUSED(0 == i); m_indexed = iArg;  }
-    virtual void SetSubNodes(std::vector<refptr<ITreeNode> >& iSubNodesCanBeCleared) override { SG_ASSERT(nullptr == m_index); SG_ASSERT(iSubNodesCanBeCleared.size() == 1); m_index = iSubNodesCanBeCleared[0]; }
+    virtual void SetSubNodes(std::vector<refptr<ITreeNode> >& iSubNodesCanBeCleared, IErrorHandler* iErrorHandler) override { SG_ASSERT(nullptr == m_index); AssertPushSyntaxError(iSubNodesCanBeCleared.size() == 1, iErrorHandler); m_index = iSubNodesCanBeCleared[0]; }
     virtual bool EvaluateROK(EvaluationInputOutput& io) override;
     virtual bool IsValue() const override { return true; }
 private:
@@ -577,7 +609,7 @@ class FunctionCall : public ITreeNode
 {
 public:
     virtual void SetArgument(size_t i, ITreeNode* iArg) override { SG_ASSERT_AND_UNUSED(0 == i); SG_ASSERT(nullptr == m_callable); m_callable = iArg;  }
-    virtual void SetSubNodes(std::vector<refptr<ITreeNode> >& iSubNodesCanBeCleared) override { SG_ASSERT(nullptr == m_args); SG_ASSERT(iSubNodesCanBeCleared.size() == 1); m_args = iSubNodesCanBeCleared[0]; }
+    virtual void SetSubNodes(std::vector<refptr<ITreeNode> >& iSubNodesCanBeCleared, IErrorHandler* iErrorHandler) override { SG_ASSERT(nullptr == m_args); SG_ASSERT(!iSubNodesCanBeCleared.empty()); CheckSubNodesIsCommaList(iSubNodesCanBeCleared, iErrorHandler); m_args = iSubNodesCanBeCleared[0]; }
     virtual void SetArguments(ITreeNode* iArgs) { SG_ASSERT(nullptr == m_args); m_args = iArgs; }
     virtual bool EvaluateROK(EvaluationInputOutput& io) override;
     virtual bool IsValue() const override { return true; }
@@ -612,6 +644,7 @@ public:
     TemplateDeclaration() {}
     void SetName(ITreeNode* iTreeNode) { SG_ASSERT(nullptr == m_name); m_name = iTreeNode; }
     void SetType(ITreeNode* iTreeNode) { SG_ASSERT(nullptr == m_type); m_type = iTreeNode; }
+    void SetNamespace() { SG_ASSERT(nullptr == m_type); m_isNamespace = true; }
     void PushArgumentName(ITreeNode* iName) { m_argumentNamesAndDefaultValues.push_back(std::make_pair(iName, nullptr)); }
     void PushArgumentDefaultValue(ITreeNode* iDefault) { SG_ASSERT(!m_argumentNamesAndDefaultValues.empty()); SG_ASSERT(nullptr == m_argumentNamesAndDefaultValues.back().second); m_argumentNamesAndDefaultValues.back().second = iDefault; }
     void SetInstructions(std::vector<refptr<ITreeNode> >& iSubNodesCanBeCleared) { SG_ASSERT(m_instructions.empty()); using std::swap; swap(iSubNodesCanBeCleared, m_instructions); }
@@ -621,6 +654,7 @@ public:
 private:
     refptr<ITreeNode> m_name;
     refptr<ITreeNode> m_type;
+    bool m_isNamespace = false;
     std::vector<std::pair<refptr<ITreeNode>, refptr<ITreeNode> > > m_argumentNamesAndDefaultValues;
     std::vector<refptr<ITreeNode> > m_instructions;
 };
@@ -682,7 +716,7 @@ public:
     explicit TernaryExpression(TokenType iOp) { SG_ASSERT_AND_UNUSED(TokenType::operator_interrogation == iOp); }
     virtual void SetArgument(size_t i, ITreeNode* iArg) override { SG_ASSERT(2 > i); SG_ASSERT(nullptr == m_args[i*2]); m_args[i*2] = iArg; }
     virtual bool EvaluateROK(EvaluationInputOutput& io) override;
-    virtual void SetSubNodes(std::vector<refptr<ITreeNode> >& iSubNodesCanBeCleared) override { SG_ASSERT(nullptr == m_args[1] ); SG_ASSERT(iSubNodesCanBeCleared.size() == 1); m_args[1] = iSubNodesCanBeCleared[0]; }
+    virtual void SetSubNodes(std::vector<refptr<ITreeNode> >& iSubNodesCanBeCleared, IErrorHandler* iErrorHandler) override { SG_ASSERT(nullptr == m_args[1] ); AssertPushSyntaxError(iSubNodesCanBeCleared.size() == 1, iErrorHandler); m_args[1] = iSubNodesCanBeCleared[0]; }
     virtual bool IsValue() const override { return true; }
 private:
     void SetCenterNode(ITreeNode* iNode) { SG_ASSERT(nullptr == m_args[1] ); m_args[1] = iNode; }
@@ -776,7 +810,7 @@ class IntrinsicCall : public Callable
     REFLECTION_CLASS_HEADER(IntrinsicCall, Callable);
 public:
     IntrinsicCall() = default;
-    IntrinsicCall(auto_initialized_t) : IntrinsicCall() { reflection::ObjectCreationContext context; EndCreationIFN(context); };
+    IntrinsicCall(auto_initialized_t) : IntrinsicCall() { EndAutoCreation(); };
 private:
     virtual bool CallROK(semanticTree::EvaluationInputOutput& io, Token const& iToken) override;
     virtual bool CallROK(semanticTree::EvaluationInputOutput& io, reflection::PrimitiveDataList const& iArgs, Token const& iToken) override;
@@ -825,6 +859,50 @@ private:
     bool CallImplROK(semanticTree::EvaluationInputOutput& io, std::vector<ArgumentNameAndValue> const& iArgs, Token const& iToken);
 private:
     reflection::Metaclass const* m_metaclass;
+    std::vector<ArgumentNameAndValue> m_argumentNamesAndDefaultValues;
+    reflection::Identifier m_identifier;
+    std::vector<refptr<semanticTree::ITreeNode> > m_instructions;
+};
+//=============================================================================
+class TemplateNamespace : public reflection::BaseClass
+{
+    SG_NON_COPYABLE(TemplateNamespace)
+    REFLECTION_CLASS_HEADER(TemplateNamespace, reflection::BaseClass);
+public:
+    TemplateNamespace();
+    explicit TemplateNamespace(std::vector<ArgumentNameAndValue>& iArgumentsAndDefaultValuesCanBeCleared);
+    void SetIdentifier(reflection::Identifier const& iIdentifier) { m_identifier = iIdentifier; }
+    void SetBody(std::vector<refptr<semanticTree::ITreeNode> >& iInstructionsCanBeErased);
+    bool CallROK(semanticTree::EvaluationInputOutput& io, reflection::PrimitiveDataNamedList const& iArgs, Token const& iToken);
+    std::vector<ArgumentNameAndValue> const& ArgumentNamesAndDefaultValues() const { return m_argumentNamesAndDefaultValues; }
+private:
+    bool CallImplROK(semanticTree::EvaluationInputOutput& io, std::vector<ArgumentNameAndValue> const& iArgs, Token const& iToken);
+private:
+    std::vector<ArgumentNameAndValue> m_argumentNamesAndDefaultValues;
+    reflection::Identifier m_identifier;
+    std::vector<refptr<semanticTree::ITreeNode> > m_instructions;
+};
+//=============================================================================
+class TemplateAlias : public reflection::BaseClass
+{
+    SG_NON_COPYABLE(TemplateAlias)
+    REFLECTION_CLASS_HEADER(TemplateAlias, reflection::BaseClass);
+public:
+    TemplateAlias();
+    explicit TemplateAlias(std::vector<ArgumentNameAndValue>& iArgumentsAndDefaultValuesCanBeCleared);
+    void SetIdentifier(reflection::Identifier const& iIdentifier) { m_identifier = iIdentifier; }
+    void SetBody(std::vector<refptr<semanticTree::ITreeNode> >& iInstructionsCanBeErased);
+    void SetType(Template* iTemplate) { m_alias = iTemplate; }
+    void SetType(TemplateNamespace* iTemplate) { m_aliasNamespace = iTemplate; }
+    void SetType(TemplateAlias* iTemplate) { m_aliasAlias = iTemplate; }
+    bool CallROK(semanticTree::EvaluationInputOutput& io, reflection::PrimitiveDataNamedList const& iArgs, Token const& iToken);
+    std::vector<ArgumentNameAndValue> const& ArgumentNamesAndDefaultValues() const { return m_argumentNamesAndDefaultValues; }
+private:
+    bool CallImplROK(semanticTree::EvaluationInputOutput& io, std::vector<ArgumentNameAndValue> const& iArgs, Token const& iToken);
+private:
+    refptr<Template> m_alias;
+    refptr<TemplateNamespace> m_aliasNamespace;
+    refptr<TemplateAlias> m_aliasAlias;
     std::vector<ArgumentNameAndValue> m_argumentNamesAndDefaultValues;
     reflection::Identifier m_identifier;
     std::vector<refptr<semanticTree::ITreeNode> > m_instructions;

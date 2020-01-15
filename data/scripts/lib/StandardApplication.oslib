@@ -42,6 +42,32 @@ template StandardOffscreenCommon() is sg::ui::OffscreenCommon
 }
 
 
+const textStyle_tech7 = {
+    fillColor      : [255, 255, 255, 255]
+    strokeColor    : [  0,   0,   0,   0]
+    strokeSize     : 0.5
+    size           : 7
+    fontFamilyName : "tech"
+    bold           : false
+    italic         : false
+    superscript    : false
+    subscript      : false
+    underlined     : false
+    strikeThrough  : false
+}
+const textStyle_tech9 = {
+    fillColor      : [255, 255, 255, 255]
+    strokeColor    : [  0,   0,   0,   0]
+    strokeSize     : 0.5
+    size           : 9
+    fontFamilyName : "tech"
+    bold           : false
+    italic         : false
+    superscript    : false
+    subscript      : false
+    underlined     : false
+    strikeThrough  : false
+}
 const textStyle_tech13 = {
     fillColor      : [255, 255, 255, 255]
     strokeColor    : [  0,   0,   0,   0]
@@ -68,6 +94,24 @@ const textStyle_techSymbols12 = {
     underlined     : false
     strikeThrough  : false
 }
+const textStyle_techKanji14 = {
+    fillColor      : [255, 255, 255, 255]
+    strokeColor    : [  0,   0,   0,   0]
+    strokeSize     : 0.5
+    size           : 14
+    fontFamilyName : "tech kanji"
+    bold           : false
+    italic         : false
+    superscript    : false
+    subscript      : false
+    underlined     : false
+    strikeThrough  : false
+}
+
+
+template StandardCommonTools() is sg::commontools::ToolboxLoader
+{
+}
 
 template StandardToolsUICommon() is sg::toolsui::Common
 {
@@ -88,6 +132,7 @@ template StandardToolsUICommon() is sg::toolsui::Common
             [ "LineColorA",       [  96,  96, 128, 255] ],
             [ "LineColorA1",      [ 220, 220, 220,  64] ],
             [ "LineColorB",       [ 136, 144, 192, 255] ],
+            [ "LineColorFocus",   [ 140, 196, 255, 255] ],
             //[ "FillActiveColor0", [ 48,  56,  64, 255] ],
             //[ "FillActiveColor0", color_add([ 16,  32,  64, 255], [ 16,  16,  16,   0]) ],
             //[ "FillActiveColor1", [255, 255, 128, 255] ],
@@ -98,19 +143,22 @@ template StandardToolsUICommon() is sg::toolsui::Common
             [ "WindowLineThickness",      { unit : 3 } ],
             [ "MinManipulationThickness", { magnifiable : 8 } ],
             [ "MinManipulationLength",    { magnifiable : 16 } ],
+            [ "TreeTab",                  { magnifiable: 10 } ],
         ]
         vectors : [
             [ "LineMargin0",      [ { magnifiable :  1 }, { magnifiable :  1 } ] ],
             [ "LineMargin1",      [ { magnifiable :  2 }, { magnifiable :  2 } ] ],
             [ "LineMargin2",      [ { magnifiable :  4 }, { magnifiable :  4 } ] ],
-            [ "TextMargin",       [ { magnifiable : 10 }, { magnifiable :  4 } ] ],
+            [ "TextMargin",       [ { magnifiable : 10 }, { magnifiable :  3 } ] ],
             [ "WindowButtonSize", [ { magnifiable : 22 }, { magnifiable : 14 } ] ],
         ]
         uniformDrawers : [
             [ "Default", sg::ui::UniformDrawerDescriptor { pixelShader: PixelShader { file: "src:/UserInterface/Shaders/P_UI_UniformDrawer.hlsl" entryPoint: "pmain" } } ],
+            [ "AADrawer", sg::ui::UniformDrawerDescriptor { pixelShader: PixelShader { file: "src:/UserInterface/Shaders/P_UI_UniformDrawer.hlsl" entryPoint: "pmain"  defines : [["APPLY_PREMULTIPLICATION","1"],] } } ],
         ]
         textureDrawers : [
             [ "Default", sg::ui::TextureDrawerDescriptor { pixelShader: PixelShader{ file: "src:/UserInterface/Shaders/P_UI_TextureDrawer_Multiply.hlsl" entryPoint: "pmain" } textureBindName : "texture_input" } ],
+            [ "PixelArt", sg::ui::TextureDrawerDescriptor { pixelShader: PixelShader{ file: "src:/UserInterface/Shaders/P_UI_TextureDrawer_PixelArt_Multiply.hlsl" entryPoint: "pmain" } textureBindName : "texture_input" } ],
         ]
         circlePathDrawers : [
             [ "Default", sg::ui::CirclePathDrawerDescriptor { pixelShader: PixelShader { file: "src:/UserInterface/Shaders/P_UI_CirclePathDrawer.hlsl" entryPoint: "pmain" } } ],
@@ -118,7 +166,11 @@ template StandardToolsUICommon() is sg::toolsui::Common
         tfs : [
             [ "Default", sg::ui::TextFormatScript { instructions : [
                 [ "default", sg::ui::TFSStyle { style : textStyle_tech13 } ],
+                [ "small",   sg::ui::TFSStyle { style : textStyle_tech9 } ],
+                [ "xsmall",  sg::ui::TFSStyle { style : textStyle_tech7 } ],
                 [ "symbols", sg::ui::TFSStyle { style : textStyle_techSymbols12 } ],
+                [ "kanji",   sg::ui::TFSStyle { style : textStyle_techKanji14 } ],
+                [ "hide",    sg::ui::TFSSkip {}, ]
             ] } ],
         ]
 

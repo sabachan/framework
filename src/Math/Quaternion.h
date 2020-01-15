@@ -40,13 +40,13 @@ public:
     T&       c()       { return m_values[2]; }
     T&       d()       { return m_values[3]; }
 
-    T const&              s() const { return m_values[0]; }
+    T const& s() const { return m_values[0]; }
     Vector<T, 3> v() const { return Vector<T, 3>(m_values[1], m_values[2], m_values[3]); }
 
     T NormSq() const { T nsq = T(); for(size_t i = 0; i < 4; ++i) { nsq += m_values[i] * m_values[i]; } return nsq; }
     TemplateQuaternion Normalised();
     TemplateQuaternion Conjugate();
-private:
+public:
     T m_values[4];
 };
 //=============================================================================
@@ -89,11 +89,11 @@ template<typename T>
 TemplateQuaternion<T> TemplateQuaternion<T>::Normalised()
 {
     T const normsq = NormSq();
-    T const oonorm = sqrt(normsq); // WARNING!
+    T const oonorm = 1.f / sqrt(normsq); // TODO: rsqrt
     TemplateQuaternion<T> r = TemplateQuaternion<T>(uninitialized);
     for(size_t i = 0; i < 4; ++i)
     {
-        r.m_values[i] *= oonorm;
+        r.m_values[i] = m_values[i] * oonorm;
     }
     return r;
 }

@@ -185,13 +185,13 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
-      <WarningLevel>Level4</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>stdafx.h</PrecompiledHeaderFile>
       <PreprocessorDefinitions>COMPILATION_CONFIG_IS_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <TreatWarningAsError>true</TreatWarningAsError>
+      <WarningLevel>Level4</WarningLevel>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -267,7 +267,6 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Perf|Win32'">
     <ClCompile>
-      <WarningLevel>Level4</WarningLevel>
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
@@ -276,6 +275,7 @@
       <PrecompiledHeaderFile>stdafx.h</PrecompiledHeaderFile>
       <PreprocessorDefinitions>COMPILATION_CONFIG_IS_PERF;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <TreatWarningAsError>true</TreatWarningAsError>
+      <WarningLevel>Level4</WarningLevel>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -355,6 +355,7 @@
     <ClCompile Include="..\..\src\Core\TestFramework.cpp" />
     <ClCompile Include="..\..\src\Core\TimeFromWallClock.cpp" />
     <ClCompile Include="..\..\src\Core\Tool.cpp" />
+    <ClCompile Include="..\..\src\Core\Tribool.cpp" />
     <ClCompile Include="..\..\src\Core\VectorOfScopedPtr.cpp" />
     <ClCompile Include="..\..\src\Core\WinUtils.cpp" />
   </ItemGroup>
@@ -380,6 +381,7 @@
     <ClInclude Include="..\..\src\Core\IndexedArrayView.h" />
     <ClInclude Include="..\..\src\Core\IndexedBuffer.h" />
     <ClInclude Include="..\..\src\Core\ini.h" />
+    <ClInclude Include="..\..\src\Core\InstanceList.h" />
     <ClInclude Include="..\..\src\Core\Intrinsics.h" />
     <ClInclude Include="..\..\src\Core\IntrusiveList.h" />
     <ClInclude Include="..\..\src\Core\IntTypes.h" />
@@ -404,14 +406,17 @@
     <ClInclude Include="..\..\src\Core\TimeFromWallClock.h" />
     <ClInclude Include="..\..\src\Core\TimeServer.h" />
     <ClInclude Include="..\..\src\Core\Tool.h" />
+    <ClInclude Include="..\..\src\Core\Tribool.h" />
     <ClInclude Include="..\..\src\Core\Utils.h" />
     <ClInclude Include="..\..\src\Core\VectorOfScopedPtr.h" />
     <ClInclude Include="..\..\src\Core\WindowsH.h" />
     <ClInclude Include="..\..\src\Core\WinUtils.h" />
   </ItemGroup>
   <ItemGroup>
+    <Natvis Include="..\..\src\Core\ArrayList.natvis" />
     <Natvis Include="..\..\src\Core\ArrayView.natvis" />
     <Natvis Include="..\..\src\Core\FastSymbols.natvis" />
+    <Natvis Include="..\..\src\Core\HashMap.natvis" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

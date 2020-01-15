@@ -41,15 +41,15 @@ inline Temp<T, U||U2, M||M2, R||R2> operator + (Temp<T,U,M,R> const& a, Temp<T, 
 {
     Temp<T, U||U2, M||M2, R||R2> r;
     size_t i1 = 0, i2 = 0, ir = 0;
-    if(U && U2) r.data[ir++] = a.data[i1++] + b.data[i2++];
-    else if(U)  r.data[ir++] = a.data[i1++];
-    else if(U2) r.data[ir++] = b.data[i2++];
-    if(M && M2) r.data[ir++] = a.data[i1++] + b.data[i2++];
-    else if(M)  r.data[ir++] = a.data[i1++];
-    else if(M2) r.data[ir++] = b.data[i2++];
-    if(R && R2) r.data[ir++] = a.data[i1++] + b.data[i2++];
-    else if(R)  r.data[ir++] = a.data[i1++];
-    else if(R2) r.data[ir++] = b.data[i2++];
+    if(SG_CONSTANT_CONDITION(U && U2)) r.data[ir++] = a.data[i1++] + b.data[i2++];
+    else if(SG_CONSTANT_CONDITION(U))  r.data[ir++] = a.data[i1++];
+    else if(SG_CONSTANT_CONDITION(U2)) r.data[ir++] = b.data[i2++];
+    if(SG_CONSTANT_CONDITION(M && M2)) r.data[ir++] = a.data[i1++] + b.data[i2++];
+    else if(SG_CONSTANT_CONDITION(M))  r.data[ir++] = a.data[i1++];
+    else if(SG_CONSTANT_CONDITION(M2)) r.data[ir++] = b.data[i2++];
+    if(SG_CONSTANT_CONDITION(R && R2)) r.data[ir++] = a.data[i1++] + b.data[i2++];
+    else if(SG_CONSTANT_CONDITION(R))  r.data[ir++] = a.data[i1++];
+    else if(SG_CONSTANT_CONDITION(R2)) r.data[ir++] = b.data[i2++];
     return r;
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''

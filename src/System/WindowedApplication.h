@@ -7,9 +7,10 @@
 #error "Windows only !"
 #endif
 
-#include <Core/SmartPtr.h>
-#include <vector>
 #include "UserInputManager.h"
+#include <Core/SmartPtr.h>
+#include <Math/Vector.h>
+#include <vector>
 
 namespace sg {
 namespace system {
@@ -32,6 +33,7 @@ public: // win specific
     ATOM GetWindowClass() { return m_windowClassAtom; }
 protected:
     virtual void VirtualOneTurn();
+    virtual void VirtualOnDropFile(char const* iFilePath, Window* iWindow, uint2 const& iPosition);
     // TODO: Port clients on UserInputListeners and remove.
     virtual LRESULT VirtualWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 private:

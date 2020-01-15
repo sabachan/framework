@@ -6,8 +6,10 @@
 #include <type_traits>
 #include <Core/Assert.h>
 #include <Core/Cast.h>
+#include <Core/StringFormat.h>
 #include <Core/StringUtils.h>
 #include <Core/WindowsH.h>
+#include <Core/WinUtils.h>
 
 namespace sg {
 namespace pnm {
@@ -33,6 +35,8 @@ bool WritePNMROK(FilePath const& filename,
     std::string header = oss.str();
 
 #if SG_PLATFORM_IS_WIN
+    winutils::CreateDirectoryPathIFN(filename.ParentDirectory().GetSystemFilePath());
+
     HANDLE handle = CreateFileW(
         ConvertUTF8ToUCS2(filename.GetSystemFilePath()).c_str(),
         GENERIC_WRITE,
@@ -44,7 +48,10 @@ bool WritePNMROK(FilePath const& filename,
         );
     SG_ASSERT(INVALID_HANDLE_VALUE != handle);
     if(INVALID_HANDLE_VALUE == handle)
+    {
+        winutils::PrintWinLastError(Format("CreateFileW(%0)", filename.GetSystemFilePath()).c_str());
         return false;
+    }
 
     DWORD writtenByteCount = 0;
     BOOL rc = WriteFile(

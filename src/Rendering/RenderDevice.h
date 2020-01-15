@@ -1,13 +1,14 @@
 #ifndef Rendering_RenderDevice_H
 #define Rendering_RenderDevice_H
 
+#include "IRenderTarget.h"
+#include "RenderStateDico.h"
+#include "ResolutionServer.h"
 #include <Core/ComPtr.h>
 #include <Core/Observer.h>
 #include <Core/Singleton.h>
 #include <Core/SmartPtr.h>
 #include <Math/Vector.h>
-#include "RenderTarget.h"
-#include "ResolutionServer.h"
 
 struct ID3D11BlendState;
 struct ID3D11DepthStencilState;
@@ -36,14 +37,18 @@ public:
     RenderDevice();
     ~RenderDevice();
 
+    void SetDefaultState() const;
     void BeginRender();
     void EndRender();
     ID3D11Device* D3DDevice() const { return m_d3dDevice.get(); }
     ID3D11DeviceContext* ImmediateContext() const { return m_immediateContext.get(); }
     PresentFrameNotification& GetPresentFrameNotification() { return m_presentFrame; }
+    ID3D11BlendState* DefaultBlendState() const { return m_blendState.get(); }
 #if SG_ENABLE_ASSERT
     bool IsInRender_ForAssert() { return m_isInRender; }
 #endif
+    RenderStateName RenderStateName_NoBlend() const { return m_noBlendName; }
+    RenderStateName RenderStateName_PremultipliedAlphaBlending() const { return m_premultipliedAlphaBlendingName; }
 private:
     comptr<ID3D11Device> m_d3dDevice;
     comptr<ID3D11DeviceContext> m_immediateContext;
@@ -58,6 +63,8 @@ private:
 
     PresentFrameNotification m_presentFrame;
 
+    RenderStateName m_noBlendName;
+    RenderStateName m_premultipliedAlphaBlendingName;
 #if SG_ENABLE_ASSERT
     bool m_isInRender;
 #endif

@@ -8,6 +8,7 @@
 
 #include <Reflection/BaseClass.h>
 
+REFLECTION_DECLARE_METACLASS((sg,ui), CirclePathDrawerDescriptor)
 REFLECTION_DECLARE_METACLASS((sg,ui), GenericStyleGuide)
 REFLECTION_DECLARE_METACLASS((sg,ui), Length)
 REFLECTION_DECLARE_METACLASS((sg,ui), Length2)
@@ -15,6 +16,9 @@ REFLECTION_DECLARE_METACLASS((sg,ui), OffscreenCommon)
 REFLECTION_DECLARE_METACLASS((sg,ui), ParagraphStyle)
 REFLECTION_DECLARE_METACLASS((sg,ui), TextFormatScript)
 REFLECTION_DECLARE_METACLASS((sg,ui), TextStyle)
+REFLECTION_DECLARE_METACLASS((sg,ui), TextureDrawerDescriptor)
 REFLECTION_DECLARE_METACLASS((sg,ui), TFSInstruction)
 REFLECTION_DECLARE_METACLASS((sg,ui), TFSInsert)
+REFLECTION_DECLARE_METACLASS((sg,ui), TFSSkip)
 REFLECTION_DECLARE_METACLASS((sg,ui), TFSStyle)
+REFLECTION_DECLARE_METACLASS((sg,ui), UniformDrawerDescriptor)

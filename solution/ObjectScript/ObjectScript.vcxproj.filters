@@ -89,5 +89,8 @@
     <ClInclude Include="..\..\src\ObjectScript\Intrinsics.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\src\ObjectScript\DeclareMetaclasses.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

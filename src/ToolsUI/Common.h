@@ -11,6 +11,7 @@
 #include <Rendering/Color.h>
 #include <Rendering/ColorSpace.h>
 #include <Math/Box.h>
+#include <UserInterface/ListLayout.h>
 #include <UserInterface/Magnifier.h>
 #endif
 
@@ -38,6 +39,13 @@ public:
 #if SG_ENABLE_TOOLS
 class Toolbox;
 #endif
+////=============================================================================
+//class IToolLoader : public reflection::BaseClass
+//{
+//public:
+//    void Load
+//private:
+//};
 //=============================================================================
 // Note: As there are instances of Common type in object scripts, we need to
 // declare this class also in final version.
@@ -60,14 +68,26 @@ public:
         Color4f ButtonFillColor;
         Color4f ButtonHighlightColor;
         Color4f ButtonLineColor;
+        Color4f LineColorFocus;
     };
-    ResolvedStyleGuide const& GetResolvedStyleGuide() const {  return m_resolvedStyleGuide; }
+    ResolvedStyleGuide const& GetResolvedStyleGuide() const { return m_resolvedStyleGuide; }
     ui::GenericStyleGuide const* StyleGuide() const { return m_styleGuide.get(); }
     ui::Container* WindowContainer() const { return m_windowContainer.get(); }
     ui::Container* ModalContainer() const { return m_modalContainer.get(); }
     ui::Magnifier const& GetMagnifier() const { return m_magnifier; }
     ui::Magnifier& GetMagnifier() { return m_magnifier; }
     //struct ShutdowwnEvent : public Observable<ShutdowwnEvent> {};
+    ui::VerticalListLayout::Properties VerticalListProperties() const
+    {
+        ui::VerticalListLayout::Properties listprop;
+        listprop.margins.left = ui::Magnifiable(4);
+        listprop.margins.top = ui::Magnifiable(8);
+        listprop.margins.right = ui::Magnifiable(4);
+        listprop.margins.bottom = ui::Magnifiable(8);
+        listprop.margins.interItem = ui::Magnifiable(4);
+        listprop.widthFitMode = ui::FitMode::FitToMaxContentAndFrame;
+        return listprop;
+    }
 private:
     virtual void VirtualOnCreated(reflection::ObjectCreationContext& iContext) override;
     void ResolveStyleGuide();
@@ -80,22 +100,28 @@ public:
     DECLARE_FAST_SYMBOL(FillColorA2)
     DECLARE_FAST_SYMBOL(FillColorB)
     DECLARE_FAST_SYMBOL(FillColorB1)
+    DECLARE_FAST_SYMBOL(FillColorB2)
     DECLARE_FAST_SYMBOL(FillColorC)
     DECLARE_FAST_SYMBOL(LineColorA)
     DECLARE_FAST_SYMBOL(LineColorA1)
     DECLARE_FAST_SYMBOL(LineColorB)
+    DECLARE_FAST_SYMBOL(LineColorFocus)
     // length
     DECLARE_FAST_SYMBOL(LineThickness0)
     DECLARE_FAST_SYMBOL(LineThickness1)
     DECLARE_FAST_SYMBOL(WindowLineThickness)
     DECLARE_FAST_SYMBOL(MinManipulationThickness)
     DECLARE_FAST_SYMBOL(MinManipulationLength)
+    DECLARE_FAST_SYMBOL(TreeTab)
     // length2
     DECLARE_FAST_SYMBOL(LineMargin0)
     DECLARE_FAST_SYMBOL(LineMargin1)
     DECLARE_FAST_SYMBOL(LineMargin2)
     DECLARE_FAST_SYMBOL(TextMargin)
     DECLARE_FAST_SYMBOL(WindowButtonSize)
+    // drawer
+    DECLARE_FAST_SYMBOL(AADrawer)
+    DECLARE_FAST_SYMBOL(PixelArt)
     // text styles
     DECLARE_FAST_SYMBOL(Symbols)
 #undef DECLARE_FAST_SYMBOL
@@ -105,7 +131,6 @@ private:
 #if SG_ENABLE_TOOLS
     refptr<ui::Container> m_windowContainer;
     refptr<ui::Container> m_modalContainer;
-    refptr<Toolbox> m_toolbox;
     ui::Magnifier m_magnifier;
     CommonTimeServer m_timeServer;
     ResolvedStyleGuide m_resolvedStyleGuide;
@@ -119,10 +144,11 @@ struct ButtonLikeRenderParam
     box2f inBox;
     Color4f lineColor;
     Color4f fillColor;
+    Color4f fillColor2;
     Color4f highlightColor;
     Color4f baseColor;
 };
-void GetButtonLikeRenderParam(ButtonLikeRenderParam& oParam, box2f const& iPlacementBox, bool iIsActivated, bool iIsHover, bool iIsClicked);
+void GetButtonLikeRenderParam(ButtonLikeRenderParam& oParam, box2f const& iPlacementBox, bool iIsActivated, bool iIsHover, bool iIsClicked, bool iHasFocus = false);
 #endif
 //=============================================================================
 }

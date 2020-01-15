@@ -169,10 +169,12 @@ void ErrorHandler::VirtualOnObjectScriptError(Error const& iError)
 namespace {
 bool ReadObjectScriptWithRetryImplROK(FilePath const& iFile, reflection::ObjectDatabase& ioObjectDatabase, ImportDatabase* ioImportDatabase, IErrorHandler* iErrorHandler)
 {
-#if SG_ENABLE_TOOLS
+    SG_SIMPLE_CPU_PERF_LOG_SCOPE("ReadObjectScript");
     bool ok;
     bool retry;
+#if SG_ENABLE_TOOLS
     size_t nRetry = 0;
+#endif
     do
     {
         retry = false;
@@ -182,6 +184,7 @@ bool ReadObjectScriptWithRetryImplROK(FilePath const& iFile, reflection::ObjectD
             importDatabase = *ioImportDatabase;
         ErrorHandler errorHandler;
         ok = ReadObjectScriptROK(iFile, ioObjectDatabase, importDatabase, errorHandler);
+#if SG_ENABLE_TOOLS
         if(!ok)
         {
             SG_ASSERT(!errorHandler.GetErrors().Empty());
@@ -197,6 +200,7 @@ bool ReadObjectScriptWithRetryImplROK(FilePath const& iFile, reflection::ObjectD
                 nRetry = 0;
             }
         }
+#endif
         if(!retry)
         {
             if(nullptr != ioImportDatabase)
@@ -210,9 +214,6 @@ bool ReadObjectScriptWithRetryImplROK(FilePath const& iFile, reflection::ObjectD
     } while(retry);
 
     return ok;
-#else
-    bool ok = ReadObjectScriptROK(iFile, ioObjectDatabase, importDatabase, errorHandler);
-#endif
 }
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
@@ -550,7 +551,7 @@ SG_TEST((sg, objectscript), Reader, (ObjectScript, quick))
 
     reflection::Init();
 
-//#define RUN_ONLY_TEST_NUMBER 52
+//#define RUN_ONLY_TEST_NUMBER 144
 
 #ifdef RUN_ONLY_TEST_NUMBER
     size_t const i = RUN_ONLY_TEST_NUMBER;
@@ -593,7 +594,7 @@ SG_TEST((sg, objectscript), Reader, (ObjectScript, quick))
         ErrorHandler errorHandler;
         reflection::ObjectDatabase db;
         {
-            SIMPLE_CPU_PERF_LOG_SCOPE("Read Object Script");
+            SG_SIMPLE_CPU_PERF_LOG_SCOPE("Read Object Script");
             //bool ok = ReadObjectScriptROK(fileContent, db, errorHandler);
             bool const ok = ReadObjectScriptROK(devFileContent, db, errorHandler);
             SG_ASSERT(!errorHandler.DidErrorHappen() || !ok);
@@ -607,7 +608,7 @@ SG_TEST((sg, objectscript), Reader, (ObjectScript, quick))
             ErrorHandler errorHandler_2;
             reflection::ObjectDatabase db_2;
             {
-                SIMPLE_CPU_PERF_LOG_SCOPE("Read Object Script 2");
+                SG_SIMPLE_CPU_PERF_LOG_SCOPE("Read Object Script 2");
                 bool const ok_2 = ReadObjectScriptROK(str.c_str(), db_2, errorHandler_2);
                 SG_ASSERT(!errorHandler_2.DidErrorHappen() || !ok_2);
                 SG_ASSERT_AND_UNUSED(ok_2);
@@ -620,7 +621,7 @@ SG_TEST((sg, objectscript), Reader, (ObjectScript, quick))
         {
             reflection::ObjectDatabase db_3;
             {
-                SIMPLE_CPU_PERF_LOG_SCOPE("Read Simple Object Script");
+                SG_SIMPLE_CPU_PERF_LOG_SCOPE("Read Simple Object Script");
                 bool const ok_3 = simpleobjectscript::ReadObjectScriptROK(str.c_str(), db_3);
                 SG_ASSERT_AND_UNUSED(ok_3);
             }
@@ -637,7 +638,7 @@ SG_TEST((sg, objectscript), Reader, (ObjectScript, quick))
         ErrorHandler errorHandler;
         reflection::ObjectDatabase db;
         {
-            SIMPLE_CPU_PERF_LOG_SCOPE("Read Object Script");
+            SG_SIMPLE_CPU_PERF_LOG_SCOPE("Read Object Script");
             bool const ok = ReadObjectScriptROK(FilePath("src:/ObjectScript/UnitTests/Test.os"), db, errorHandler);
             SG_ASSERT(!errorHandler.DidErrorHappen() || !ok);
             SG_ASSERT_AND_UNUSED(ok);

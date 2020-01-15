@@ -14,12 +14,12 @@ namespace renderengine {
 namespace sg {
 namespace ui {
 //=============================================================================
-// A FrameProperty is a generic powrful way to describe the placement of a box
+// A FrameProperty is a generic powerful way to describe the placement of a box
 // relative to another one (the parent). Using Lengths, it can describes its
 // size as a composition of a unit size, a magnifiable size and a relative
 // size. This enable the description of fixed-size boxes, or boxes whose size
 // are relative to their parent, using negative unit or magnifiable length to
-// describe external margins. The offset is also usefull mainly to describe
+// describe external margins. The offset is also useful mainly to describe
 // margins. Also, fine alignment can be done thanks to the anchor, that is
 // positioned relatively to parent box, and to which the box is aligned.
 struct FrameProperty

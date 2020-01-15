@@ -1,7 +1,5 @@
 #include "stdafx.h"
 
-#if 0
-
 #include <Core/Config.h>
 #include <Core/Platform.h>
 #if !SG_ENABLE_ASSERT
@@ -19,6 +17,4 @@
 #if SG_COMPILER_IS_MSVC
 #pragma warning( pop )
 #pragma warning( disable : 4505 ) // unreferenced local function has been removed
-#endif
-
 #endif

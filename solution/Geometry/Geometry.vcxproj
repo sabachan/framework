@@ -338,19 +338,12 @@
   <ItemGroup>
     <ClInclude Include="..\..\src\Geometry\DeclareTests.h" />
     <ClInclude Include="..\..\src\Geometry\Geometry2D.h" />
+    <ClInclude Include="..\..\src\Geometry\Geometry3D.h" />
     <ClInclude Include="..\..\src\Geometry\PolygonUtils.h" />
     <ClInclude Include="..\..\src\Geometry\PolygonUtils_Impl.h" />
     <ClInclude Include="..\..\src\Geometry\stdafx.h" />
     <ClInclude Include="..\..\src\Geometry\Triangulate.h" />
     <ClInclude Include="..\..\src\Geometry\Triangulator.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\Core\Core.vcxproj">
-      <Project>{d102ece8-5875-4b91-8d63-b1ad580d37b1}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\Math\Math.vcxproj">
-      <Project>{99cac658-ac7e-40d5-8c6f-8301460f6ff4}</Project>
-    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

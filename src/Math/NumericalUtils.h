@@ -14,6 +14,7 @@ static double constexpr log2e     = 1.44269504088896340736;
 static double constexpr log10e    = 0.434294481903251827651;
 static double constexpr ln2       = 0.693147180559945309417;
 static double constexpr ln10      = 2.30258509299404568402;
+static double constexpr TAU       = 6.283185307179586476925;
 static double constexpr PI        = 3.14159265358979323846;
 static double constexpr PI_2      = 1.57079632679489661923;
 static double constexpr PI_4      = 0.785398163397448309616;
@@ -31,7 +32,7 @@ struct multiplication
     typedef decltype((*(T*)0) * (*(U*)0)) type;
 };
 //=============================================================================
-template <typename T> inline T sq(T x) { return x*x; }
+template <typename T> inline constexpr T sq(T x) { return x*x; }
 //=============================================================================
 inline float floor(float x) { return std::floor(x); }
 inline float round(float x) { return std::round(x); }
@@ -166,6 +167,18 @@ T cubicBezier(T a,
 }
 //=============================================================================
 namespace tweening {
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+// Returns a value that follows a triangle, with following constraints:
+//      input           0    1/2    1
+//      output          0     1     0
+//      derivative      .  2    -2  .
+template<typename T>
+T unitTriangle(T t)
+{
+    T const u = 2*t - T(1);
+    T const r = 1 - std::abs(u);
+    return r;
+}
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 // Returns a value that follows a parabolic arch, with following constraints:
 //      input           0    1/2    1

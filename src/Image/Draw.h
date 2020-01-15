@@ -424,9 +424,10 @@ typename std::enable_if<is_Brush<B>::value, void>::type DrawRect(AbstractImage<T
     }
 }
 //=============================================================================
-template<typename T, typename U, typename B>
-typename std::enable_if<is_Brush<B>::value, void>::type DrawText(AbstractImage<T>& img, math::Vector<U, 2> const& pos, std::string const& str, B const& brush, BitMapFont const& font = GetAlwaysAvailableBitmapFonts()[0])
+template<typename T, typename U, typename C, typename B>
+typename std::enable_if<is_Brush<B>::value, void>::type DrawText(AbstractImage<T>& img, math::Vector<U, 2> const& pos, C const* str, size_t strSize, B const& brush, BitMapFont const& font = GetAlwaysAvailableBitmapFonts()[0])
 {
+
     typedef int2 pos_t;
     B::blend_type const blend = B::blend_type();
     ubyte2 const wh = font.glyphSize;
@@ -435,10 +436,10 @@ typename std::enable_if<is_Brush<B>::value, void>::type DrawText(AbstractImage<T
     u64 const* glyphsData = font.glyphsData;
     pos_t pen = pos_t(pos) - pos_t(0, baseline);
     bool const forceMonospace = brush.monospace;
-    u8 prev_c = 0;
-    for_range(size_t, i, 0, str.size())
+    u32 prev_c = 0;
+    for_range(size_t, i, 0, strSize)
     {
-        u8 const c = str[i];
+        u32 const c = str[i];
         if('\n' == c)
         {
             pen = pos_t(int(pos.x()), pen.y() + leading);
@@ -480,6 +481,18 @@ typename std::enable_if<is_Brush<B>::value, void>::type DrawText(AbstractImage<T
             pen.x() += int(glyphInfo.advance);
         prev_c = c;
     }
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+template<typename T, typename U, typename B>
+typename std::enable_if<is_Brush<B>::value, void>::type DrawText(AbstractImage<T>& img, math::Vector<U, 2> const& pos, std::string const& str, B const& brush, BitMapFont const& font = GetAlwaysAvailableBitmapFonts()[0])
+{
+    DrawText(img, pos, str.data(), str.size(), brush, font);
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+template<typename T, typename U, typename B>
+typename std::enable_if<is_Brush<B>::value, void>::type DrawText(AbstractImage<T>& img, math::Vector<U, 2> const& pos, std::wstring const& str, B const& brush, BitMapFont const& font = GetAlwaysAvailableBitmapFonts()[0])
+{
+    DrawText(img, pos, str.data(), str.size(), brush, font);
 }
 //=============================================================================
 }

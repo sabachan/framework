@@ -145,6 +145,34 @@ SG_TEST((sg,core), ArrayList, (quick))
         SG_ASSERT(64 == value_type::s_count);
         SG_ASSERT_AND_UNUSED(prevptr != al1.data());
     }
+    {
+        typedef ArrayList<ALTest_ClassA> array_list_type;
+        typedef array_list_type::value_type value_type;
+        array_list_type al;
+        al.emplace_back(1);
+        al.EmplaceBack(2);
+        al.EmplaceBack(3);
+        al.EmplaceBack(4);
+        al.InsertAt(2,value_type(5));
+        SG_ASSERT(al.Size() == 5);
+        SG_ASSERT(al[0].value == 1);
+        SG_ASSERT(al[1].value == 2);
+        SG_ASSERT(al[2].value == 5);
+        SG_ASSERT(al[3].value == 3);
+        SG_ASSERT(al[4].value == 4);
+        al.RemoveAt(1);
+        SG_ASSERT(al.Size() == 4);
+        SG_ASSERT(al[0].value == 1);
+        SG_ASSERT(al[1].value == 5);
+        SG_ASSERT(al[2].value == 3);
+        SG_ASSERT(al[3].value == 4);
+        al.RemoveRange(1,3);
+        SG_ASSERT(al.Size() == 2);
+        SG_ASSERT(al[0].value == 1);
+        SG_ASSERT(al[1].value == 4);
+        al.RemoveRange(0,2);
+        SG_ASSERT(al.Size() == 0);
+    }
     SG_ASSERT(0 == ALTest_ClassB::s_count);
 }
 //=============================================================================

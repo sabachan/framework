@@ -1,0 +1,20 @@
+import "math.oslib"
+import "math_vector.oslib"
+import "std.oslib"
+
+namespace math { namespace quaternion
+{
+
+    function isQuaternion(q)
+    {
+        return vector::isVectorOfLength(q, 4)
+    }
+
+    function rotationFromAxisAndAngle(v, a)
+    {
+        const ha = 0.5*a
+        return [cos(ha)] + math::vector::mul(sin(ha), math::vector::normalize(v))
+    }
+
+}
+}

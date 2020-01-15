@@ -42,6 +42,9 @@ public:
     ImageView<T> View() { return ImageView<T>(m_data, m_size, m_strideInBytes SG_CODE_FOR_ASSERT(SG_COMMA m_safeCountForData.get()) ); }
     ImageView<T const> View() const { return ImageView<T const>(m_data, m_size, m_strideInBytes SG_CODE_FOR_ASSERT(SG_COMMA m_safeCountForData.get()) ); }
     ImageView<T const> ConstView() const { return ImageView<T const>(m_data, m_size, m_strideInBytes SG_CODE_FOR_ASSERT(SG_COMMA m_safeCountForData.get()) ); }
+    ImageView<T> RectView(uintbox2 const& rect) { return View().RectView(rect); }
+    ImageView<T const> RectView(uintbox2 const& rect) const { return View().RectView(rect); }
+    ImageView<T const> ConstRectView(uintbox2 const& rect) const { return View().RectView(rect); }
 private:
     void Swap(Image& iOther);
 private:
@@ -135,7 +138,7 @@ void Image<T>::Reset(uint2 const& iSize, Args... iClearArgs)
     Reset();
     size_t const count = iSize.x() * iSize.y();
     m_data = new u8[count * sizeof(T)];
-    if(!std::is_trivially_constructible<T>())
+    if(SG_CONSTANT_CONDITION(sizeof...(iClearArgs) != 0 || !std::is_trivially_constructible<T>()))
     {
         for_range(size_t, i, 0, count)
             new(reinterpret_cast<T*>(m_data) + i) T(iClearArgs...);

@@ -3,6 +3,7 @@
 
 #include "Assert.h"
 #include "Config.h"
+#include "StringUtils.h"
 #include <string>
 
 namespace sg {
@@ -32,6 +33,19 @@ public:
 private:
 private:
     T const& arg;
+};
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+template <>
+class FormatArg<std::wstring> : public IFormatArg
+{
+    SG_NO_COPY_OPERATOR(FormatArg)
+public:
+    explicit FormatArg(std::wstring const& iArg) : arg(iArg) {}
+    FormatArg(FormatArg const&) = default;
+    virtual void InsertIn(std::ostream& iStream) const override { iStream << ConvertUCS2ToUTF8(arg); }
+private:
+private:
+    std::wstring const& arg;
 };
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 template <typename T>

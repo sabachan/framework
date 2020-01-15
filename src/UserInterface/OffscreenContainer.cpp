@@ -75,9 +75,9 @@ OffscreenContainer::OffscreenContainer(rendering::SurfaceProperties const* iOpti
     }
     else
     {
-        prop.baseFormat = DXGI_FORMAT_R8G8B8A8_TYPELESS;
-        prop.readFormat = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-        prop.writeFormat = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+        prop.baseFormat = rendering::SurfaceFormat::R8G8B8A8_TYPELESS;
+        prop.readFormat = rendering::SurfaceFormat::R8G8B8A8_UNORM_SRGB;
+        prop.writeFormat = rendering::SurfaceFormat::R8G8B8A8_UNORM_SRGB;
         prop.mipLevels = 1;
     }
     m_surface = new rendering::Surface(renderDevice, &m_resolution, &prop);
@@ -86,9 +86,9 @@ OffscreenContainer::OffscreenContainer(rendering::SurfaceProperties const* iOpti
     renderengine::CompositingDescriptor const* compositingDesc = common->GetCompositingDescriptor();
     ArrayView<rendering::IShaderResource*> const inputSurfaces;
     ArrayView<rendering::IRenderTarget*> const outputSurfaces = AsArrayView(renderTargets);
-    rendering::IShaderConstantDatabase* constantDatabases_data[] = { m_shaderConstantDatabase.get() };
-    ArrayView<rendering::IShaderConstantDatabase*> const constantDatabases = AsArrayView(constantDatabases_data);
-    ArrayView<rendering::IShaderResourceDatabase*> const resourceDatabases;
+    rendering::IShaderConstantDatabase const* constantDatabases_data[] = { m_shaderConstantDatabase.get() };
+    ArrayView<rendering::IShaderConstantDatabase const*> const constantDatabases = AsArrayView(constantDatabases_data);
+    ArrayView<rendering::IShaderResourceDatabase const*> const resourceDatabases;
     refptr<renderengine::ICompositing> compositing = compositingDesc->CreateInstance(renderDevice, inputSurfaces, outputSurfaces, constantDatabases, resourceDatabases);
     m_compositing = compositing;
 
@@ -111,8 +111,8 @@ void OffscreenContainer::VirtualOnDraw(DrawContext const& iContext)
     SG_ASSERT(m_resolution.Get() == uint2(componentwise::max(ceili(box.Delta()), int2(MIN_OFFSCREEN_SURFACE_WIDTH_HEIGHT))));
     SG_ASSERT(iContext.GetTransformType() == Context::TransformType::None
            || iContext.GetTransformType() == Context::TransformType::Translate2D); // else, not impl (can be done better than naive impl).
-    DrawContext preContext(*m_layerManager, m_layer.get(), box);
-    DrawContext context(preContext, matrix::HomogeneousTranslation(-box.min.xy0()), Context::TransformType::Translate2D);
+    DrawContext preContext(*m_layerManager, m_layer.get(), box2f::FromMinDelta(float2(0,0), float2(m_resolution.Get())));
+    DrawContext context(preContext, matrix::HomogeneousTranslation(-box.min.xy0()), matrix::HomogeneousTranslation(box.min.xy0()), Context::TransformType::Translate2D);
     parent_type::VirtualOnDraw(context);
     m_layerManager->Clear();
     m_compositing->Execute(FastSymbol("Draw"));

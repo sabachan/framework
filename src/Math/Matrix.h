@@ -38,6 +38,9 @@ public:
     Matrix(Matrix const& iOther) { for(size_t i = 0; i < value_count; ++i) { m_values[i] = iOther.m_values[i]; } }
     Matrix & operator=(Matrix const& iOther) { for(size_t i = 0; i < value_count; ++i) { m_values[i] = iOther.m_values[i]; } return *this; }
 
+    template<typename U>
+    explicit Matrix(Matrix<U, dim_m, dim_n, order> const& iOther) { for(size_t i = 0; i < value_count; ++i) { m_values[i] = T(iOther.Data()[i]); } }
+
     Matrix(Matrix<T, dim_m, dim_n, MatrixTransposedOrder<order>::value> const& iOther) { for(size_t i = 0; i < dim_m; ++i) for(size_t j = 0; j < dim_n; ++j) { (*this)(i,j) = iOther(i,j); } }
     Matrix & operator=(Matrix<T, dim_m, dim_n, MatrixTransposedOrder<order>::value> const& iOther) { for(size_t i = 0; i < dim_m; ++i) for(size_t j = 0; j < dim_n; ++j) { (*this)(i,j) = iOther(i,j); } return *this; }
 
@@ -69,7 +72,7 @@ public:
     DEFINE_COMPONENTWISE_SCALAR_COMPOUND_ASSIGMENT_OP(*=)
 #undef DEFINE_COMPONENTWISE_SCALAR_COMPOUND_ASSIGMENT_OP
 
-    Matrix<T, dim_n, dim_m, MatrixTransposedOrder<order>::value> Transposed() { return Matrix<T, dim_n, dim_m, MatrixTransposedOrder<order>::value>(m_values); }
+    Matrix<T, dim_n, dim_m, MatrixTransposedOrder<order>::value> Transposed() const { return Matrix<T, dim_n, dim_m, MatrixTransposedOrder<order>::value>(m_values); }
 
     template<size_t dim_m_2, size_t dim_n_2>
     Matrix<T, dim_m_2, dim_n_2, order> SubMatrix(size_t i, size_t j) const;
@@ -381,6 +384,17 @@ void Matrix<T, dim_m, dim_n, order>::SetSubMatrix(size_t i, size_t j, Matrix<T, 
     }
 }
 //=============================================================================
+template<typename T, size_t dim, MatrixOrder order>
+T Trace(Matrix<T, dim, dim, order> const& m)
+{
+    float trace = 0.f;
+    for(size_t r = 0; r < dim; ++r)
+    {
+        trace += m(r,r);
+    }
+    return trace;
+}
+//=============================================================================
 template<typename T, MatrixOrder order>
 T Determinant(Matrix<T, 2, 2, order> const& m)
 {
@@ -389,6 +403,38 @@ T Determinant(Matrix<T, 2, 2, order> const& m)
     T const m10 = m(1,0);
     T const m11 = m(1,1);
     T const det = m00 * m11 - m01 * m10;
+    return det;
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+template<typename T, MatrixOrder order>
+T Determinant(Matrix<T, 3, 3, order> const& m)
+{
+    T const m00 = m(0,0);
+    T const m01 = m(0,1);
+    T const m02 = m(0,2);
+    T const m10 = m(1,0);
+    T const m11 = m(1,1);
+    T const m12 = m(1,2);
+    T const m20 = m(2,0);
+    T const m21 = m(2,1);
+    T const m22 = m(2,2);
+    T const det =
+          m00 * ( m11 * m22 - m21 * m12 )
+        + m01 * ( m12 * m20 - m22 * m10 )
+        + m02 * ( m10 * m21 - m20 * m11 );
+#if SG_ENABLE_ASSERT
+    T const det0 = det;
+    T const det1 =
+          m10 * ( m21 * m02 - m01 * m22 )
+        + m11 * ( m22 * m00 - m02 * m20 )
+        + m12 * ( m20 * m01 - m00 * m21 );
+    T const det2 =
+          m20 * ( m01 * m12 - m11 * m02 )
+        + m21 * ( m02 * m10 - m12 * m00 )
+        + m22 * ( m00 * m11 - m01 * m10 );
+    T const refDet = 1.f / 3.f * (det0 + det1 + det2);
+    SG_ASSERT(sg::EqualsWithTolerance(det, refDet, T(0.00001) * (det+refDet)));
+#endif
     return det;
 }
 //=============================================================================
@@ -546,6 +592,9 @@ bool EqualsWithTolerance(Matrix<T, dim_m, dim_n, order> const& a, Matrix<T, dim_
 typedef math::Matrix<float, 2, 2, math::MatrixOrder::RowMajor> float2x2;
 typedef math::Matrix<float, 3, 3, math::MatrixOrder::RowMajor> float3x3;
 typedef math::Matrix<float, 4, 4, math::MatrixOrder::RowMajor> float4x4;
+typedef math::Matrix<double, 2, 2, math::MatrixOrder::RowMajor> double2x2;
+typedef math::Matrix<double, 3, 3, math::MatrixOrder::RowMajor> double3x3;
+typedef math::Matrix<double, 4, 4, math::MatrixOrder::RowMajor> double4x4;
 //=============================================================================
 typedef math::Matrix<float, 2, 1, math::MatrixOrder::RowMajor> float2x1;
 typedef math::Matrix<float, 1, 2, math::MatrixOrder::RowMajor> float1x2;

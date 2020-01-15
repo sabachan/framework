@@ -15,6 +15,7 @@ namespace rendering {
     class IShaderResource;
     class Surface;
     class TextureFromFile;
+    REFLECTION_ENUM_HEADER(SurfaceFormat)
 }
 }
 
@@ -32,6 +33,7 @@ public:
     virtual ~AbstractSurfaceDescriptor() override;
     virtual rendering::IRenderTarget const* GetAsRenderTarget(Compositing* iCompositing) const = 0;
     virtual rendering::IShaderResource const* GetAsShaderResource(Compositing* iCompositing) const = 0;
+    virtual rendering::BaseSurface const* GetAsSurface(Compositing* iCompositing) const = 0;
 protected:
     friend class Compositing;
     virtual rendering::BaseSurface* CreateSurface(Compositing* iCompositing) const = 0;
@@ -45,6 +47,7 @@ public:
     virtual ~InputSurfaceDescriptor() override;
     virtual rendering::IRenderTarget const* GetAsRenderTarget(Compositing* iCompositing) const override;
     virtual rendering::IShaderResource const* GetAsShaderResource(Compositing* iCompositing) const override;
+    virtual rendering::BaseSurface const* GetAsSurface(Compositing* iCompositing) const override;
 private:
     virtual rendering::BaseSurface* CreateSurface(Compositing* iCompositing) const override;
 };
@@ -57,6 +60,7 @@ public:
     virtual ~OutputSurfaceDescriptor() override;
     virtual rendering::IRenderTarget const* GetAsRenderTarget(Compositing* iCompositing) const override;
     virtual rendering::IShaderResource const* GetAsShaderResource(Compositing* iCompositing) const override;
+    virtual rendering::BaseSurface const* GetAsSurface(Compositing* iCompositing) const override;
 private:
     virtual rendering::BaseSurface* CreateSurface(Compositing* iCompositing) const override;
 };
@@ -73,15 +77,18 @@ public:
     virtual ~SurfaceDescriptor() override;
     virtual rendering::IRenderTarget const* GetAsRenderTarget(Compositing* iCompositing) const override;
     virtual rendering::IShaderResource const* GetAsShaderResource(Compositing* iCompositing) const override;
-    rendering::Surface const* GetAsSurface(Compositing* iCompositing) const;
+    virtual rendering::Surface const* GetAsSurface(Compositing* iCompositing) const override;
+    AbstractResolutionDescriptor const* ResolutionDescriptor() const { return m_resolution.get(); }
 private:
     virtual rendering::Surface* CreateSurface(Compositing* iCompositing) const override;
+    virtual void VirtualOnCreated(reflection::ObjectCreationContext& iContext) override;
 #if ENABLE_REFLECTION_PROPERTY_CHECK
     virtual void VirtualCheckProperties(reflection::ObjectPropertyCheckContext& iContext) const override;
 #endif
 private:
     refptr<AbstractResolutionDescriptor> m_resolution;
     size_t m_mipLevels;
+    rendering::SurfaceFormat m_surfaceFormat { rendering::SurfaceFormat::UNKNOWN };
 };
 //=============================================================================
 class BCSurfaceDescriptor : public AbstractSurfaceDescriptor
@@ -90,7 +97,9 @@ class BCSurfaceDescriptor : public AbstractSurfaceDescriptor
 public:
     BCSurfaceDescriptor();
     virtual ~BCSurfaceDescriptor() override;
+    virtual rendering::IRenderTarget const* GetAsRenderTarget(Compositing* iCompositing) const override;
     virtual rendering::IShaderResource const* GetAsShaderResource(Compositing* iCompositing) const override;
+    virtual rendering::BCSurface const* GetAsSurface(Compositing* iCompositing) const override;
 private:
     virtual rendering::BCSurface* CreateSurface(Compositing* iCompositing) const override;
 #if ENABLE_REFLECTION_PROPERTY_CHECK
@@ -109,7 +118,7 @@ public:
     virtual ~DepthStencilSurfaceDescriptor() override;
     virtual rendering::IRenderTarget const* GetAsRenderTarget(Compositing* iCompositing) const override;
     virtual rendering::IShaderResource const* GetAsShaderResource(Compositing* iCompositing) const override;
-    rendering::DepthStencilSurface const* GetAsSurface(Compositing* iCompositing) const;
+    virtual rendering::DepthStencilSurface const* GetAsSurface(Compositing* iCompositing) const override;
 private:
     virtual rendering::DepthStencilSurface* CreateSurface(Compositing* iCompositing) const override;
 #if ENABLE_REFLECTION_PROPERTY_CHECK
@@ -128,6 +137,7 @@ public:
     virtual ~TextureSurfaceDescriptor() override;
     virtual rendering::IRenderTarget const* GetAsRenderTarget(Compositing* iCompositing) const override;
     virtual rendering::IShaderResource const* GetAsShaderResource(Compositing* iCompositing) const override;
+    virtual rendering::BaseSurface const* GetAsSurface(Compositing* iCompositing) const override;
     rendering::TextureFromFile const* CreateTexture(Compositing* iCompositing) const;
 private:
     virtual rendering::BaseSurface* CreateSurface(Compositing* iCompositing) const override;

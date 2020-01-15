@@ -122,17 +122,19 @@ public:
     u32* GetIndex32PointerForWriting(size_t iMaxIndexCount) { return static_cast<u32*>(GetIndexPointerForWritingImpl(sizeof(u32), iMaxIndexCount)); }
     void FinishWritingIndex(size_t iIndicesCount);
 
-    virtual int GetPriority() override;
-    virtual void PreExecute(rendering::RenderDevice const* iRenderDevice,
+    virtual int GetPriority(rendering::RenderBatchPassId iPassId) override;
+    virtual void PreExecute(rendering::RenderBatchPassId iPassId,
+                            rendering::RenderDevice const* iRenderDevice,
                             rendering::IShaderConstantDatabase const* iShaderConstantDatabase,
-                            rendering::IShaderResourceDatabase const* iShaderResourceDatabase) override { SG_UNUSED((iRenderDevice, iShaderConstantDatabase, iShaderResourceDatabase)); }
-    virtual size_t GetSubLayerCount() override;
-    virtual void Execute(rendering::RenderDevice const* iRenderDevice,
+                            rendering::IShaderResourceDatabase const* iShaderResourceDatabase) override { SG_ASSERT_AND_UNUSED(iPassId == rendering::RenderBatchPassId()); SG_UNUSED((iRenderDevice, iShaderConstantDatabase, iShaderResourceDatabase)); }
+    virtual size_t GetSubLayerEnd(rendering::RenderBatchPassId iPassId) override;
+    virtual void Execute(rendering::RenderBatchPassId iPassId,
+                         rendering::RenderDevice const* iRenderDevice,
                          rendering::IShaderConstantDatabase const* iShaderConstantDatabase,
                          rendering::IShaderResourceDatabase const* iShaderResourceDatabase,
                          size_t iSubLayer,
                          size_t& ioNextSubLayer) override;
-    virtual void PostExecute() override {}
+    virtual void PostExecute(rendering::RenderBatchPassId iPassId) override { SG_ASSERT_AND_UNUSED(iPassId == rendering::RenderBatchPassId()); }
 private:
     void* GetVertexPointerForWritingImpl(size_t iSizeofVertex, size_t iMaxVertexCount, size_t iInputSlot);
     void* GetIndexPointerForWritingImpl(size_t iSizeofIndex, size_t iMaxIndexCount);
@@ -172,5 +174,4 @@ private:
 //=============================================================================
 }
 }
-
 #endif

@@ -1,11 +1,11 @@
-#ifndef Rendering_TextureOnMemory_H
-#define Rendering_TextureOnMemory_H
+#ifndef Rendering_TextureFromMemory_H
+#define Rendering_TextureFromMemory_H
 
+#include "IShaderResource.h"
+#include "ResolutionServer.h"
 #include <Core/ComPtr.h>
 #include <Core/SmartPtr.h>
 #include <Image/Image.h>
-#include "ResolutionServer.h"
-#include "ShaderResource.h"
 
 struct ID3D11ShaderResourceView;
 struct ID3D11Texture2D;
@@ -27,14 +27,14 @@ public:
     TextureFromMemory(RenderDevice const* iRenderDevice);
     virtual ~TextureFromMemory() override;
 
-    void UpdateFromMemory(u8* iData, size_t iDataSize, ColorFormat iColorFormat, uint2 const& iResolution, size_t iStrideInBytes);
+    void UpdateFromMemory(u8 const* iData, size_t iDataSize, ColorFormat iColorFormat, uint2 const& iResolution, size_t iStrideInBytes);
 
     virtual ID3D11ShaderResourceView* GetShaderResourceView() const override { SG_ASSERT(nullptr != m_shaderResourceView); return m_shaderResourceView.get(); }
     virtual ResolutionServer const* ShaderResourceResolution() const override { return &m_resolution; }
 private:
     friend class TextureFromOwnMemory;
     void ClearAndSetResolution(uint2 const& iResolution);
-    void UpdateAssumeSameResolution(u8* iData, size_t iDataSize, ColorFormat iColorFormat, uint2 const& iResolution, size_t iStrideInBytes);
+    void UpdateAssumeSameResolution(u8 const* iData, size_t iDataSize, ColorFormat iColorFormat, uint2 const& iResolution, size_t iStrideInBytes);
     inline uint2 const& Resolution() const { return m_resolution.Get(); }
 private:
     safeptr<RenderDevice const> m_renderDevice;
@@ -84,7 +84,9 @@ template<typename T>
 inline image::ImageView<T> TextureFromOwnMemory::GetAsImageForModification()
 {
     SG_ASSERT(!m_data.empty());
-    SG_ASSERT(TextureFromMemory::SizeOf(m_colorFormat) == sizeof(T));
+    size_t const selfPixelSize = TextureFromMemory::SizeOf(m_colorFormat);
+    size_t const requestedPixelSize = sizeof(T);
+    SG_ASSERT(selfPixelSize == requestedPixelSize);
     uint2 const res = m_impl.Resolution();
     SG_ASSERT(m_data.size() == res.x() * res.y() * TextureFromMemory::SizeOf(m_colorFormat));
     m_isUpToDate = false;

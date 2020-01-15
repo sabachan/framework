@@ -6,17 +6,18 @@
 #error "This file should be included only with SG_ENABLE_TOOLS"
 #endif
 
-#include <Core/Cast.h>
-#include <Core/Observer.h>
+#include "Common.h"
 #include <UserInterface/Container.h>
 #include <UserInterface/Component.h>
 #include <UserInterface/FitMode.h>
+#include <UserInterface/Focusable.h>
 #include <UserInterface/FrameProperty.h>
 #include <UserInterface/ListLayout.h>
 #include <UserInterface/Movable.h>
 #include <UserInterface/SensitiveArea.h>
 #include <UserInterface/Text.h>
-#include "Common.h"
+#include <Core/Cast.h>
+#include <Core/Observer.h>
 
 namespace sg {
 namespace toolsui {
@@ -25,10 +26,12 @@ class Label;
 //=============================================================================
 class Slider : public ui::Container
              , public ui::IMovable
+             , private ui::IFocusable
              , private ui::ISensitiveAreaListener
 {
     PARENT_SAFE_COUNTABLE(ui::Container)
     typedef ui::Container parent_type;
+    typedef ui::IFocusable focusable_parent_type;
 //public:
 //    struct Properties
 //    {
@@ -55,7 +58,13 @@ protected:
     virtual void OnButtonDownToUp(SG_UI_SENSITIVE_AREA_LISTENER_PARAMETERS_ONE_BUTTON) override;
     virtual void VirtualOnDraw(ui::DrawContext const& iContext) override;
     virtual void VirtualUpdatePlacement() override;
+    virtual void VirtualOnFocusableEvent(ui::FocusableEvent const& iFocusableEvent) override;
+    virtual bool VirtualMoveFocusReturnHasMoved(ui::FocusDirection iDirection) override;
     virtual ui::Component* VirtualAsComponent() override { return this; }
+    virtual IFocusable* VirtualAsFocusableIFP() override { return this; }
+    virtual void VirtualOnInsertInUI() override { parent_type::VirtualOnInsertInUI(); OnInsertFocusableInUI(); }
+    virtual void VirtualOnRemoveFromUI() override { OnRemoveFocusableFromUI(); parent_type::VirtualOnRemoveFromUI(); }
+
     ui::SensitiveArea const& SensitiveArea() const { return m_sensitiveArea; }
     virtual void VirtualOnValueModified() = 0;
 private:

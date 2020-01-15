@@ -19,6 +19,7 @@ public:
     WheelHelper();
     void OnPointerEventPreChildren(PointerEventContext const& iContext, PointerEvent const& iEvent, IArea const& iArea);
     void OnPointerEventPostChildren(PointerEventContext const& iContext, PointerEvent const& iEvent, IWheelListener& iListener);
+    void OnPointerEventNoChild(PointerEventContext const& iContext, PointerEvent const& iEvent, IArea const& iArea, IWheelListener& iListener);
 private:
     bool m_wheelEventIsPremasked;
     float3 m_pointerLocalPosition;

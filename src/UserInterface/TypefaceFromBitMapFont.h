@@ -44,7 +44,7 @@ private:
     refptr<rendering::Material> m_material; // one per texture
     refptr<rendering::Material> m_material_Stroke;
     refptr<rendering::TextureFromOwnMemory> m_texture;
-    u32 m_nx;
+    size_t m_nx;
 };
 //=============================================================================
 class TypefaceFromBitMapFont : public ITypeface

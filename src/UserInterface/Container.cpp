@@ -15,8 +15,8 @@ Container::Container()
 {
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-Container::Container(Component::IsRootTag tag)
-: parent_type(tag)
+Container::Container(ComponentIsRoot_t)
+: parent_type(ComponentIsRoot)
 , m_children()
 , m_requests()
 , m_requestLocked(false)
@@ -70,6 +70,21 @@ void Container::VirtualOnPointerEvent(PointerEventContext const& iContext, Point
     SG_ASSERT(m_requestLocked);
     m_requestLocked = false;
     ExecuteRequests();
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+IFocusable* Container::VirtualFindFocusableIFP()
+{
+    SG_ASSERT(!m_requestLocked);
+    IFocusable* focusable = AsFocusableIFP();
+    if(nullptr != focusable)
+        return focusable;
+    for(auto& it : m_children)
+    {
+        focusable = it.AsFocusableIFP();
+        if(nullptr != focusable)
+            return focusable;
+    }
+    return nullptr;
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 void Container::VirtualInvalidateChildrenPlacement()
@@ -313,27 +328,6 @@ void Container::ExecuteRequests()
         r.component = nullptr;
     }
     m_requests.clear();
-}
-//=============================================================================
-RootContainer::RootContainer()
-: parent_type(Component::IsRootTag())
-{
-    OnInsertInUI();
-}
-//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-RootContainer::~RootContainer()
-{
-    OnRemoveFromUI();
-}
-//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-void RootContainer::SetPlacementBox(box2f const& iBox)
-{
-    parent_type::SetPlacementBox(iBox);
-}
-//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-void RootContainer::VirtualUpdatePlacement()
-{
-    SG_ASSERT_NOT_REACHED();
 }
 //=============================================================================
 }

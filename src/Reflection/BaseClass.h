@@ -34,8 +34,14 @@ struct BaseType
 {
 public:
     static Metaclass const* StaticGetMetaclass() { return s_sg_reflection_metaclassRegistrator.metaclass; }
+    static void sg_reflection_DeclareMetaclass()
+    {
+        SG_ASSERT_MSG(!s_sg_reflection_isMetaclassDeclared, "metaclass already declared");
+        s_sg_reflection_isMetaclassDeclared = true;
+    }
 private:
     static Metaclass* sg_reflection_CreateMetaclass(MetaclassRegistrator* iRegistrator);
+    static bool s_sg_reflection_isMetaclassDeclared;
 public:
     static sg::reflection::MetaclassRegistrator s_sg_reflection_metaclassRegistrator;
 };
@@ -47,7 +53,7 @@ public:
 // by others than reflection code.
 // If you want a subclass to be instanciable by generic code also, it should
 // expose a dedicated constructor, different from the default constructor (that
-// should be inaccessible), that calls EndCreationIFN(). If you need to expose
+// should be inaccessible), that calls EndAutoCreation(). If you need to expose
 // a "default" constructor, you can use the tag auto_initialized_t.
 class BaseClass : public BaseType, public RefAndSafeCountable
 {
@@ -72,16 +78,22 @@ public:
     void CheckProperties(ObjectPropertyCheckContext& iContext) const;
 #endif
     static Metaclass const* StaticGetMetaclass() { return s_sg_reflection_metaclassRegistrator.metaclass; }
+    static void sg_reflection_DeclareMetaclass()
+    {
+        SG_ASSERT_MSG(!s_sg_reflection_isMetaclassDeclared, "metaclass already declared");
+        s_sg_reflection_isMetaclassDeclared = true;
+    }
 protected:
+    void EndAutoCreation();
     virtual void VirtualOnCreated(ObjectCreationContext& iContext);
     virtual void VirtualOnModified(ObjectModificationContext& iContext);
 #if ENABLE_REFLECTION_PROPERTY_CHECK
     virtual void VirtualCheckProperties(ObjectPropertyCheckContext& iContext) const;
 #endif
     virtual Metaclass const* VirtualGetMetaclass() const { return s_sg_reflection_metaclassRegistrator.metaclass; }
-
 private:
     static Metaclass* sg_reflection_CreateMetaclass(MetaclassRegistrator* iRegistrator);
+    static bool s_sg_reflection_isMetaclassDeclared;
 protected:
     static sg::reflection::MetaclassRegistrator s_sg_reflection_metaclassRegistrator;
 private:
@@ -91,6 +103,9 @@ private:
     bool m_isBeingCreated : 1;
     bool m_isBeingModified : 1;
     mutable bool m_virtualCheckPropertiesCalled : 1;
+#endif
+#if ENABLE_REFLECTION_PROPERTY_CHECK
+    mutable bool m_arePropertiesChecked : 1;
 #endif
 };
 //=============================================================================
@@ -138,7 +153,7 @@ template <typename T> struct MetaclassGetter { static Metaclass const* GetMetacl
 #define REFLECTION_TYPE_END                  SG_REFLECTION_IMPL_TYPE_END
 #define REFLECTION_TYPE_BEGIN_WITH_CONSTRUCTS(NS, TYPE, ENABLE_LIST, ENABLE_STRUCT)  SG_REFLECTION_IMPL_TYPE_BEGIN_WITH_CONSTRUCTS(NS, TYPE, ENABLE_LIST, ENABLE_STRUCT)
 
-// For polymorpic classes (must derive from BaseClasses)
+// For polymorphic classes (must derive from BaseClass)
 #define REFLECTION_CLASS_HEADER(CLASS, PARENT)                    SG_REFLECTION_IMPL_CLASS_HEADER(CLASS, PARENT)
 #define REFLECTION_CLASS_BEGIN(NS, CLASS)                         SG_REFLECTION_IMPL_CLASS_BEGIN(NS, CLASS)
 #define REFLECTION_ABSTRACT_CLASS_BEGIN(NS, CLASS)                SG_REFLECTION_IMPL_ABSTRACT_CLASS_BEGIN(NS, CLASS)

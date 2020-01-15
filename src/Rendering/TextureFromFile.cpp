@@ -12,14 +12,14 @@
 #include <Core/SimpleFileReader.h>
 #include <Core/StringUtils.h>
 #include <Core/WinUtils.h>
-#include <d3d11.h>
 #include <sstream>
 
 #define SG_TEXTURE_FROM_FILE_USES_STB_IMAGE 0
 #if SG_TEXTURE_FROM_FILE_USES_STB_IMAGE
 #include <FileFormats/stb_image.h>
 #else
-#include <Wincodec.h>
+#include "WTF/IncludeD3D11.h"
+#include "WTF/IncludeWincodec.h"
 #include <Core/ComPtr.h>
 #endif
 

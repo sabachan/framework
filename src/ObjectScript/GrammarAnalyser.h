@@ -32,7 +32,7 @@ enum class GrammarConstruct
     While, While_Expr, While_PreInstruction, While_Instruction, While_InstructionBloc,
     DoWhile, DoWhile_Instruction, DoWhile_InstructionBloc, DoWhile_While, DoWhile_PreInstruction, DoWhile_Expr,
     Function, Function_Name, Function_Args, Function_ArgDefault, Function_Prototype, Function_Body,
-    Template, Template_Name, Template_Args, Template_ArgDefault, Template_Prototype, Template_Type, Template_Body,
+    Template, Template_Name, Template_Args, Template_ArgDefault, Template_Prototype, Template_Type, Template_Namespace, Template_Body,
     Typedef, Typedef_BeforeType, Typedef_Type, Typedef_Alias,
     Alias, Alias_Name, Alias_Is, Alias_Type,
     Import,

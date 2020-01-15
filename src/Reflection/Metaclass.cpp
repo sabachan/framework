@@ -4,6 +4,7 @@
 
 #include "BaseClass.h"
 #include <Core/Assert.h>
+#include <Core/Log.h>
 #include <Core/PerfLog.h>
 #include <Core/Platform.h>
 #include <Core/StringFormat.h>
@@ -156,15 +157,24 @@ void InitMetaclasses()
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 void RegisterMetaclassesIFN()
 {
-    SIMPLE_CPU_PERF_LOG_SCOPE("Register metaclasses");
+    SG_SIMPLE_CPU_PERF_LOG_SCOPE("Register metaclasses");
     SG_ASSERT_MSG(nullptr != s_metaclassDatabase, "reflection has not been initialized");
+#if SG_ENABLE_ASSERT
+    ArrayList<MetaclassRegistrator const*> undeclaredRegistrators;
+#endif
     MetaclassRegistrator* registrator = MetaclassRegistrator::firstRegistrator;
     while(nullptr != registrator)
     {
         SG_ASSERT(nullptr != registrator->metaclassCreator);
-        SG_ASSERT(nullptr != registrator->parentRegistrator || 0 == strcmp(registrator->className, "BaseType"));
+        SG_ASSERT(nullptr != registrator->parentRegistrator || 0 == strcmp(registrator->info.className, "BaseType"));
         if(nullptr == registrator->metaclass)
         {
+#if SG_ENABLE_ASSERT
+            if(registrator->info.isClass && registrator->info.isConcrete && !registrator->isDeclared)
+            {
+                undeclaredRegistrators.EmplaceBack(registrator);
+            }
+#endif
             Metaclass* mc = registrator->metaclassCreator(registrator);
             SG_ASSERT(nullptr != mc);
             registrator->metaclass = mc;
@@ -172,6 +182,28 @@ void RegisterMetaclassesIFN()
         }
         registrator = registrator->nextRegistrator;
     }
+#if SG_ENABLE_ASSERT
+    if(!undeclaredRegistrators.Empty())
+    {
+        std::ostringstream oss;
+        oss << "The following metaclasses have not been declared:" << std::endl;
+        for(auto const* it : undeclaredRegistrators)
+        {
+            oss << "    - ";
+            for_range(size_t, i, 0, it->info.classNamespaceSize)
+                oss << it->info.classNamespace[i] << "::";
+            oss << it->info.className << std::endl;
+        }
+        oss << std::endl;
+        oss << "Please declare them in their respective DeclareMetaclasses.h and check for forgotten ones." << std::endl;
+        SG_LOG_WARNING("Reflection", oss.str());
+#if SG_PLATFORM_IS_WIN
+        winutils::ShowModalMessageOK(undeclaredRegistrators.Size() == 1 ? "Undeclared Metaclass" : "Undeclared Metaclasses", oss.str().c_str());
+#else
+        SG_ASSERT_NOT_IMPLEMENTED();
+#endif
+    }
+#endif
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 Metaclass const* GetMetaclassIFP(Identifier const& iFullClassName)
@@ -218,14 +250,14 @@ Metaclass::Metaclass(MetaclassRegistrator* iRegistrator,
     , m_documentation(nullptr)
 #endif
 {
-    for(size_t i = 0; i < m_registrator->classNamespaceSize; ++i)
+    for(size_t i = 0; i < m_registrator->info.classNamespaceSize; ++i)
     {
-        m_fullClassName.PushBack(m_registrator->classNamespace[i]);
+        m_fullClassName.PushBack(m_registrator->info.classNamespace[i]);
     }
-    m_fullClassName.PushBack(m_registrator->className);
+    m_fullClassName.PushBack(m_registrator->info.className);
     SG_ASSERT(nullptr != m_registrator);
-    SG_ASSERT(m_registrator->isClass || !m_registrator->isConcrete);
-    SG_ASSERT(nullptr == m_objectCreator || m_registrator->isConcrete);
+    SG_ASSERT(m_registrator->info.isClass || !m_registrator->info.isConcrete);
+    SG_ASSERT(nullptr == m_objectCreator || m_registrator->info.isConcrete);
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 #if ENABLE_REFLECTION_DOCUMENTATION
@@ -399,8 +431,8 @@ void CheckPropertiesAreDefaulted(BaseClass* iObject)
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 BaseClass* Metaclass::CreateObject() const
 {
-    SG_ASSERT(m_registrator->isClass);
-    SG_ASSERT(m_registrator->isConcrete);
+    SG_ASSERT(m_registrator->info.isClass);
+    SG_ASSERT(m_registrator->info.isConcrete);
     SG_ASSERT(nullptr != m_objectCreator);
     BaseClass* object = m_objectCreator();
     SG_ASSERT(nullptr != object);
@@ -461,7 +493,7 @@ void Metaclass::GetObjectPropertyIFP(void const* iObject, char const* iName, ref
 {
     // Note: as BaseClass has a virtual table, adresses of a BaseClass object
     // and the same viewed as BaseType are not equals.
-    SG_ASSERT_MSG(!m_registrator->isClass, "GetObjectPropertyIFP is only usable on non virtual objects. Please use BaseClass::GetPropertyIFP instead.");
+    SG_ASSERT_MSG(!m_registrator->info.isClass, "GetObjectPropertyIFP is only usable on non virtual objects. Please use BaseClass::GetPropertyIFP instead.");
     SG_ASSERT(nullptr != oValue);
     IProperty const* property = GetPropertyIFP(iName);
     if(nullptr == property)
@@ -474,7 +506,7 @@ bool Metaclass::SetObjectPropertyROK(void* iObject, char const* iName, IPrimitiv
 {
     // Note: as BaseClass has a virtual table, adresses of a BaseClass object
     // and the same viewed as BaseType are not equals.
-    SG_ASSERT_MSG(!m_registrator->isClass, "SetObjectPropertyROK is only usable on non virtual object. Please use BaseClass::SetPropertyROK instead.");
+    SG_ASSERT_MSG(!m_registrator->info.isClass, "SetObjectPropertyROK is only usable on non virtual object. Please use BaseClass::SetPropertyROK instead.");
     IProperty const* property = GetPropertyIFP(iName);
     if(nullptr == property)
         return nullptr;

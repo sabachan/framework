@@ -53,22 +53,27 @@ void UserInputListenerList::ProcessEvent(UserInputEvent const& iEvent)
     if(m_modified)
         Update();
 
-    SG_CODE_FOR_ASSERT(size_t priority = 0;)
+    SG_CODE_FOR_ASSERT(size_t priority = all_ones;)
     for(auto const& it : m_listeners)
     {
-        SG_ASSERT(it.first >= priority);
+        SG_ASSERT(it.first < priority);
         SG_ASSERT(nullptr != it.second);
         it.second->OnUserInputEvent(iEvent);
-        SG_CODE_FOR_ASSERT(priority = it.first + 1;)
+        SG_CODE_FOR_ASSERT(priority = it.first;)
     }
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 void UserInputListenerList::Update()
 {
-    std::sort(m_listeners.begin(), m_listeners.end(), [](PriorityAndListener const& a, PriorityAndListener const& b) { return a.first < b.first; });
+    std::sort(m_listeners.begin(), m_listeners.end(), [](PriorityAndListener const& a, PriorityAndListener const& b) { return a.first > b.first; });
 }
 //=============================================================================
 UserInputManager::UserInputManager()
+#if SG_ENABLE_ASSERT
+    : m_batchIndex(0)
+    , m_eventIndex(0)
+    , m_isAboutToBeDestroyed(false)
+#endif
 {
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
@@ -78,6 +83,7 @@ UserInputManager::~UserInputManager()
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 UserInputEvent& UserInputManager::CreatePushAndGetEvent(Window* iWnd, UserInputListenerList* iWndListeners)
 {
+    SG_ASSERT(!m_isAboutToBeDestroyed);
     m_events.emplace_back();
     m_events.back().first = iWndListeners;
 #if SG_ENABLE_ASSERT
@@ -90,13 +96,22 @@ UserInputEvent& UserInputManager::CreatePushAndGetEvent(Window* iWnd, UserInputL
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 void UserInputManager::RunEvents()
 {
+    SG_ASSERT(!m_isAboutToBeDestroyed);
     for(auto const& it : m_events)
     {
         UserInputEvent const& event = *it.second;
-        m_listeners.ProcessEvent(event);
+        // As they are more specfic, the listeners to the window have higher
+        // priority than the ones global to the application.
         if(nullptr != it.first)
             it.first->ProcessEvent(event);
+        m_listeners.ProcessEvent(event);
     }
+    m_events.clear();
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+void UserInputManager::ClearEventsBeforeDestruction()
+{
+    m_isAboutToBeDestroyed = true;
     m_events.clear();
 }
 //=============================================================================

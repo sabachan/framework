@@ -57,7 +57,8 @@ public:
         return &m_p;
     }
     T* get() const { return m_p; }
-    T* operator->() { return m_p; }
+    T* operator->() const { return m_p; }
+    friend void swap(comptr& a, comptr& b) { using std::swap; swap(a.m_p, b.m_p); }
 private:
     static void IncRefIFP(T* iPtr)
     {
@@ -77,15 +78,14 @@ private:
     T* m_p;
 };
 //=============================================================================
-DEFINE_SMARTPTR_SMARTPTR_COMPARISON_OP(comptr, comptr)
-DEFINE_SMARTPTR_SMARTPTR_COMPARISON_OP(comptr, refptr)
-DEFINE_SMARTPTR_SMARTPTR_COMPARISON_OP(comptr, safeptr)
-DEFINE_SMARTPTR_SMARTPTR_COMPARISON_OP(comptr, scopedptr)
-DEFINE_SMARTPTR_SMARTPTR_COMPARISON_OP(refptr, comptr)
-DEFINE_SMARTPTR_SMARTPTR_COMPARISON_OP(safeptr, comptr)
-DEFINE_SMARTPTR_SMARTPTR_COMPARISON_OP(scopedptr, comptr)
-
-DEFINE_SMARTPTR_PTR_COMPARISON_OP(comptr)
+SG_DEFINE_SMARTPTR_SMARTPTR_COMPARISON_OP(comptr, comptr)
+SG_DEFINE_SMARTPTR_SMARTPTR_COMPARISON_OP(comptr, refptr)
+SG_DEFINE_SMARTPTR_SMARTPTR_COMPARISON_OP(comptr, safeptr)
+SG_DEFINE_SMARTPTR_SMARTPTR_COMPARISON_OP(comptr, scopedptr)
+SG_DEFINE_SMARTPTR_SMARTPTR_COMPARISON_OP(refptr, comptr)
+SG_DEFINE_SMARTPTR_SMARTPTR_COMPARISON_OP(safeptr, comptr)
+SG_DEFINE_SMARTPTR_SMARTPTR_COMPARISON_OP(scopedptr, comptr)
+SG_DEFINE_SMARTPTR_PTR_COMPARISON_OP(comptr)
 //=============================================================================
 }
 

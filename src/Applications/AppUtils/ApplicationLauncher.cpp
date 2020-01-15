@@ -21,6 +21,12 @@
 #include <System/KeyboardUtils.h>
 #include <System/UserInputEvent.h>
 #include <System/Window.h>
+#if SG_ENABLE_TOOLS
+#include <ToolsUI/Button.h>
+#include <ToolsUI/Label.h>
+#include <ToolsUI/ScrollingContainer.h>
+#include <ToolsUI/TreeView.h>
+#endif
 #include <UserInterface/AnimFactor.h>
 #include <UserInterface/Component.h>
 #include <UserInterface/Container.h>
@@ -40,6 +46,50 @@
 #include <sstream>
 
 namespace sg {
+//=============================================================================
+REFLECTION_ABSTRACT_CLASS_BEGIN((sg),ILaunchable)
+REFLECTION_m_PROPERTY(name)
+REFLECTION_CLASS_END
+//=============================================================================
+void Append(ArrayList<ApplicationDescriptor>& oDescriptors, ArrayView<ApplicationDescriptor const> iDescriptors)
+{
+    for(auto& it : iDescriptors)
+        oDescriptors.emplace_back(it);
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+namespace {
+    void CallLaunch(void* arg) { ILaunchable* l = static_cast<ILaunchable*>(arg); l->Launch(); }
+}
+void Append(ArrayList<ApplicationDescriptor>& oDescriptors, ILaunchable* iLaunchable)
+{
+    auto& d = oDescriptors.EmplaceBack();
+    d.name = iLaunchable->Name();
+    d.launch = CallLaunch;
+    d.arg = iLaunchable;
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+void AppendLaunchablesInObjectScript(ArrayList<ApplicationDescriptor>& oDescriptors, ArrayList<refptr<ILaunchable>>& oLifeHandler, FilePath const& iFilepath)
+{
+    reflection::ObjectDatabase db;
+    objectscript::ErrorHandler errorHandler;
+    bool ok = objectscript::ReadObjectScriptWithRetryROK(iFilepath, db, errorHandler);
+    SG_LOG_DEFAULT_DEBUG(errorHandler.GetErrorMessage().c_str());
+    SG_ASSERT_AND_UNUSED(ok);
+
+    reflection::ObjectDatabase::named_object_list namedObjects;
+    db.GetExportedObjects(namedObjects);
+
+    for(auto const& it : namedObjects)
+    {
+        reflection::Metaclass const* mc = it.second->GetMetaclass();
+        if(ILaunchable::StaticGetMetaclass()->IsBaseOf(mc))
+        {
+            ILaunchable* launchable = checked_cast<ILaunchable*>(it.second.get());
+            oLifeHandler.EmplaceBack(launchable);
+            Append(oDescriptors, launchable);
+        }
+    }
+}
 //=============================================================================
 class ApplicationLauncherStyleGuide : public ui::GenericStyleGuide
 {
@@ -79,11 +129,6 @@ REFLECTION_CLASS_BEGIN((sg), ApplicationLauncherStyleGuide)
 REFLECTION_CLASS_END
 //=============================================================================
 namespace {
-//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-class ScrollingContainer : public ui::Container
-{
-public:
-};
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 class AppButton final : public ui::Component
                       , public ui::IMovable
@@ -199,7 +244,7 @@ private:
         m_clickAnimFactor.SetValue(0);
         m_clickAnimFactor.Pause();
     }
-    virtual ui::Component* VirtualAsComponent() { return this; }
+    virtual ui::Component* VirtualAsComponent() override { return this; }
 private:
     safeptr<ApplicationLauncherStyleGuide const> m_styleGuide;
     ui::FrameProperty m_frameProperty;
@@ -217,7 +262,7 @@ class MainWidget final : public ui::Container
 {
 public:
     MainWidget(ApplicationLauncherStyleGuide const& iStyleGuide
-               , sg::ArrayView<sg::ApplicationDescriptor> const& iAppDescriptors
+               , sg::ArrayView<sg::ApplicationDescriptor const> const& iAppDescriptors
                , size_t* oNextAppIndex)
         : Observer<AppButton>(SG_CODE_FOR_ASSERT(allow_destruction_of_observable))
         , m_styleGuide(&iStyleGuide)
@@ -286,15 +331,18 @@ ApplicationLauncher::~ApplicationLauncher()
 {
     m_windowHandles[0]->ClientSize().UnregisterObserver(this);
     this->UnregisterUserInputListener(this);
+    for(auto& it : m_windowHandles)
+        it->CloseIFP();
+    m_renderWindows.clear();
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-size_t ApplicationLauncher::RunReturnNextAppIndex(sg::ArrayView<sg::ApplicationDescriptor> const& iAppDescriptors)
+size_t ApplicationLauncher::RunReturnNextAppIndex(sg::ArrayView<sg::ApplicationDescriptor const> const& iAppDescriptors)
 {
     reflection::ObjectDatabase db;
     objectscript::ErrorHandler errorHandler;
     bool ok = objectscript::ReadObjectScriptWithRetryROK(FilePath("src:/Applications/AppUtils/Data/ApplicationLauncher.os"), db, errorHandler);
     SG_LOG_DEFAULT_DEBUG(errorHandler.GetErrorMessage().c_str());
-    SG_ASSERT(ok);
+    SG_ASSERT_AND_UNUSED(ok);
 
     reflection::ObjectDatabase::named_object_list namedObjects;
     db.GetExportedObjects(namedObjects);
@@ -309,9 +357,9 @@ size_t ApplicationLauncher::RunReturnNextAppIndex(sg::ArrayView<sg::ApplicationD
 
     ArrayView<rendering::IShaderResource*> const inputSurfaces;
     ArrayView<rendering::IRenderTarget*> const outputSurfaces = AsArrayView(renderTargets);
-    rendering::IShaderConstantDatabase* constantDatabases_data[] = { m_shaderConstantDatabase.get() };
-    ArrayView<rendering::IShaderConstantDatabase*> const constantDatabases = AsArrayView(constantDatabases_data);
-    ArrayView<rendering::IShaderResourceDatabase*> const resourceDatabases;
+    rendering::IShaderConstantDatabase const* constantDatabases_data[] = { m_shaderConstantDatabase.get() };
+    ArrayView<rendering::IShaderConstantDatabase const*> const constantDatabases = AsArrayView(constantDatabases_data);
+    ArrayView<rendering::IShaderResourceDatabase const*> const resourceDatabases;
     refptr<renderengine::ICompositing> compositing = compositingDesc->CreateInstance(m_renderDevice.get(), inputSurfaces, outputSurfaces, constantDatabases, resourceDatabases);
     m_compositing = compositing;
 
@@ -347,7 +395,7 @@ void ApplicationLauncher::VirtualOnNotified(ObservableValue<uint2> const* iObser
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 void ApplicationLauncher::VirtualOneTurn()
 {
-    CPU_PERF_LOG_SCOPE(0);
+    SG_CPU_PERF_LOG_SCOPE(0);
 #if SG_ENABLE_TOOLS
     // TODO: Add a tool option.
     sg::rendering::shadercache::InvalidateOutdatedShaders();
@@ -388,5 +436,209 @@ void ApplicationLauncher::OnUserInputEvent(system::UserInputEvent const& iEvent)
 
     SG_BREAKABLE_POS;
 }
+//=============================================================================
+#if SG_ENABLE_TOOLS
+//=============================================================================
+ApplicationLauncherV2::ApplicationLauncherV2()
+    : Observer<toolsui::Button>(allow_destruction_of_observable)
+    , name_viewport_resolution("viewport_resolution")
+    , m_nextAppIndex(0)
+{
+    m_renderDevice.reset(new rendering::RenderDevice());
+
+    for(size_t i = 0; i < 1; ++i)
+    {
+        m_windowHandles.push_back(new system::Window());
+        m_renderWindows.push_back(new rendering::RenderWindow(m_renderDevice.get(), m_windowHandles.back().get()));
+    }
+
+    m_windowHandles[0]->SetClientSize(uint2(400, 600));
+
+    std::vector<rendering::IRenderTarget*> windowsAsRenderTargets;
+    for(auto const& it : m_renderWindows)
+        windowsAsRenderTargets.push_back(it.get());
+
+    this->RegisterUserInputListener(this, 0);
+
+    m_shaderConstantDatabase = new rendering::ShaderConstantDatabase;
+    m_shaderConstantDatabase->AddVariable(name_viewport_resolution, new rendering::ShaderVariable<float2>());
+    m_windowHandles[0]->ClientSize().RegisterObserver(this);
+    VirtualOnNotified(&(m_windowHandles[0]->ClientSize()));
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+ApplicationLauncherV2::~ApplicationLauncherV2()
+{
+    m_windowHandles[0]->ClientSize().UnregisterObserver(this);
+    this->UnregisterUserInputListener(this);
+    for(auto& it : m_windowHandles)
+        it->CloseIFP();
+    m_renderWindows.clear();
+    if(nullptr != m_launchable)
+        m_launchable->Launch();
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+size_t ApplicationLauncherV2::RunReturnNextAppIndex(sg::ArrayView<sg::ApplicationDescriptor const> const& iAppDescriptors)
+{
+    reflection::ObjectDatabase db;
+    objectscript::ErrorHandler errorHandler;
+    bool ok = objectscript::ReadObjectScriptWithRetryROK(FilePath("src:/Applications/AppUtils/Data/ApplicationLauncherV2.os"), db, errorHandler);
+    SG_LOG_DEFAULT_DEBUG(errorHandler.GetErrorMessage().c_str());
+    SG_ASSERT_AND_UNUSED(ok);
+
+    reflection::ObjectDatabase::named_object_list namedObjects;
+    db.GetExportedObjects(namedObjects);
+
+    reflection::BaseClass const* bcCompositingDesc = db.GetIFP(reflection::Identifier("::compositing"));
+    SG_ASSERT(nullptr != bcCompositingDesc);
+    SG_ASSERT(bcCompositingDesc->GetMetaclass() == renderengine::CompositingDescriptor::StaticGetMetaclass());
+    renderengine::CompositingDescriptor const* compositingDesc = checked_cast<renderengine::CompositingDescriptor const*>(bcCompositingDesc);
+
+    rendering::RenderWindow* window = m_renderWindows[0].get();
+    rendering::IRenderTarget* renderTargets[] = { window->BackBuffer() };
+
+    ArrayView<rendering::IShaderResource*> const inputSurfaces;
+    ArrayView<rendering::IRenderTarget*> const outputSurfaces = AsArrayView(renderTargets);
+    rendering::IShaderConstantDatabase const* constantDatabases_data[] = { m_shaderConstantDatabase.get() };
+    ArrayView<rendering::IShaderConstantDatabase const*> const constantDatabases = AsArrayView(constantDatabases_data);
+    ArrayView<rendering::IShaderResourceDatabase const*> const resourceDatabases;
+    refptr<renderengine::ICompositing> compositing = compositingDesc->CreateInstance(m_renderDevice.get(), inputSurfaces, outputSurfaces, constantDatabases, resourceDatabases);
+    m_compositing = compositing;
+
+    renderengine::CompositingLayer* layer = compositing->GetLayer(FastSymbol("Draw"), FastSymbol("gui2D"));
+    SG_ASSERT(nullptr != layer);
+    m_layer = layer;
+
+    m_uiRoot.reset(new ui::Root(m_windowHandles[0].get(), m_layer.get()));
+
+    toolsui::Common& common = toolsui::Common::Get();
+    m_uiRoot->AddComponent(common.ModalContainer(), 100);
+    m_uiRoot->AddComponent(common.WindowContainer());
+
+    m_nextAppIndex = all_ones;
+
+    toolsui::ScrollingContainer* sc = new toolsui::ScrollingContainer();
+    m_uiRoot->AddComponent(sc);
+
+    toolsui::TreeView* treeView = new toolsui::TreeView();
+    sc->SetContent(treeView);
+
+    for(auto const& it : iAppDescriptors)
+    {
+        char const* name = strrchr(it.name, '/');
+        if(nullptr == name)
+            name = it.name;
+        else
+            name += 1;
+        toolsui::TextButton* b = new toolsui::TextButton(ConvertUTF8ToUCS2(name));
+        b->SetUserData(&it-iAppDescriptors.Data());
+        b->RegisterObserver(this);
+        treeView->Insert(it.name, b);
+    }
+
+    treeView->RequestMoveFocusReturnHasMoved(ui::FocusDirection::Down);
+
+    system::WindowedApplication::Run();
+
+    m_uiRoot.reset();
+    m_layer = nullptr;
+    m_compositing = nullptr;
+
+    return m_nextAppIndex;
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+void ApplicationLauncherV2::VirtualOnNotified(toolsui::Button const* iObservable)
+{
+    m_nextAppIndex = iObservable->UserData();
+    PostQuitMessage(0);
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+void ApplicationLauncherV2::VirtualOnNotified(ObservableValue<uint2> const* iObservable)
+{
+    SG_UNUSED(iObservable);
+    float2 wh = float2(iObservable->Get());
+    rendering::IShaderVariable* ivar = m_shaderConstantDatabase->GetConstantForWriting(name_viewport_resolution);
+    rendering::ShaderVariable<float2>* var = checked_cast<rendering::ShaderVariable<float2>*>(ivar);
+    var->Set(wh);
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+void ApplicationLauncherV2::VirtualOnDropFile(char const* iFilePath, system::Window* iWindow, uint2 const& iPosition)
+{
+    SG_UNUSED((iWindow, iPosition));
+    FilePath file = FilePath::CreateFromFullSystemPath(iFilePath);
+    OpenFile(file);
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+void ApplicationLauncherV2::OpenFile(FilePath const& iPath)
+{
+    if(iPath.Extension() == "os")
+    {
+        reflection::ObjectDatabase db;
+        objectscript::ErrorHandler errorHandler;
+        bool ok = objectscript::ReadObjectScriptWithRetryROK(iPath, db, errorHandler);
+        SG_LOG_DEFAULT_DEBUG(errorHandler.GetErrorMessage().c_str());
+        SG_ASSERT_AND_UNUSED(ok);
+
+        reflection::ObjectDatabase::named_object_list namedObjects;
+        db.GetExportedObjects(namedObjects);
+
+        for(auto const& it : namedObjects)
+        {
+            reflection::Metaclass const* mc = it.second->GetMetaclass();
+            if(ILaunchable::StaticGetMetaclass()->IsBaseOf(mc))
+            {
+                m_launchable = checked_cast<ILaunchable*>(it.second.get());
+                PostQuitMessage(0);
+            }
+            else
+            {
+                SG_ASSERT_MSG(false, "unsupported object"); // todo: message box
+            }
+        }
+    }
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+void ApplicationLauncherV2::VirtualOneTurn()
+{
+    SG_CPU_PERF_LOG_SCOPE(0);
+#if SG_ENABLE_TOOLS
+    // TODO: Add a tool option.
+    sg::rendering::shadercache::InvalidateOutdatedShaders();
+#endif
+#if 0
+    static float2 p = float2(1,0);
+    p.x() += 0.01f * p.y();
+    p.y() -= 0.01f * p.x();
+    uint2 const pos = uint2(roundi(p * 100 + float2(200)));
+    m_windowHandles[0]->SetClientPlacement(box2u::FromMinDelta(pos, uint2(400, 600)));
+    uint2 const wh = m_windowHandles[0]->ClientSize().Get();
+#endif
+
+    m_renderDevice->BeginRender();
+
+    {
+        //SIMPLE_CPU_PERF_LOG_SCOPE("ApplicationLauncher::OneTurn - Draw UI");
+        m_uiRoot->Draw();
+    }
+    {
+        //SIMPLE_CPU_PERF_LOG_SCOPE("ApplicationLauncher::OneTurn - Render");
+        m_compositing->Execute(FastSymbol("Draw"));
+    }
+
+    m_renderDevice->EndRender();
+
+    system::WindowedApplication::VirtualOneTurn();
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+void ApplicationLauncherV2::OnUserInputEvent(system::UserInputEvent const& iEvent)
+{
+    // proto
+    system::KeyboardEntryAdapter const quitEntry(system::KeyboardKey::Escape, system::KeyboardLayout::UserLayout);
+    if(system::UserInputEventType::OffToOn == iEvent.EventType() && quitEntry.DoesMatch(iEvent))
+        PostQuitMessage(0);
+
+    SG_BREAKABLE_POS;
+}
+//=============================================================================
+#endif
 //=============================================================================
 }

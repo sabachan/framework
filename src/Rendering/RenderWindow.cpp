@@ -8,8 +8,8 @@
 #include <algorithm>
 
 #if SG_PLATFORM_IS_WIN
-#include <dxgi.h>
-#include <d3d11.h>
+#include "WTF/IncludeDxgi.h"
+#include "WTF/IncludeD3D11.h"
 #include <Core/WindowsH.h>
 #endif
 
@@ -116,14 +116,14 @@ void RenderWindow::UpdateBackBuffer()
     SG_ASSERT(SUCCEEDED(hr));
 
     D3D11_RENDER_TARGET_VIEW_DESC rtvDesc;
-    rtvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+    rtvDesc.Format = GetNativeFormat(s_surfaceFormat);
     rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
     rtvDesc.Texture2D.MipSlice = 0;
     hr = m_renderDevice->D3DDevice()->CreateRenderTargetView(m_backBuffer.get(), NULL,
                                                              m_backBufferRTV.GetPointerForInitialisation());
     SG_ASSERT(SUCCEEDED(hr));
 
-    rtvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    rtvDesc.Format = GetNativeFormat(s_surfaceFormatAsLinearRGB);
     hr = m_renderDevice->D3DDevice()->CreateRenderTargetView(m_backBuffer.get(), &rtvDesc,
                                                              m_backBufferAsLinearRGBRTV.GetPointerForInitialisation());
     SG_ASSERT(SUCCEEDED(hr));

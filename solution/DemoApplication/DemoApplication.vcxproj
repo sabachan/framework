@@ -441,6 +441,9 @@
     <ProjectReference Include="..\ToolsUI\ToolsUI.vcxproj">
       <Project>{54a7b15d-8955-41ba-959a-8c9d8941f923}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\Tools\CommonTools\CommonTools.vcxproj">
+      <Project>{80d2c9d2-2f50-4dd0-815a-a97f7942a8ea}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\UserInterface\UserInterface.vcxproj">
       <Project>{eda6bd5a-eea9-4392-a66d-d137006f9371}</Project>
     </ProjectReference>

@@ -51,8 +51,8 @@
 #define SG_ASSUME_NOT_REACHED() SG_IMPL_ASSUME(0)
 #endif
 
-#define SG_POTENTIAL_CONSTANT_CONDITION(expr) (::sg::internal::potential_constant_condition_impl((expr)))
-#define SG_CONSTANT_CONDITION(expr) (::sg::internal::constant_condition_impl<(expr)>::value())
+#define SG_POTENTIAL_CONSTANT_CONDITION(...) (::sg::internal::potential_constant_condition_impl((__VA_ARGS__)))
+#define SG_CONSTANT_CONDITION(...) (::sg::internal::constant_condition_impl<(__VA_ARGS__)>::value())
 
 // Use this macro to be able to add a breakpoint at the end of a function.
 #define SG_BREAKABLE_POS do {} while(false)

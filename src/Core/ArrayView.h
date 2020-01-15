@@ -59,8 +59,12 @@ public:
     ArrayView<value_type> View() { return ArrayView<value_type>(m_data, m_size); }
     ArrayView<value_type_when_const> View() const { return ArrayView<value_type_when_const>(m_data, m_size); }
     ArrayView<value_type const> ConstView() const { return ArrayView<value_type const>(m_data, m_size); }
+    ArrayView<value_type> SubView(size_t begin, size_t count) const { SG_ASSERT(count <= m_size); SG_ASSERT(begin <= m_size - count); return ArrayView<value_type>(m_data + begin, count); }
+    ArrayView<value_type> Tail(size_t begin) const { SG_ASSERT(begin <= m_size); size_t const count = m_size - begin; return ArrayView<value_type>(m_data + begin, count); }
+
 protected:
     ArrayBase(T* data, size_type size) : m_data(data), m_size(size) {}
+    friend void swap(ArrayBase& a, ArrayBase& b) { using std::swap; swap(a.m_data, b.m_data); swap(a.m_size, b.m_size); }
 protected:
     T* m_data;
     size_type m_size;

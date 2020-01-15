@@ -10,8 +10,6 @@
 #include <Rendering/RenderDevice.h>
 #include <Rendering/Surface.h>
 #include <Rendering/TextureFromFile.h>
-#include <d3d11.h>
-#include <d3d11shader.h>
 
 namespace sg {
 namespace renderengine {
@@ -21,8 +19,8 @@ Compositing::Compositing(
     rendering::RenderDevice const* iRenderDevice,
     ArrayView<rendering::IShaderResource*> const& iInputSurfaces,
     ArrayView<rendering::IRenderTarget*> const& iOutputSurfaces,
-    ArrayView<rendering::IShaderConstantDatabase*> const& iConstantDatabases,
-    ArrayView<rendering::IShaderResourceDatabase*> const& iShaderResourceDatabases)
+    ArrayView<rendering::IShaderConstantDatabase const*> const& iConstantDatabases,
+    ArrayView<rendering::IShaderResourceDatabase const*> const& iShaderResourceDatabases)
     : m_descriptor(iDescriptor)
     , m_renderDevice(iRenderDevice)
     , m_currentShaderConstantDatabase(nullptr)
@@ -43,16 +41,15 @@ Compositing::Compositing(
     size_t const constantDatabaseCount = iConstantDatabases.size();
 
     SG_ASSERT_MSG(m_descriptor->m_inputConstantDatabases.size() == constantDatabaseCount, "Client must provide expected count of input databases");
-    m_constantDatabases.reserve(constantDatabaseCount);
     for(size_t i = 0; i < constantDatabaseCount; ++i)
     {
         InputConstantDatabaseDescriptor const* desc = m_descriptor->m_inputConstantDatabases[i].second.get();
-        m_constantDatabases.emplace(desc, desc->CreateDatabase(iConstantDatabases[i]));
+        m_instanceList.SetInstance(desc, desc->CreateInstance(iConstantDatabases[i]));
     }
 
     size_t const shaderResourcesDatabaseCount = iShaderResourceDatabases.size();
     SG_ASSERT_MSG(m_descriptor->m_inputShaderResourcesDatabases.size() == shaderResourcesDatabaseCount, "Client must provide expected count of input shader resource databases");
-    m_constantDatabases.reserve(shaderResourcesDatabaseCount);
+    m_shaderResourceDatabases.reserve(shaderResourcesDatabaseCount);
     for(size_t i = 0; i < shaderResourcesDatabaseCount; ++i)
     {
         InputShaderResourceDatabaseDescriptor const* desc = m_descriptor->m_inputShaderResourcesDatabases[i].second.get();
@@ -132,6 +129,12 @@ rendering::IShaderResource const* Compositing::GetShaderResource(TextureSurfaceD
         return f->second.get();
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+rendering::Surface* Compositing::GetMutableSurface(SurfaceDescriptor const* iSurfaceDescriptor)
+{
+    rendering::BaseSurface* surface = GetBaseSurface(static_cast<AbstractSurfaceDescriptor const*>(iSurfaceDescriptor));
+    return checked_cast<rendering::Surface*>(surface);
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 rendering::Surface const* Compositing::GetSurface(SurfaceDescriptor const* iSurfaceDescriptor)
 {
     rendering::BaseSurface const* surface = GetBaseSurface(static_cast<AbstractSurfaceDescriptor const*>(iSurfaceDescriptor));
@@ -150,7 +153,7 @@ rendering::DepthStencilSurface const* Compositing::GetDepthStencilSurface(DepthS
     return checked_cast<rendering::DepthStencilSurface const*>(surface);
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-rendering::BaseSurface const* Compositing::GetBaseSurface(AbstractSurfaceDescriptor const* iSurfaceDescriptor)
+rendering::BaseSurface* Compositing::GetBaseSurface(AbstractSurfaceDescriptor const* iSurfaceDescriptor)
 {
     SG_ASSERT(nullptr != iSurfaceDescriptor);
     auto const f = m_surfaces.find(iSurfaceDescriptor);
@@ -167,20 +170,26 @@ rendering::BaseSurface const* Compositing::GetBaseSurface(AbstractSurfaceDescrip
 rendering::IShaderConstantDatabase const* Compositing::GetShaderConstantDatabase(AbstractConstantDatabaseDescriptor const* iDescriptor)
 {
     SG_ASSERT(nullptr != iDescriptor);
-    auto const f = m_constantDatabases.find(iDescriptor);
-    if(f == m_constantDatabases.end())
+    GenericConstantDatabaseInstance const* instance = m_instanceList.GetInstanceIFP(iDescriptor);
+    if(nullptr == instance)
     {
         ConstantDatabaseDescriptor const* desc = checked_cast<ConstantDatabaseDescriptor const*>(iDescriptor);
-        rendering::IShaderConstantDatabase* database = desc->CreateDatabase(this);
-        m_constantDatabases.emplace(desc, database);
-        return database;
+        ConstantDatabaseInstance* newInstance = desc->CreateInstance(this);
+        m_instanceList.SetInstance(desc, newInstance);
+        instance = newInstance;
     }
-    else
-        return f->second.get();
+    return instance->GetDatabase();
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+rendering::ShaderConstantDatabase* Compositing::GetWritableShaderConstantDatabase(ConstantDatabaseDescriptor const* iDescriptor)
+{
+    ConstantDatabaseInstance* instance = m_instanceList.GetOrCreateInstance(iDescriptor, this);
+    return instance->GetWritableDatabase();
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 rendering::IShaderResourceDatabase const* Compositing::GetShaderResourceDatabase(AbstractShaderResourceDatabaseDescriptor const* iDescriptor)
 {
+    // TODO: use m_instanceList
     SG_ASSERT(nullptr != iDescriptor);
     auto const f = m_shaderResourceDatabases.find(iDescriptor);
     if(f == m_shaderResourceDatabases.end())
@@ -228,14 +237,10 @@ bool Compositing::HasInstructionBlock(FastSymbol iInstructionBlockName)
 void Compositing::Execute(FastSymbol iInstructionBlockName)
 {
     SG_ASSERT(!m_isInExecute);
-    for(auto const& it : m_outputSurfaces)
-    {
-        float color[] = { 1,0,1,1 };
-        m_renderDevice->ImmediateContext()->ClearRenderTargetView(it->GetRenderTargetView(), color);
-    }
     SG_ASSERT(nullptr == m_currentShaderConstantDatabase);
     SG_ASSERT(nullptr == m_currentShaderResourceDatabase);
     SG_CODE_FOR_ASSERT(m_isInExecute = true;)
+    m_renderDevice->SetDefaultState();
     auto const& f = m_instructions.find(iInstructionBlockName);
     SG_ASSERT_MSG(m_instructions.end() != f, "unknown instruction block");
     for(auto const& it : f->second)
@@ -247,6 +252,24 @@ void Compositing::Execute(FastSymbol iInstructionBlockName)
     SG_CODE_FOR_ASSERT(m_isInExecute = false;)
     m_currentShaderConstantDatabase = nullptr;
     m_currentShaderResourceDatabase = nullptr;
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+rendering::BaseSurface const* Compositing::GetExposedSurfaceIFP(FastSymbol iName)
+{
+    SG_ASSERT(!m_isInExecute);
+    auto const& f = m_descriptor->m_exposedSurfaces.find(iName);
+    if(m_descriptor->m_exposedSurfaces.end() == f)
+        return nullptr;
+    return f->second->GetAsSurface(this);
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+rendering::IShaderResource const* Compositing::GetExposedShaderResourceIFP(FastSymbol iName)
+{
+    SG_ASSERT(!m_isInExecute);
+    auto const& f = m_descriptor->m_exposedSurfaces.find(iName);
+    if(m_descriptor->m_exposedSurfaces.end() == f)
+        return nullptr;
+    return f->second->GetAsShaderResource(this);
 }
 //=============================================================================
 CompositingLayer* Compositing::GetLayer(FastSymbol iInstructionBlockName, ArrayView<FastSymbol const> const& iSpecRequest)
@@ -277,7 +300,6 @@ CompositingLayer* Compositing::GetLayer(FastSymbol iInstructionBlockName, ArrayV
                 return layer;
 #endif
             }
-
         }
     }
     SG_ASSERT_MSG(nullptr != foundLayer, "No CompositingLayer matches request");
@@ -296,8 +318,8 @@ ICompositing* CompositingDescriptor::CreateInstance(
     rendering::RenderDevice const* iRenderDevice,
     ArrayView<rendering::IShaderResource*> const& iInputSurfaces,
     ArrayView<rendering::IRenderTarget*> const& iOutputSurfaces,
-    ArrayView<rendering::IShaderConstantDatabase*> const& iConstantDatabases,
-    ArrayView<rendering::IShaderResourceDatabase*> const& iShaderResourceDatabases) const
+    ArrayView<rendering::IShaderConstantDatabase const*> const& iConstantDatabases,
+    ArrayView<rendering::IShaderResourceDatabase const*> const& iShaderResourceDatabases) const
 {
     return new Compositing(this, iRenderDevice, iInputSurfaces, iOutputSurfaces, iConstantDatabases, iShaderResourceDatabases);
 }
@@ -314,6 +336,7 @@ REFLECTION_CLASS_BEGIN((sg,renderengine), CompositingDescriptor)
     REFLECTION_m_PROPERTY_DOC(instructions, "")
     REFLECTION_m_PROPERTY_DOC(inputSurfaces, "")
     REFLECTION_m_PROPERTY_DOC(outputSurfaces, "")
+    REFLECTION_m_PROPERTY_DOC(exposedSurfaces, "surfaces that can be read as shader resources from outside")
     REFLECTION_m_PROPERTY_DOC(inputConstantDatabases, "")
     REFLECTION_m_PROPERTY_DOC(inputShaderResourcesDatabases, "")
 REFLECTION_CLASS_END

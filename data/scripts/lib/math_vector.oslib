@@ -1,0 +1,126 @@
+import "math.oslib"
+import "std.oslib"
+
+namespace math { namespace vector
+{
+    function isVector(v)
+    {
+        if(!std::is_same_type(v, []))
+            return false
+        const length = std::length_of(v)
+        for(var i = 0; i < length; ++i)
+        {
+            if(!std::is_numeric(v[i]))
+                return false
+        }
+        return true
+    }
+    function isVectorOfLength(v, n)
+    {
+        if(!std::is_same_type(v, []))
+            return false
+        const length = std::length_of(v)
+        if(length != n)
+            return false
+        for(var i = 0; i < length; ++i)
+        {
+            if(!std::is_numeric(v[i]))
+                return false
+        }
+        return true
+    }
+
+    function add(a, b)
+    {
+        assert isVector(a)
+        const n = std::length_of(a)
+        assert isVectorOfLength(b, n)
+        var r = []
+        for(var i = 0; i < n; ++i)
+        {
+            r += [ a[i] + b[i] ]
+        }
+    }
+
+    function sub(a, b)
+    {
+        assert isVector(a)
+        const n = std::length_of(a)
+        assert isVectorOfLength(b, n)
+        var r = []
+        for(var i = 0; i < n; ++i)
+        {
+            r += [ a[i] - b[i] ]
+        }
+    }
+
+    function mul(s, v)
+    {
+        assert std::is_numeric(s)
+        assert isVector(v)
+        const n = std::length_of(v)
+        var r = []
+        for(var i = 0; i < n; ++i)
+        {
+            r += [ s * v[i] ]
+        }
+        return r
+    }
+
+    function lerp(a, b, t)
+    {
+        assert isVector(a)
+        const n = std::length_of(a)
+        assert isVectorOfLength(b, n)
+        assert std::is_numeric(t)
+        var r = []
+        for(var i = 0; i < n; ++i)
+        {
+            r += [ lerp(a[i], b[i], t) ]
+        }
+    }
+
+    function norm(v)
+    {
+        assert isVector(v)
+        const n = std::length_of(v)
+        var nsq = 0.0
+        for(var i = 0; i < n; ++i)
+        {
+            nsq += sq(v[i])
+        }
+        return sqrt(nsq)
+    }
+
+    function normalize(v)
+    {
+        assert isVector(v)
+        const n = std::length_of(v)
+        const normv = norm(v)
+        const oonormv = 1 / normv
+        var r = []
+        for(var i = 0; i < n; ++i)
+        {
+            r += [ oonormv * v[i] ]
+        }
+        return r
+    }
+
+    namespace test
+    {
+        function Run()
+        {
+            std::print("math::vector::test begin")
+            var v = [3, 4]
+            assert isVectorOfLength(v, 2)
+            assert abs(norm(v) - 5) < 0.001
+            v = mul(2, v)
+            assert abs(v[0] - 6) < 0.001
+            assert abs(v[1] - 8) < 0.001
+            v = normalize(v)
+            assert abs(norm(v) - 1) < 0.001
+            std::print("math::vector::test end")
+        }
+    }
+}
+}

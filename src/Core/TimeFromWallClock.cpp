@@ -58,11 +58,14 @@ void TimeFromWallClock::SetMultiplier(float iMultiplier)
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 void TimeFromWallClock::Update()
 {
+    if(m_paused)
+        return;
     SG_ASSERT(GetWallClockFrequency() == Frequency());
     u32 const wallClockTick = GetWallClockTick();
     i32 const rawDelta = wallClockTick - m_prevWallClockTick;
     SG_ASSERT(rawDelta >= 0);
-    SG_ASSERT(u32(rawDelta) <= 30 * Frequency()); // Ok if when leaving a breakpoint after 30s.
+    SG_ASSERT(Frequency() < 0x7FFFFFFF / 60);
+    SG_ASSERT(u32(rawDelta) <= 60 * Frequency()); // Ok if when leaving a breakpoint after 60s.
     i32 const maxDelta = i32(Frequency() >> 3); // No more than 125 ms
     i32 const delta = std::min(rawDelta, maxDelta);
     ifp8 const dtfp8 = delta * m_multiplier;

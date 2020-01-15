@@ -20,12 +20,12 @@ void pmain(in v2p IN, out p2f OUT)
     OUT.Col.rg = IN.Tex.xy;
     OUT.Col.b = 0;
     OUT.Col.a = 1;
-    
+
     uint texW, texH, texLevelCount;
     texture_glyph_atlas.GetDimensions(0, texW, texH, texLevelCount);
     float ootexW = 1.f / texW;
     float ootexH = 1.f / texH;
-    
+
     float4 uvbox = (IN.Box + float4(-0.5f,-0.5f,0.5f,0.5f)) * float4(ootexW, ootexH, ootexW, ootexH);
 
     int R = 3;
@@ -41,18 +41,18 @@ void pmain(in v2p IN, out p2f OUT)
                 sqdistance = min(sqdistance, (i*i+j*j+1-v)/clamp(0.001, 1, 1000*v));
             }
         }
-    
+
     float radiusbegin = 2.f;
     float radiusend = 3.5f;
     float gamma = 1.f;
     float sqradiusbegin = radiusbegin*radiusbegin;
     float sqradiusrend = radiusend*radiusend;
-    
+
     float strokeIntensity = 1.f;
     strokeIntensity = (sqrt(sqdistance) - radiusend) * (1.f/(radiusbegin - radiusend));
     strokeIntensity = clamp(strokeIntensity, 0, 1);
     strokeIntensity = pow(abs(strokeIntensity), 1.f/gamma);
-    
+
     float4 col = float4(0,0,0,0);
     col = lerp(col, IN.ColStroke / 255.f, strokeIntensity);
     //col = lerp(col, IN.Col / 255.f, fillIntensity);

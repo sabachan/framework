@@ -2,6 +2,7 @@
 #define Rendering_RenderBatch_H
 
 #include <Core/SmartPtr.h>
+#include "RenderBatchPassId.h"
 
 namespace sg {
 namespace rendering {
@@ -10,6 +11,11 @@ class IShaderConstantDatabase;
 class IShaderResourceDatabase;
 class RenderBatchSet;
 class RenderDevice;
+//=============================================================================
+// This interface should be derived by anyone needing to render. It is used for
+// correctly ordering the draw calls.
+// The pass id is used for a render batch to generate draw calls in multiple
+// layers (eg. z-prepass, opaque and shadow).
 //=============================================================================
 class IRenderBatch : public RefAndSafeCountable
 {
@@ -26,20 +32,22 @@ public:
     // the stroke materials, second one for all the fill glyph materials
     // provides correct rendering (except that strokes overlap, but it's OK as
     // long as it is opaque)
-    virtual int GetPriority() = 0;
-    virtual void PreExecute(RenderDevice const* iRenderDevice,
+    virtual int GetPriority(RenderBatchPassId iPassId) = 0;
+    virtual void PreExecute(RenderBatchPassId iPassId,
+                            RenderDevice const* iRenderDevice,
                             IShaderConstantDatabase const* iShaderConstantDatabase,
                             IShaderResourceDatabase const* iShaderResourceDatabase) = 0;
-    virtual size_t GetSubLayerCount() = 0;
+    virtual size_t GetSubLayerEnd(RenderBatchPassId iPassId) = 0;
     // ioNextSubLayer can be used to specified when the batch has to be
     // executed again. this is interesting when layer indices are sparse, in
     // order not to be called for each intermediate index.
-    virtual void Execute(RenderDevice const* iRenderDevice,
+    virtual void Execute(RenderBatchPassId iPassId,
+                         RenderDevice const* iRenderDevice,
                          IShaderConstantDatabase const* iShaderConstantDatabase,
                          IShaderResourceDatabase const* iShaderResourceDatabase,
                          size_t iSubLayer,
                          size_t& ioNextSubLayer) = 0;
-    virtual void PostExecute() = 0;
+    virtual void PostExecute(RenderBatchPassId iPassId) = 0;
 #if SG_ENABLE_ASSERT
 public:
     IRenderBatch();
@@ -52,6 +60,8 @@ public:
     virtual ~IRenderBatch() {}
 #endif
 };
+//=============================================================================
+
 //=============================================================================
 }
 }

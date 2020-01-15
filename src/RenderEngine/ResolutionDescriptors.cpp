@@ -2,12 +2,9 @@
 
 #include "ResolutionDescriptors.h"
 
-#include <Reflection/CommonTypes.h>
-#include <Rendering/RenderTarget.h>
-#include <Rendering/ShaderResource.h>
-#include <Rendering/Surface.h>
 #include "Compositing.h"
 #include "SurfaceDescriptors.h"
+#include <Reflection/CommonTypes.h>
 
 namespace sg {
 namespace renderengine {

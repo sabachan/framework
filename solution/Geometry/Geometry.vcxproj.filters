@@ -53,5 +53,8 @@
     <ClInclude Include="..\..\src\Geometry\DeclareTests.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\src\Geometry\Geometry3D.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

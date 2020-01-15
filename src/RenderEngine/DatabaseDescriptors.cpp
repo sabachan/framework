@@ -2,15 +2,23 @@
 
 #include "DatabaseDescriptors.h"
 
-#include <Rendering/RenderDevice.h>
-#include <Rendering/ShaderConstantDatabase.h>
 #include "Compositing.h"
 #include "SamplerDescriptor.h"
 #include "SurfaceDescriptors.h"
-#include <d3d11.h>
+#include <Rendering/RenderDevice.h>
+#include <Rendering/ShaderConstantDatabase.h>
 
 namespace sg {
 namespace renderengine {
+//=============================================================================
+GenericConstantDatabaseInstance::GenericConstantDatabaseInstance(rendering::IShaderConstantDatabase const* iDatabase)
+    : m_database(iDatabase)
+{
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+GenericConstantDatabaseInstance::~GenericConstantDatabaseInstance()
+{
+}
 //=============================================================================
 AbstractConstantDatabaseDescriptor::AbstractConstantDatabaseDescriptor()
 {
@@ -192,14 +200,20 @@ InputConstantDatabaseDescriptor::~InputConstantDatabaseDescriptor()
 {
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-rendering::IShaderConstantDatabase* InputConstantDatabaseDescriptor::CreateDatabase(rendering::IShaderConstantDatabase const* iInputDatabase) const
+GenericConstantDatabaseInstance* InputConstantDatabaseDescriptor::CreateInstance(rendering::IShaderConstantDatabase const* iInputDatabase) const
 {
     SG_ASSERT(nullptr != iInputDatabase);
-    rendering::ShaderConstantDatabase* database = new rendering::ShaderConstantDatabase();
-    SG_CODE_FOR_ASSERT(refptr<rendering::ShaderConstantDatabase> databaseByRef = database;)
-    PopulateDatabase(database);
-    rendering::IShaderConstantDatabase* databasepair = new rendering::ShaderConstantDatabasePair<false, true>(iInputDatabase, database);
-    return databasepair;
+    if(!IsEmpty())
+    {
+        rendering::ShaderConstantDatabase* database = new rendering::ShaderConstantDatabase();
+        SG_CODE_FOR_ASSERT(refptr<rendering::ShaderConstantDatabase> databaseByRef = database;)
+        PopulateDatabase(database);
+        rendering::IShaderConstantDatabase* databasepair = new rendering::ShaderConstantDatabasePair<false, true>(iInputDatabase, database);
+        return new GenericConstantDatabaseInstance(databasepair);
+    }
+    else
+        return new GenericConstantDatabaseInstance(iInputDatabase);
+
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 #if ENABLE_REFLECTION_PROPERTY_CHECK
@@ -213,6 +227,16 @@ REFLECTION_CLASS_BEGIN((sg, renderengine), InputConstantDatabaseDescriptor)
 REFLECTION_CLASS_DOC("Constants for shaders, that can be ovewritten and extended by client")
 REFLECTION_CLASS_END
 //=============================================================================
+ConstantDatabaseInstance::ConstantDatabaseInstance(rendering::ShaderConstantDatabase* iWritableDatabase, rendering::IShaderConstantDatabase const* iDatabase)
+    : GenericConstantDatabaseInstance(iDatabase)
+    , m_writableDatabase(iWritableDatabase)
+{
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+ConstantDatabaseInstance::~ConstantDatabaseInstance()
+{
+}
+//=============================================================================
 ConstantDatabaseDescriptor::ConstantDatabaseDescriptor()
 : m_parent()
 {
@@ -222,8 +246,9 @@ ConstantDatabaseDescriptor::~ConstantDatabaseDescriptor()
 {
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-rendering::IShaderConstantDatabase* ConstantDatabaseDescriptor::CreateDatabase(Compositing* iCompositing) const
+ConstantDatabaseInstance* ConstantDatabaseDescriptor::CreateInstance(Compositing* iCompositing) const
 {
+    SG_ASSERT(nullptr != iCompositing);
     rendering::ShaderConstantDatabase* database = new rendering::ShaderConstantDatabase();
     PopulateDatabase(database);
     if(nullptr != m_parent)
@@ -231,10 +256,10 @@ rendering::IShaderConstantDatabase* ConstantDatabaseDescriptor::CreateDatabase(C
         SG_CODE_FOR_ASSERT(refptr<rendering::ShaderConstantDatabase> databaseByRef = database;)
         rendering::IShaderConstantDatabase const* parentDatabase = nullptr == m_parent ? nullptr : iCompositing->GetShaderConstantDatabase(m_parent.get());
         rendering::IShaderConstantDatabase* databasePair = new rendering::ShaderConstantDatabasePair<true, false>(database, parentDatabase);
-        return databasePair;
+        return new ConstantDatabaseInstance(database, databasePair);
     }
     else
-        return database;
+        return new ConstantDatabaseInstance(database, nullptr);
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 #if ENABLE_REFLECTION_PROPERTY_CHECK

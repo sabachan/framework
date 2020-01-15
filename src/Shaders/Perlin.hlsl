@@ -568,4 +568,7 @@ float perlin_SimplexGradientNoise(in float4 pos)
     return 27.f * (n0 + n1 + n2 + n3 + n4);
 }
 //=============================================================================
+float2 perlin_SimplexGradientNoiseAndWeight(in float2 pos) { return float2(perlin_SimplexGradientNoise(pos), 1); }
+float2 perlin_SimplexGradientNoiseAndWeight(in float3 pos) { return float2(perlin_SimplexGradientNoise(pos), 1); }
+//=============================================================================
 #endif

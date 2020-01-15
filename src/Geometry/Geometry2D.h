@@ -24,16 +24,25 @@ class VectorTpl : public math::Vector<float, N>
 public:
     explicit VectorTpl(math::Vector<float, N> const& v) : math::Vector<float, N>(v) {}
 };
+template <size_t N>
+class NormalTpl : public math::Vector<float, N>
+{
+public:
+    explicit NormalTpl(math::Vector<float, N> const& v) : math::Vector<float, N>(v) {}
+};
 typedef PointTpl<2> Point2D;
 typedef VectorTpl<2> Vector2D;
+typedef NormalTpl<2> Normal2D;
 typedef PointTpl<3> Point3D;
 typedef VectorTpl<3> Vector3D;
+typedef NormalTpl<3> Normal3D;
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 // These methods are for easy tagging of parameter by client code.
 SG_FORCE_INLINE Point2D Point(float2 const& v) { return Point2D(v); }
 SG_FORCE_INLINE Vector2D Vector(float2 const& v) { return Vector2D(v); }
 SG_FORCE_INLINE Point3D Point(float3 const& v) { return Point3D(v); }
 SG_FORCE_INLINE Vector3D Vector(float3 const& v) { return Vector3D(v); }
+template<size_t N> SG_FORCE_INLINE NormalTpl<N> Normal(math::Vector<float, N> const& v) { return NormalTpl<N>(v); }
 //=============================================================================
 enum class Intersect2DMode { TestOnly, LP_Position, HP_Position, FullData };
 //=============================================================================
@@ -79,6 +88,31 @@ struct Intersect2DTraits<Intersect2DMode::HP_Position, PositionType, void>
     typedef std::pair<bool, PositionType> type;
     static type Make(bool b, PositionType const& v) { return std::make_pair(b, v); }
 };
+
+//=============================================================================
+template <Intersect2DMode mode = Intersect2DMode::LP_Position>
+SG_FORCE_INLINE typename Intersect2DTraits<mode>::type LineToLine(Point2D const& A, Normal2D const& nA, Point2D const& B, Normal2D const& nB, float epsilon = 1.e-6f)
+{
+    // nA . X - nA . A = 0
+    // nB . X - nB . B = 0
+    //     [  nA  ] -1   [nA.A]
+    // X = [  nB  ]   .  [nB.B]
+    typedef Intersect2DTraits<mode> traits;
+    float2x2 M;
+    M.SetRow(0, nA);
+    M.SetRow(1, nB);
+    float2x2 invM;
+    bool ok = InvertROK(invM, M, epsilon);
+    if(!ok)
+        return traits::Make(false, float2(INFINITY, INFINITY));
+    float2 const X = invM * float2(dot(nA,A), dot(nB,B));
+    return traits::Make(true, X);
+}
+template <Intersect2DMode mode = Intersect2DMode::LP_Position>
+SG_FORCE_INLINE typename Intersect2DTraits<mode>::type LineToLine(Point2D const& A, Vector2D const& dirA, Point2D const& B, Vector2D const& dirB, float epsilon = 1.e-6f)
+{
+    return LineToLine(A, Orthogonal(dirA), B, Orthogonal(dirB), epsilon);
+}
 //=============================================================================
 template <Intersect2DMode mode = Intersect2DMode::LP_Position>
 SG_FORCE_INLINE typename Intersect2DTraits<mode>::type SegmentToSegment(Point2D const& A, Point2D const& B, Point2D const& C, Point2D const& D)

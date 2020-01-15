@@ -2,17 +2,17 @@
 
 #include "TransientRenderBatch.h"
 
+#include "IShaderResource.h"
 #include "RenderDevice.h"
 #include "Material.h"
 #include "ShaderConstantBuffers.h"
-#include "ShaderResource.h"
 #include "ShaderResourceBuffer.h"
 #include <Core/Assert.h>
 #include <Core/Log.h>
 #include <Core/PerfLog.h>
 #include <Core/ArrayView.h>
 #include <algorithm>
-#include <d3d11.h>
+#include "WTF/IncludeD3D11.h"
 #if SG_ENABLE_UNIT_TESTS
 #include "InitShutdown.h"
 #include "VertexTypes.h"
@@ -31,7 +31,7 @@ TransientRenderBatch::TransientRenderBatch(rendering::RenderDevice const* iRende
 , m_indexData()
 , m_layerData()
 , m_layerDataIndex(0)
-, m_layerCount(0)
+, m_layerEnd(0)
 , m_bufferIndex(0)
 , m_psConstantBuffers(new ShaderConstantBuffers())
 , m_vsConstantBuffers(new ShaderConstantBuffers())
@@ -60,6 +60,7 @@ TransientRenderBatch::TransientRenderBatch(rendering::RenderDevice const* iRende
         m_indexBufferCapacity[i] = 0;
     }
 #endif
+    //SG_LOG_DEBUG("Rendering", Format("TransientRenderBatch[%0]::Ctor(%1, %2, %3, %4)", ptrdiff_t(this), ptrdiff_t(iRenderDevice), ptrdiff_t(iMaterial), int(iProperties.indexSize), int(iProperties.vertexSize)));
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 TransientRenderBatch::~TransientRenderBatch()
@@ -72,15 +73,18 @@ void TransientRenderBatch::ReserveVertexAndIndex(size_t iVertexCount, size_t iIn
     m_indexData.reserve((m_indexCount + iIndexCount) * m_properties.indexSize);
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-int TransientRenderBatch::GetPriority()
+int TransientRenderBatch::GetPriority(RenderBatchPassId iPassId)
 {
+    SG_ASSERT_AND_UNUSED(iPassId == RenderBatchPassId());
     return m_material->Priority();
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-void TransientRenderBatch::PreExecute(RenderDevice const* iRenderDevice,
+void TransientRenderBatch::PreExecute(RenderBatchPassId iPassId,
+                                      RenderDevice const* iRenderDevice,
                                       IShaderConstantDatabase const* iShaderConstantDatabase,
                                       IShaderResourceDatabase const* iShaderResourceDatabase)
 {
+    SG_ASSERT_AND_UNUSED(iPassId == RenderBatchPassId());
     UpdateBuffers(iRenderDevice);
 
     ShaderConstantDatabasePair<false, false> constantDB(&m_material->Constants(), iShaderConstantDatabase);
@@ -100,18 +104,23 @@ void TransientRenderBatch::PreExecute(RenderDevice const* iRenderDevice,
     m_layerDataIndex = 0;
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-size_t TransientRenderBatch::GetSubLayerCount()
+size_t TransientRenderBatch::GetSubLayerEnd(RenderBatchPassId iPassId)
 {
-    return m_layerCount;
+    SG_ASSERT_AND_UNUSED(iPassId == RenderBatchPassId());
+    //SG_LOG_DEBUG("Rendering", Format("TransientRenderBatch[%0]::GetSubLayerEnd() -> %1", ptrdiff_t(this), m_layerEnd));
+    return m_layerEnd;
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-void TransientRenderBatch::Execute(RenderDevice const* iRenderDevice,
+void TransientRenderBatch::Execute(RenderBatchPassId iPassId,
+                                   RenderDevice const* iRenderDevice,
                                    IShaderConstantDatabase const* iShaderConstantDatabase,
                                    IShaderResourceDatabase const* iShaderResourceDatabase,
                                    size_t iSubLayer,
                                    size_t& ioNextSubLayer)
 {
+    SG_ASSERT_AND_UNUSED(iPassId == RenderBatchPassId());
     SG_UNUSED((iShaderConstantDatabase, iShaderResourceDatabase));
+    //SG_LOG_DEBUG("Rendering", Format("TransientRenderBatch[%0]::Execute(%1, _, _, %2, %3)", ptrdiff_t(this), ptrdiff_t(iRenderDevice), iSubLayer, ioNextSubLayer));
 
     while(m_layerDataIndex < m_layerData.size() && m_layerData[m_layerDataIndex].layer < iSubLayer)
         ++m_layerDataIndex;
@@ -220,14 +229,15 @@ void TransientRenderBatch::Execute(RenderDevice const* iRenderDevice,
     context->VSSetShaderResources( 0, checked_numcastable(D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT), clearsrvs );
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-void TransientRenderBatch::PostExecute()
+void TransientRenderBatch::PostExecute(RenderBatchPassId iPassId)
 {
+    SG_ASSERT_AND_UNUSED(iPassId == RenderBatchPassId());
     m_bufferIndex = (m_bufferIndex + 1) % BUFFER_COUNT;
     m_vertexCount = 0;
     m_indexCount = 0;
     m_layerDataIndex = 0;
     m_layerData.clear();
-    m_layerCount = 0;
+    m_layerEnd = 0;
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 void* TransientRenderBatch::GetVertexPointerForWritingImpl(size_t iSizeofVertex, size_t iMaxVertexCount)
@@ -332,7 +342,7 @@ void TransientRenderBatch::FinishWritingIndex(size_t iIndexCount, size_t iLayer)
             m_layerData.back().indexBegin = checked_numcastable(indexCount);
             m_layerData.back().indexCount = checked_numcastable(iIndexCount);
         }
-        m_layerCount = std::max(m_layerCount, iLayer+1);
+        m_layerEnd = std::max(m_layerEnd, iLayer+1);
 
         size_t const newIndexCount = indexCount + iIndexCount;
 #if SG_ENABLE_ASSERT
@@ -341,6 +351,7 @@ void TransientRenderBatch::FinishWritingIndex(size_t iIndexCount, size_t iLayer)
         case sizeof(u16):
             {
                 u16* indices = static_cast<u16*>((void*)m_indexData.data());
+                SG_UNUSED(indices);
                 for(size_t i = indexCount; i < newIndexCount; ++i)
                 {
                     SG_ASSERT(indices[i] < m_reservedVertexCount || 0 == m_reservedVertexCount);
@@ -351,6 +362,7 @@ void TransientRenderBatch::FinishWritingIndex(size_t iIndexCount, size_t iLayer)
         case sizeof(u32):
             {
                 u32* indices = static_cast<u32*>((void*)m_indexData.data());
+                SG_UNUSED(indices);
                 for(size_t i = indexCount; i < newIndexCount; ++i)
                 {
                     SG_ASSERT(indices[i] < m_reservedVertexCount || 0 == m_reservedVertexCount);

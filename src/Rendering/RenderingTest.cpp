@@ -54,9 +54,9 @@ public:
         m_objects.push_back(new exampleobjects::Triangle(m_renderDevice.get()));
 
         SurfaceProperties surfaceProperties;
-        surfaceProperties.baseFormat = DXGI_FORMAT_B8G8R8A8_TYPELESS;
-        surfaceProperties.readFormat = DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
-        surfaceProperties.writeFormat = DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
+        surfaceProperties.baseFormat = rendering::SurfaceFormat::R8G8B8A8_TYPELESS;
+        surfaceProperties.readFormat = rendering::SurfaceFormat::R8G8B8A8_UNORM_SRGB;
+        surfaceProperties.writeFormat = rendering::SurfaceFormat::R8G8B8A8_UNORM_SRGB;
         surfaceProperties.mipLevels = 0;
         Surface* surface = new Surface(m_renderDevice.get(), m_renderTargets[0]->RenderTargetResolution(), &surfaceProperties);
         m_refs.push_back((IShaderResource*)surface);

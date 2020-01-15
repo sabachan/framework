@@ -332,16 +332,12 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Perf|x64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClInclude Include="..\..\src\FileFormats\pnm.h" />
+    <ClInclude Include="..\..\src\FileFormats\stb_image.c" />
     <ClCompile Include="..\..\src\FileFormats\stb_image.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\FileFormats\stdafx.h" />
     <ClInclude Include="..\..\src\FileFormats\stb_image.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\Core\Core.vcxproj">
-      <Project>{d102ece8-5875-4b91-8d63-b1ad580d37b1}</Project>
-    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

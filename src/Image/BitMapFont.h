@@ -53,9 +53,12 @@ public:
         size_t glyphDataAdressInBits;
         size_t advance;
     };
+    u32 GetGlyphCharCode(size_t iIndex) const;
+    size_t GetGlyphIndex(u32 iCharCode) const;
     void GetGlyphInfo(GlyphInfo& oInfo, u32 iCharCode) const;
     int GetKerning(u32 iCharCode1, u32 iCharCode2) const;
 private:
+    void GetGlyphInfoFromIndex(GlyphInfo& oInfo, size_t iIndex) const;
     size_t GetAdvance(size_t iIndex) const;
     int GetKerning(size_t iIndex) const;
 };

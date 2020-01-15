@@ -1,10 +1,10 @@
 #ifndef Rendering_TextureFromFile_H
 #define Rendering_TextureFromFile_H
 
+#include "IShaderResource.h"
+#include "ResolutionServer.h"
 #include <Core/ComPtr.h>
 #include <Core/SmartPtr.h>
-#include "ResolutionServer.h"
-#include "ShaderResource.h"
 
 struct ID3D11ShaderResourceView;
 struct ID3D11Texture2D;

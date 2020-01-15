@@ -2,8 +2,8 @@
 
 #include "ShaderResourceDatabase.h"
 
-#include "ShaderResource.h"
-#include <d3d11.h>
+#include "IShaderResource.h"
+#include "WTF/IncludeD3D11.h"
 
 namespace sg {
 namespace rendering {
@@ -59,6 +59,11 @@ void ShaderResourceDatabase::RemoveResource(ShaderResourceName iName, IShaderRes
     SG_ASSERT_MSG(m_resources.end() != f, "resource not in database");
     SG_ASSERT(f->second == iResource);
     auto const next = m_resources.erase(f);
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+void ShaderResourceDatabase::Clear()
+{
+    m_resources.clear();
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 IShaderResource const* ShaderResourceDatabase::GetResourceIFP(ShaderResourceName iName) const

@@ -237,17 +237,17 @@ SG_TEST((sg,core), BitFieldPerf, (perf, slow))
 
     for_range(size_t, kk, 0, 5)
     {
-        SIMPLE_CPU_PERF_LOG_SCOPE("MyBigStruct");
+        SG_SIMPLE_CPU_PERF_LOG_SCOPE("MyBigStruct");
         TestPerfs<MyBigStruct>(ref);
     }
     for_range(size_t, kk, 0, 5)
     {
-        SIMPLE_CPU_PERF_LOG_SCOPE("MyPackedStructRef");
+        SG_SIMPLE_CPU_PERF_LOG_SCOPE("MyPackedStructRef");
         TestPerfs<MyPackedStructRef>(ref);
     }
     for_range(size_t, kk, 0, 5)
     {
-        SIMPLE_CPU_PERF_LOG_SCOPE("MyPackedStruct");
+        SG_SIMPLE_CPU_PERF_LOG_SCOPE("MyPackedStruct");
         TestPerfs<MyPackedStruct>(ref);
     }
 }

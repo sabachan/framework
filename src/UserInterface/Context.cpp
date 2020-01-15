@@ -57,12 +57,39 @@ DrawContext::DrawContext(LayerManager& iLayerManager, renderengine::CompositingL
     SG_ASSERT(nullptr != iLayer);
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-DrawContext::DrawContext(DrawContext const& iParent, float4x4 const& iTransform, TransformType iTransformType)
+DrawContext::DrawContext(DrawContext const& iParent, float4x4 const& iTransform, float4x4 const& iInverseTransform, TransformType iTransformType)
 : Context(iParent, iTransform, iTransformType)
 , m_layerManager(iParent.m_layerManager)
 , m_layer(iParent.m_layer)
-, m_boundingClippingBox(iParent.m_boundingClippingBox)
+, m_boundingClippingBox()
 {
+    SG_ASSERT(EqualsWithTolerance(iTransform * iInverseTransform, float4x4::Identity(), 1.e-1f));
+    switch(iTransformType)
+    {
+    case TransformType::None:
+        m_boundingClippingBox = iParent.m_boundingClippingBox;
+        break;
+    case TransformType::Translate2D:
+    {
+        float2 const T = iTransform.Col(3).xy();
+        m_boundingClippingBox = iParent.m_boundingClippingBox - T;
+        break;
+    }
+    case TransformType::Transform2D:
+    {
+        float2x2 const R = iInverseTransform.SubMatrix<2, 2>(0, 0);
+        float2 const T = iInverseTransform.Col(3).xy();
+        m_boundingClippingBox.Grow(R * iParent.m_boundingClippingBox.Corner(BitSet<2>(0)) + T);
+        m_boundingClippingBox.Grow(R * iParent.m_boundingClippingBox.Corner(BitSet<2>(1)) + T);
+        m_boundingClippingBox.Grow(R * iParent.m_boundingClippingBox.Corner(BitSet<2>(2)) + T);
+        m_boundingClippingBox.Grow(R * iParent.m_boundingClippingBox.Corner(BitSet<2>(3)) + T);
+        break;
+    }
+    case TransformType::Transform3D:
+        // No bounding box
+        m_boundingClippingBox = box2f::FromMinMax(float2(-INFINITY), float2(INFINITY));
+        break;
+    }
     SG_ASSERT(0 == errno);
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
@@ -85,6 +112,7 @@ PointerEventContext::PointerEventContext(PointerEventContext const& iParent, flo
 , m_previousPostRenderTranformationContext(iParent.m_previousPostRenderTranformationContext)
 {
 #if SG_ENABLE_ASSERT
+    SG_ASSERT(EqualsWithTolerance(iTransform * iInverseTransform, float4x4::Identity(), 1.e-1f));
     SG_ASSERT_MSG(TransformType::None != iTransformType, "There is no need to create a new context, then.");
     switch(iTransformType)
     {

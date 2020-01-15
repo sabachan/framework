@@ -102,7 +102,7 @@ SG_TEST((sg, math), Box, (Math, quick))
         box1i const b = box1i::FromMinMax(5, 6);
         box2i const c = box2i::FromMinMax(int2(1,2), int2(7,3));
         box4i const d = box4i::FromMinMax(int4(0,5,1,2), int4(10,6,7,3));
-        box4i e = a * b * c;
+        box4i e = CartesianProduct(a, b, c);
         SG_ASSERT(d == e);
         box1i const f = d.SubBox<1>(1);
         SG_ASSERT(b == f);
@@ -113,6 +113,11 @@ SG_TEST((sg, math), Box, (Math, quick))
         SG_ASSERT(int4(10,6,10,3) == e.Max());
         e.SetSubBox(2,c);
         SG_ASSERT(d == e);
+    }
+    {
+        box2f b1 = box2f::FromMinMax(float2(2, -1), float2(5, 5));
+        box2f b2 = b1 + float2(10, -20);
+        //SG_ASSERT(EqualsWithToleranceb2)
     }
 }
 //=============================================================================

@@ -38,7 +38,7 @@ public:
         data_type* GetDataPointerForWriting() const { return dataBuffer; }
         void PushIndices(index_type i);
         template<typename... Is> void PushIndices(index_type i, Is... iIndices);
-        template<typename IT> void PushIndices(IT begin, IT end);
+        template<typename IT> void PushIndicesRange(IT begin, IT end);
         void FinishWritingData(size_t iDataCount);
     private:
         safeptr<IndexedBuffer> buffer;
@@ -71,24 +71,24 @@ IndexedBuffer<T, I>::WriteAccess::WriteAccess(IndexedBuffer& iBuffer, size_t iMa
     : buffer(&iBuffer)
     , dataBuffer(nullptr)
     , indexBuffer(nullptr)
-    , vertexCount(iMaxVertexCount)
+    , dataCount(iMaxDataCount)
     , firstIndex(0)
     , indexCount(0)
 #if SG_ENABLE_ASSERT
-    , reservedVertexCount(iMaxVertexCount)
+    , reservedDataCount(iMaxDataCount)
     , reservedIndexCount(iMaxIndexCount)
     , maxIndexedData(0)
 #endif
 {
     dataBuffer = buffer->GetDataPointerForWritingImpl(dataCount);
-    indexBuffer = batch->GetIndexPointerForWritingImpl(iMaxIndexCount, firstIndex);
+    indexBuffer = buffer->GetIndexPointerForWritingImpl(iMaxIndexCount, firstIndex);
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 template <typename T, typename I>
 IndexedBuffer<T, I>::WriteAccess::~WriteAccess()
 {
-    ASSERT(0 < dataCount);
-    ASSERT(maxIndexedData < dataCount);
+    SG_ASSERT(0 < dataCount);
+    SG_ASSERT(maxIndexedData < dataCount);
     buffer->FinishWritingData(dataCount);
     buffer->FinishWritingIndex(indexCount);
 }
@@ -96,9 +96,13 @@ IndexedBuffer<T, I>::WriteAccess::~WriteAccess()
 template <typename T, typename I>
 void IndexedBuffer<T, I>::WriteAccess::PushIndices(index_type i)
 {
-    ASSERT(indexCount < reservedIndexCount);
-    CODE_FOR_ASSERT(maxIndexedData = std::max(i, maxIndexedData);)
-        indexBuffer[indexCount] = i;
+    SG_ASSERT(indexCount < reservedIndexCount);
+    SG_CODE_FOR_ASSERT(maxIndexedData = std::max(size_t(i), maxIndexedData);)
+#if defined(COMPILATION_CONFIG_IS_FAST_DEBUG)
+    indexBuffer[indexCount] = checked_numcastable(i + firstIndex);
+#else // For perf
+    indexBuffer[indexCount] = index_type(i + firstIndex);
+#endif
     ++indexCount;
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
@@ -107,21 +111,21 @@ template<typename... Is>
 void IndexedBuffer<T, I>::WriteAccess::PushIndices(index_type i, Is... iIndices)
 {
     PushIndices(i);
-    PushIndices(iIndices...)
+    PushIndices(iIndices...);
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 template <typename T, typename I>
 template<typename IT>
-void IndexedBuffer<T, I>::WriteAccess::PushIndices(IT begin, IT end)
+void IndexedBuffer<T, I>::WriteAccess::PushIndicesRange(IT begin, IT end)
 {
-    ASSERT(indexCount+(end-begin) <= reservedIndexCount);
+    SG_ASSERT(indexCount+(end-begin) <= reservedIndexCount);
     IT it = begin;
     size_t i = 0;
     index_type* ib = indexBuffer + indexCount;
     while(it != end)
     {
         auto const index = *it;
-        CODE_FOR_ASSERT(maxIndexedData = std::max(index, maxIndexedData);)
+        SG_CODE_FOR_ASSERT(maxIndexedData = std::max(size_t(index), maxIndexedData);)
 #if defined(COMPILATION_CONFIG_IS_FAST_DEBUG)
             ib[i] = checked_numcastable(index + firstIndex);
 #else // For perf
@@ -131,14 +135,14 @@ void IndexedBuffer<T, I>::WriteAccess::PushIndices(IT begin, IT end)
         ++it;
     }
     indexCount += i;
-    ASSERT(indexCount <= reservedIndexCount);
+    SG_ASSERT(indexCount <= reservedIndexCount);
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 template <typename T, typename I>
 void IndexedBuffer<T, I>::WriteAccess::FinishWritingData(size_t iDataCount)
 {
-    ASSERT(iDataCount <= reservedDataCount);
-    ASSERT_MSG(dataCount == reservedDataCount, "FinishWritingData must be call 0 or 1 time, no more.");
+    SG_ASSERT(iDataCount <= reservedDataCount);
+    SG_ASSERT_MSG(dataCount == reservedDataCount, "FinishWritingData must be call 0 or 1 time, no more.");
     dataCount = iDataCount;
 }
 //=============================================================================
@@ -180,8 +184,8 @@ void IndexedBuffer<T, I>::IncrementalReserve(size_t iDataCount, size_t iIndexCou
 template <typename T, typename I>
 typename IndexedBuffer<T, I>::data_type* IndexedBuffer<T, I>::GetDataPointerForWritingImpl(size_t iMaxDataCount)
 {
-    ASSERT(0 < iMaxDataCount);
-    ASSERT(0 == m_reservedDataCount);
+    SG_ASSERT(0 < iMaxDataCount);
+    SG_ASSERT(0 == m_reservedDataCount);
     size_t const dataCount = m_data.size();
     size_t const newDataCount = dataCount + iMaxDataCount;
     m_data.resize(newDataCount);
@@ -192,26 +196,26 @@ typename IndexedBuffer<T, I>::data_type* IndexedBuffer<T, I>::GetDataPointerForW
 template <typename T, typename I>
 typename IndexedBuffer<T, I>::index_type* IndexedBuffer<T, I>::GetIndexPointerForWritingImpl(size_t iMaxIndexCount, size_t& oFirstDataIndex)
 {
-    ASSERT(0 < iMaxIndexCount);
-    ASSERT(0 == m_reservedIndexCount);
-    ASSERT(0 != m_reservedDataCount);
-    size_t const firstDataIndex = m_data.size() - m_reservedDataSize;
+    SG_ASSERT(0 < iMaxIndexCount);
+    SG_ASSERT(0 == m_reservedIndexCount);
+    SG_ASSERT(0 != m_reservedDataCount);
+    size_t const firstDataIndex = m_data.size() - m_reservedDataCount;
     oFirstDataIndex = firstDataIndex;
     size_t const indexCount = m_indices.size();
     size_t const newIndexCount = indexCount + iMaxIndexCount;
     m_indices.resize(newIndexCount);
     m_reservedIndexCount = iMaxIndexCount;
-    return m_indexData.data() + indexCount;
+    return m_indices.data() + indexCount;
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 template <typename T, typename I>
 void IndexedBuffer<T, I>::FinishWritingData(size_t iDataCount)
 {
-    ASSERT(0 != m_reservedDataCount);
+    SG_ASSERT(0 != m_reservedDataCount);
     size_t const dataCapacity = m_data.size();
-    size_t const prevDataCount = dataCapaciity - m_reservedDataCount;
+    size_t const prevDataCount = dataCapacity - m_reservedDataCount;
     size_t const newDataCount = prevDataCount + iDataCount;
-    ASSERT(newDataCount <= dataCapacity);
+    SG_ASSERT(newDataCount <= dataCapacity);
     m_data.resize(newDataCount);
     m_reservedDataCount = 0;
 }
@@ -219,12 +223,12 @@ void IndexedBuffer<T, I>::FinishWritingData(size_t iDataCount)
 template <typename T, typename I>
 void IndexedBuffer<T, I>::FinishWritingIndex(size_t iIndexCount)
 {
-    ASSERT(0 != m_reservedIndexCount);
+    SG_ASSERT(0 != m_reservedIndexCount);
     size_t const indexCapacity = m_indices.size();
-    size_t const prevIndexCount = indexCapaciity - m_reservedIndexCount;
+    size_t const prevIndexCount = indexCapacity - m_reservedIndexCount;
     size_t const newIndexCount = prevIndexCount + iIndexCount;
-    ASSERT(newIndexCount <= indexCapacity);
-    m_index.resize(newIndexCount);
+    SG_ASSERT(newIndexCount <= indexCapacity);
+    m_indices.resize(newIndexCount);
     m_reservedIndexCount = 0;
 }
 //=============================================================================

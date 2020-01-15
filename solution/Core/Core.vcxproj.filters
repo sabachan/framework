@@ -99,6 +99,9 @@
     <ClCompile Include="..\..\src\Core\Intrinsics.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\Core\Tribool.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\Core\Utils.h">
@@ -248,12 +251,24 @@
     <ClInclude Include="..\..\src\Core\StridedArrayView.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\src\Core\Tribool.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\Core\InstanceList.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="..\..\src\Core\FastSymbols.natvis">
       <Filter>Header Files</Filter>
     </Natvis>
     <Natvis Include="..\..\src\Core\ArrayView.natvis">
+      <Filter>Header Files</Filter>
+    </Natvis>
+    <Natvis Include="..\..\src\Core\ArrayList.natvis">
+      <Filter>Header Files</Filter>
+    </Natvis>
+    <Natvis Include="..\..\src\Core\HashMap.natvis">
       <Filter>Header Files</Filter>
     </Natvis>
   </ItemGroup>

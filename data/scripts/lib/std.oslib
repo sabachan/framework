@@ -1,0 +1,12 @@
+namespace std
+{
+
+function is_numeric(a)      { return intrinsic("is_numeric", a) }
+function is_integer(a)      { return intrinsic("is_integer", a) }
+function length_of(l)       { return intrinsic("list_length", l) }
+function type_name_of(a)    { return intrinsic("type_name_of", a) }
+function is_same_type(a, b) { return intrinsic("is_same_type", a, b) }
+
+function print(str)         { intrinsic("print", str) }
+
+}

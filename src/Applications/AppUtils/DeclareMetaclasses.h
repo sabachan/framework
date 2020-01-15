@@ -10,6 +10,8 @@
 #include <Core/Config.h>
 
 #if SG_ENABLE_TOOLS
+REFLECTION_DECLARE_METACLASS((sg), ApplicationLauncherStyleGuide)
+REFLECTION_DECLARE_METACLASS((sg,image,tool), Font)
 REFLECTION_DECLARE_METACLASS((sg,image,tool), FontCodeGenerator)
 #endif
 

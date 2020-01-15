@@ -3,6 +3,7 @@
 
 #include "NumericalUtils.h"
 #include <Core/Config.h>
+#include <Core/For.h>
 #include <Core/IntTypes.h>
 #include <Core/TemplateUtils.h>
 #include <Core/Utils.h>
@@ -61,6 +62,23 @@ public:
     typedef Vector<T, dim> this_type;
     typedef T value_type;
     typedef typename ConstPassing<value_type>::type value_type_for_const_passing;
+    struct CompResult : public Vector<bool, dim>
+    {
+        friend bool all(CompResult const& r) { for_range(size_t, i, 0, dim) { if(!r._[i]) return false; } return true; }
+        friend bool any(CompResult const& r) { for_range(size_t, i, 0, dim) { if( r._[i]) return true; } return false; }
+        CompResult operator!() { CompResult r; for_range(size_t, i, 0, dim) { r._[i] = !this->_[i]; } return r; }
+    };
+    struct CompResultDefaultAny;
+    struct CompResultDefaultAll : public CompResult
+    {
+        operator bool() const { return all(*this); };
+        Vector<T, dim>::CompResultDefaultAny operator!() { Vector<T, dim>::CompResultDefaultAny r; for_range(size_t, i, 0, dim) { r._[i] = !this->_[i]; } return r; }
+    };
+    struct CompResultDefaultAny : public CompResult
+    {
+        operator bool() const { return any(*this); };
+        Vector<T, dim>::CompResultDefaultAll operator!() { Vector<T, dim>::CompResultDefaultAll r; for_range(size_t, i, 0, dim) { r._[i] = !this->_[i]; } return r; }
+    };
 public:
     explicit Vector(uninitialized_t) {}
     Vector() { for(size_t i = 0; i < dim; ++i) { _[i] = value_type(); } }
@@ -276,6 +294,25 @@ Vector<T, dim + dim2>  Vector<T, dim>::Append(Vector<T, dim2> const& b) const
     return r;
 }
 //=============================================================================
+#if 1
+template<typename T, size_t dim>
+typename Vector<T, dim>::CompResultDefaultAll operator== (Vector<T, dim> const& a, Vector<T, dim> const& b)
+{
+    typename Vector<T, dim>::CompResultDefaultAll r;
+    for(size_t i = 0; i < dim; ++i)
+    {
+        r._[i] = a._[i] == b._[i];
+    }
+    return r;
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+template<typename T, size_t dim>
+typename Vector<T, dim>::CompResultDefaultAny operator!= (Vector<T, dim> const& a, Vector<T, dim> const& b)
+{
+    return !(a == b);
+}
+#else
+//=============================================================================
 template<typename T, size_t dim>
 bool operator== (Vector<T, dim> const& a, Vector<T, dim> const& b)
 {
@@ -291,6 +328,7 @@ bool operator!= (Vector<T, dim> const& a, Vector<T, dim> const& b)
 {
     return !(a == b);
 }
+#endif
 //=============================================================================
 template<typename T, size_t dim>
 bool EqualsWithTolerance(Vector<T, dim> const& a, Vector<T, dim> const& b, Vector<T, dim> const& tolerance)
@@ -360,6 +398,13 @@ bool METHOD(Vector<T, dim> const& a, Vector<T, dim> const& b) \
 { \
     bool r = true; \
     for(size_t i = 0; i < dim; ++i) { r &= a._[i] OP b._[i]; } \
+    return r; \
+} \
+template<typename T, size_t dim> \
+typename Vector<T, dim>::CompResult operator OP(Vector<T, dim> const& a, Vector<T, dim> const& b) \
+{ \
+    typename Vector<T, dim>::CompResult r; \
+    for(size_t i = 0; i < dim; ++i) { r._[i] = a._[i] OP b._[i]; } \
     return r; \
 }
 
@@ -438,7 +483,7 @@ Vector<T, dim> METHOD(Vector<T, dim> const& a, Vector<T, dim> const& b) \
     } \
     return result; \
 }
-
+// TODO: Vector_SwizzledSubVector
 DEFINE_COMPONENTWISE_METHOD(min, using std::min, min(l,r))
 DEFINE_COMPONENTWISE_METHOD(max, using std::max, max(l,r))
 #undef DEFINE_COMPONENTWISE_METHOD
@@ -455,6 +500,11 @@ Vector<T, dim> METHOD(Vector<T, dim> const& a) \
         result._[i] = CODE; \
     } \
     return result; \
+} \
+template<typename T, size_t dim, size_t other_dim, size_t _0, size_t _1, size_t _2, size_t _3> \
+Vector<T, dim> METHOD(math::Vector_SwizzledSubVector<T, other_dim, dim, _0, _1, _2, _3> const& a) \
+{ \
+    return METHOD(Vector<T, dim>(a)); \
 }
 
 DEFINE_COMPONENTWISE_METHOD(abs, using std::abs, abs(x))

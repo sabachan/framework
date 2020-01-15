@@ -12,7 +12,7 @@ struct v2p {
     float4 Pos : SV_Position;
     float4 Normal : NORMAL;
     float4 Col : COLOR;
-    float2 Tex : TEXTURE; 
+    float2 Tex : TEXTURE;
 };
 
 struct p2f {

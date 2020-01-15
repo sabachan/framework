@@ -323,10 +323,13 @@
     <ClInclude Include="..\..\src\UserInterface\Context.h" />
     <ClInclude Include="..\..\src\UserInterface\DeclareMetaclasses.h" />
     <ClInclude Include="..\..\src\UserInterface\DeclareTests.h" />
+    <ClInclude Include="..\..\src\UserInterface\EditableText.h" />
     <ClInclude Include="..\..\src\UserInterface\FitMode.h" />
+    <ClInclude Include="..\..\src\UserInterface\Focusable.h" />
     <ClInclude Include="..\..\src\UserInterface\FramingContainer.h" />
     <ClInclude Include="..\..\src\UserInterface\FrameProperty.h" />
     <ClInclude Include="..\..\src\UserInterface\GenericStyleGuide.h" />
+    <ClInclude Include="..\..\src\UserInterface\ImmediateSplitLayout.h" />
     <ClInclude Include="..\..\src\UserInterface\InitShutdown.h" />
     <ClInclude Include="..\..\src\UserInterface\Magnifier.h" />
     <ClInclude Include="..\..\src\UserInterface\Movable.h" />
@@ -334,6 +337,7 @@
     <ClInclude Include="..\..\src\UserInterface\ListLayout.h" />
     <ClInclude Include="..\..\src\UserInterface\OffscreenContainer.h" />
     <ClInclude Include="..\..\src\UserInterface\PointerEventClipper.h" />
+    <ClInclude Include="..\..\src\UserInterface\RootContainer.h" />
     <ClInclude Include="..\..\src\UserInterface\ScrollingContainer.h" />
     <ClInclude Include="..\..\src\UserInterface\SensitiveArea.h" />
     <ClInclude Include="..\..\src\UserInterface\SimpleListLayout.h" />
@@ -351,6 +355,7 @@
     <ClInclude Include="..\..\src\UserInterface\TypefaceFromBitMapFont.h" />
     <ClInclude Include="..\..\src\UserInterface\UniformDrawer.h" />
     <ClInclude Include="..\..\src\UserInterface\WheelHelper.h" />
+    <ClInclude Include="..\..\src\UserInterface\ZoomingContainer.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\UserInterface\AnimFactor.cpp" />
@@ -360,6 +365,8 @@
     <ClCompile Include="..\..\src\UserInterface\Component.cpp" />
     <ClCompile Include="..\..\src\UserInterface\Container.cpp" />
     <ClCompile Include="..\..\src\UserInterface\Context.cpp" />
+    <ClCompile Include="..\..\src\UserInterface\EditableText.cpp" />
+    <ClCompile Include="..\..\src\UserInterface\Focusable.cpp" />
     <ClCompile Include="..\..\src\UserInterface\FramingContainer.cpp" />
     <ClCompile Include="..\..\src\UserInterface\GenericStyleGuide.cpp" />
     <ClCompile Include="..\..\src\UserInterface\InitShutdown.cpp" />
@@ -369,6 +376,7 @@
     <ClCompile Include="..\..\src\UserInterface\OffscreenContainer.cpp" />
     <ClCompile Include="..\..\src\UserInterface\PointerEvent.cpp" />
     <ClCompile Include="..\..\src\UserInterface\Root.cpp" />
+    <ClCompile Include="..\..\src\UserInterface\RootContainer.cpp" />
     <ClCompile Include="..\..\src\UserInterface\ScrollingContainer.cpp" />
     <ClCompile Include="..\..\src\UserInterface\SensitiveArea.cpp" />
     <ClCompile Include="..\..\src\UserInterface\SimpleListLayout.cpp" />
@@ -391,6 +399,7 @@
     <ClCompile Include="..\..\src\UserInterface\TypefaceFromBitMapFont.cpp" />
     <ClCompile Include="..\..\src\UserInterface\UniformDrawer.cpp" />
     <ClCompile Include="..\..\src\UserInterface\WheelHelper.cpp" />
+    <ClCompile Include="..\..\src\UserInterface\ZoomingContainer.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

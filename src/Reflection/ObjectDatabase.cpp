@@ -98,7 +98,7 @@ void ObjectDatabase::BeginTransaction()
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 void ObjectDatabase::AbortTransaction()
 {
-    SG_ASSERT(m_state == State::AddObjects);
+    SG_ASSERT(m_state == State::AddObjects || m_state == State::Linked);
     if(ReferencingMode::AllowForwardReference == m_referencingMode)
     {
         SG_CODE_FOR_ASSERT(m_state = State::Link);
@@ -120,18 +120,47 @@ void ObjectDatabase::AbortTransaction()
     PopTransation();
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-void ObjectDatabase::EndTransaction()
+ArrayView<ObjectDatabase::DeferredProperty> ObjectDatabase::LinkTransactionReturnInvalidDeferredProperties()
 {
     SG_ASSERT(m_state == State::AddObjects);
+    ArrayView<DeferredProperty> invalidDeferredProperties;
     if(ReferencingMode::AllowForwardReference == m_referencingMode)
     {
         SG_CODE_FOR_ASSERT(m_state = State::Link);
-        ApplyDeferredProperties();
+        invalidDeferredProperties = ApplyDeferredPropertiesReturnInvalid();
     }
     else
     {
         SG_ASSERT(m_deferredProperties.empty());
     }
+    SG_CODE_FOR_ASSERT(m_state = State::Linked);
+    return invalidDeferredProperties;
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+void ObjectDatabase::LinkTransaction()
+{
+    ArrayView<DeferredProperty> invalid = LinkTransactionReturnInvalidDeferredProperties();
+    SG_ASSERT(invalid.empty());
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+void ObjectDatabase::CheckTransaction()
+{
+    SG_ASSERT(m_state == State::Linked);
+#if ENABLE_REFLECTION_PROPERTY_CHECK
+    ObjectPropertyCheckContext context;
+    size_t const objectCount = m_objects.size();
+    for(size_t i = m_transactionBegin; i < objectCount; ++i)
+    {
+        ObjectEntry const& objectEntry = m_objects[i];
+        objectEntry.object->CheckProperties(context);
+    }
+#endif
+    SG_CODE_FOR_ASSERT(m_state = State::Checked);
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+void ObjectDatabase::EndTransaction()
+{
+    SG_ASSERT(m_state == State::Checked);
     ObjectCreationContext context;
     size_t const objectCount = m_objects.size();
     for(size_t i = m_transactionBegin; i < objectCount; ++i)
@@ -209,13 +238,18 @@ void ObjectDatabase::EndScopedTransaction()
     SG_ASSERT(ReferencingMode::BackwardReferenceOnly == m_referencingMode);
     SG_ASSERT(m_deferredProperties.empty());
     SG_ASSERT(0 < m_scopedTransactionCount);
-
+#if ENABLE_REFLECTION_PROPERTY_CHECK
+    ObjectPropertyCheckContext propertyCheckContext;
+#endif
     ObjectCreationContext context;
     size_t const objectCount = m_objects.size();
     for(size_t i = m_transactionBegin; i < objectCount; ++i)
     {
         ObjectEntry const& objectEntry = m_objects[i];
         SG_ASSERT(objectEntry.transaction == m_transactionCount);
+#if ENABLE_REFLECTION_PROPERTY_CHECK
+        objectEntry.object->CheckProperties(propertyCheckContext);
+#endif
         objectEntry.object->EndCreationIFN(context);
 
         IdentifierNode const lastNode = objectEntry.id.Back();
@@ -466,21 +500,24 @@ void ObjectDatabase::AddDeferredProperty(Identifier const& iObjectName, IPropert
     m_deferredProperties.emplace_back(iObjectName, iProperty, iValue);
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-void ObjectDatabase::ApplyDeferredProperties()
+ArrayView<ObjectDatabase::DeferredProperty> ObjectDatabase::ApplyDeferredPropertiesReturnInvalid()
 {
     SG_ASSERT(m_referencingMode == ReferencingMode::AllowForwardReference);
     SG_ASSERT(State::Link == m_state);
     refptr<IPrimitiveData> data;
-    for(auto it : m_deferredProperties)
+    std::vector<DeferredProperty> m_invalidDeferredProperties;
+    for(auto const& it : m_deferredProperties)
     {
         ObjectEntry const* const objectEntry = GetObjectEntryIFP(it.objectname);
         SG_ASSERT(nullptr != objectEntry);
         BaseClass* o = objectEntry->object.get();
         SG_ASSERT(nullptr != o);
         bool const ok = o->SetPropertyROK(it.property.get(), it.value.get());
-        SG_ASSERT_AND_UNUSED(ok);
+        if(!ok)
+            m_invalidDeferredProperties.emplace_back(it);
     }
-    m_deferredProperties.clear();
+    swap(m_deferredProperties, m_invalidDeferredProperties);
+    return AsArrayView(m_deferredProperties);
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 void ObjectDatabase::GetExportedObjects(named_object_list& oObjects) const
@@ -513,7 +550,7 @@ void ObjectDatabase::GetLastTransactionObjects(named_object_list& oObjects) cons
     for(size_t i = b; i < end; ++i)
     {
         ObjectEntry const& it = m_objects[i];
-        SG_ASSERT(ObjectVisibility::Protected == it.visibility);
+        SG_ASSERT(ObjectVisibility::Public == it.visibility);
         oObjects.emplace_back(it.id, it.object.get());
     }
 }
@@ -573,7 +610,7 @@ void ObjectDatabase::Test()
             SG_ASSERT(State::Link == db.m_state);
             SG_CODE_FOR_ASSERT(db.m_state = State::AddObjects);
         }
-        db.EndTransaction();
+        db.LinkCheckEndTransaction();
     }
 
     {
@@ -627,7 +664,7 @@ void ObjectDatabase::Test()
             SG_ASSERT(State::Link == db.m_state);
             SG_CODE_FOR_ASSERT(db.m_state = State::AddObjects);
         }
-        db.EndTransaction();
+        db.LinkCheckEndTransaction();
         db.BeginTransaction();
         {
             // must fail: db.Add(ObjectVisibility::Export, Identifier("::A::Object"), new BaseClass);
@@ -670,7 +707,7 @@ void ObjectDatabase::Test()
             SG_ASSERT(State::Link == db.m_state);
             SG_CODE_FOR_ASSERT(db.m_state = State::AddObjects);
         }
-        db.EndTransaction();
+        db.LinkCheckEndTransaction();
         db.PopTransation();
         db.PopTransation();
     }

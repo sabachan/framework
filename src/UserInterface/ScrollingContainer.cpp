@@ -14,6 +14,10 @@
 #include <System/MouseUtils.h>
 #include <System/UserInputEvent.h>
 
+#if SG_ENABLE_ASSERT
+#include "RootContainer.h"
+#endif
+
 namespace sg {
 namespace ui {
 //=============================================================================
@@ -128,7 +132,7 @@ ScrollingContainer::ScrollingContainer(Magnifier const& iMagnifier, TextureDrawe
     , m_clippingContainer()
     , m_content()
     , m_properties(iProperties)
-    , m_relativeScrollPosition(0)
+    , m_relativeScrollToApply(0)
     , m_barsMargins(box2f::FromMinMax(float2(0), float2(0)))
     , m_visibleBars(false)
 
@@ -170,7 +174,6 @@ void ScrollingContainer::VirtualUpdatePlacement()
     ui::Container* parent = Parent();
     box2f const& parentBox = parent->PlacementBox_AssumeUpToDate();
     SG_ASSERT_MSG(nullptr != m_content, "A scrolling container should always have a content");
-    m_content->ResetOffset();
 
     bool2 const prevVisibleBars = m_visibleBars;
 
@@ -195,6 +198,10 @@ void ScrollingContainer::VirtualUpdatePlacement()
 
     ComputeAndSetPlacementBox();
 
+    float2 relativeScrollPosition = GetRelativeScrollPosition();
+
+    m_content->ResetOffset();
+
     for(;;)
     {
         box2f windowBox;
@@ -218,7 +225,10 @@ void ScrollingContainer::VirtualUpdatePlacement()
         }
     }
 
-    m_relativeScrollPosition = saturate(m_relativeScrollPosition);
+    // TODO: this is consumed if UpdatePlacement is called with another test box.
+    // How to merge movement from content use of offset and scroll position?
+    relativeScrollPosition = saturate(relativeScrollPosition + m_relativeScrollToApply);
+    m_relativeScrollToApply = float2(0,0);
 
     box2f windowBox;
     box2f contentBox;
@@ -228,9 +238,9 @@ void ScrollingContainer::VirtualUpdatePlacement()
     box2f const contentMargins = GetContentMargins();
     float2 offset = float2(0);
     if(m_visibleBars.x())
-        offset.x() = contentMargins.Min().x() - m_relativeScrollPosition.x() * scrollableDelta.x() - contentOwnOffset.x();
+        offset.x() = - relativeScrollPosition.x() * scrollableDelta.x() - contentOwnOffset.x();
     if(m_visibleBars.y())
-        offset.y() = contentMargins.Min().y() - m_relativeScrollPosition.y() * scrollableDelta.y() - contentOwnOffset.y();
+        offset.y() = - relativeScrollPosition.y() * scrollableDelta.y() - contentOwnOffset.y();
 
     if(float2(0) != offset)
         m_content->AddOffset(offset);
@@ -263,6 +273,20 @@ box2f ScrollingContainer::GetRelativeWindowOnContent() const
     return relativeWindowOnContent;
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+float2 ScrollingContainer::GetRelativeScrollPosition() const
+{
+    box2f rbox = GetRelativeWindowOnContent();
+    float2 delta = rbox.Delta();
+    float2 rlo = rbox.Min();
+    float2 rpos;
+    for(int i : {0,1})
+    if(delta._[i] < 1.f)
+        rpos._[i] = rlo._[i] / (1.f - delta._[i]);
+    else
+        rpos._[i] = rlo._[i] / (delta._[i] - 1.f);
+    return rpos;
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 void ScrollingContainer::ScrollInUnitIFP(float2 const& iOffset)
 {
     box2f windowBox;
@@ -270,7 +294,7 @@ void ScrollingContainer::ScrollInUnitIFP(float2 const& iOffset)
     GetWindowAndContentBox(windowBox, contentBox);
     float2 const scrollableDelta = contentBox.Delta() - windowBox.Delta();
     float2 const relativeOffset = -iOffset * (1.f / componentwise::max(scrollableDelta, float2(1.f)));
-    m_relativeScrollPosition += relativeOffset;
+    m_relativeScrollToApply = relativeOffset;
     InvalidatePlacement();
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''

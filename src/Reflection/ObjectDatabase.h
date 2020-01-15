@@ -1,6 +1,7 @@
 #ifndef Reflection_ObjectDatabase_H
 #define Reflection_ObjectDatabase_H
 
+#include <Core/ArrayView.h>
 #include <Core/Assert.h>
 #include <Core/FastSymbol.h>
 #include <Core/IntTypes.h>
@@ -40,13 +41,21 @@ public:
     static const bool prefer_intra_transaction_reference = false;
     typedef std::pair<Identifier, safeptr<BaseClass> > named_object;
     typedef std::vector<std::pair<Identifier, safeptr<BaseClass> > > named_object_list;
+    struct DeferredProperty
+    {
+        Identifier objectname;
+        safeptr<IProperty const> property;
+        refptr<IPrimitiveData const> value;
+    public:
+        DeferredProperty(Identifier const& iObjectname, IProperty const* iProperty, IPrimitiveData const* iValue);
+    };
 public:
     // * AllowForwardReference is used for database for objects, where objects can
     //      reference other objects that can be defined after them.
     //      In this case, transaction must be ended before beginning another one.
     // * BackwardReferenceOnly is used for script. It allows references only on
     //      previously defined objects (as in most of programming languages).
-    //      Moreover, it is possible to begin a trasaction as another is already
+    //      Moreover, it is possible to begin a transaction as another is already
     //      in progress to implement scoping. In this case, all scoped objects are
     //      released at the end of the scoped transaction.
     enum class ReferencingMode { AllowForwardReference, BackwardReferenceOnly };
@@ -62,7 +71,11 @@ public:
     BaseClass* GetIFP(Identifier const& iCurrentNamespace, Identifier const& iObjectName) const;
     named_object GetWithIdentifierIFP(Identifier const& iCurrentNamespace, Identifier const& iObjectName) const;
     void AbortTransaction();
+    ArrayView<DeferredProperty> LinkTransactionReturnInvalidDeferredProperties();
+    void LinkTransaction();
+    void CheckTransaction();
     void EndTransaction();
+    void LinkCheckEndTransaction() { LinkTransaction(); CheckTransaction(); EndTransaction(); }
     void PopTransation();
     void BeginScopedTransaction();
     void EndScopedTransaction();
@@ -84,16 +97,8 @@ private:
     };
     ObjectEntry const* GetObjectEntryIFP(Identifier const& iCurrentNamespace, Identifier const& iObjectName) const;
     ObjectEntry const* GetObjectEntryIFP(Identifier const& iObjectName) const;
-    void ApplyDeferredProperties();
+    ArrayView<DeferredProperty> ApplyDeferredPropertiesReturnInvalid();
 private:
-    struct DeferredProperty
-    {
-        Identifier objectname;
-        safeptr<IProperty const> property;
-        refptr<IPrimitiveData const> value;
-    public:
-        DeferredProperty(Identifier const& iObjectname, IProperty const* iProperty, IPrimitiveData const* iValue);
-    };
     std::vector<DeferredProperty> m_deferredProperties;
     std::vector<ObjectEntry> m_objects;
     std::unordered_multimap<IdentifierSymbol, size_t> m_lastSymbolToObjects;
@@ -102,7 +107,7 @@ private:
     size_t m_transactionBegin;
     ReferencingMode const m_referencingMode;
 #if SG_ENABLE_ASSERT
-    enum class State { ReadOnly, AddObjects, Link, PopTransaction };
+    enum class State { ReadOnly, AddObjects, Link, Linked, Checked, PopTransaction };
     State m_state;
     size_t m_scopedTransactionCount;
 #endif

@@ -23,13 +23,16 @@ namespace objectscript {
 enum class ErrorType
 {
     unknown,
+
     // File
     //----------
     cant_read_file,
+
     // Tokenizer
     //----------
     invalid_character_sequence,
     unexpected_end_of_file_in_comment_bloc,
+
     // Grammar Analyser
     //-----------------
     octal_format_is_forbidden,
@@ -39,6 +42,7 @@ enum class ErrorType
     unexpected_end_of_file_in_parenthesis,
     unexpected_end_of_file_in_construct,
     unexpected_end_of_file_in_ternary_op,
+    unexpected_closing_token,
     value_expected,
     if_empty_condition,
     if_invalid_condition,
@@ -58,8 +62,16 @@ enum class ErrorType
     incorrect_use_of_keyword_in,
     incorrect_use_of_semicolon,
     incorrect_use_of_function_call_on_template,
-    // Semantic Tree
-    //-----------------
+    incorrect_use_of_operator,
+    expected_open_bloc_after_template_namespace,
+
+    // Semantic Tree Construction
+    //---------------------------
+    syntax_error,
+    syntax_error_missing_comma,
+
+    // Semantic Tree Evaluation
+    //-------------------------
     expression_is_not_an_instruction,
     unsupported_type_for_unary_operator,
     unsupported_types_for_binary_operator,
@@ -70,9 +82,11 @@ enum class ErrorType
     unexpected_type_for_condition,
     object_definition_forbidden_in_context,
     incorrect_type_for_ternary_operator_condition,
+    callable_not_found,
     call_to_uncallable_object,
     read_non_const_variable_outside_function_or_template,
     unknown_intrinsic_name,
+    unknown_property_name,
     incorrect_use_of_intrinsic,
     missing_argument_in_intrinsic_call,
     missing_argument_in_function_call,
@@ -97,6 +111,12 @@ enum class ErrorType
     expression_is_not_callable,
     unexpected_use_of_jump_statement,
     missing_term_after_prefix_operator,
+    missing_function_name,
+    missing_namespace_name,
+    missing_template_name,
+    name_already_defined,
+    name_already_defined_in_outer_scope,
+    invalid_value_type_for_property,
     // Warnings
     //-----------------
     typedef_is_deprecated,

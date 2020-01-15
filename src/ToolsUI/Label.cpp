@@ -102,7 +102,7 @@ void Label::VirtualUpdatePlacement()
     float2 const contentInducedSize = float2(contentWidth, textBox.Delta().y()) + 2 * textMargin;
     box2f const frame = m_frameProperty.Resolve(magnification, parentBox, contentInducedSize);
     SetPlacementBox(frame);
-    ui::Text::Alignment textAlignment;
+    ui::TextBoxAlignment textAlignment;
     textAlignment.alignementToAnchor = float2(0.5f,0.5f);
     textAlignment.useBaselinesInY = 0;
     textAlignment.useTextAlignmentInX = 0;

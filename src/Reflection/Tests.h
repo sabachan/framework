@@ -90,6 +90,15 @@ protected:
     u32 m_u;
 };
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+class TestStruct_C : public TestStruct_B
+{
+public:
+    refptr<TestClass_A> o;
+
+    TestStruct_C() {}
+    REFLECTION_TYPE_HEADER(TestStruct_C, TestStruct_B)
+};
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 class TestClassWithSameProperty_A : public TestClass_A
 {
     REFLECTION_CLASS_HEADER(TestClassWithSameProperty_A, TestClass_A)
@@ -118,7 +127,7 @@ public:
     TestClass_C() : m_b(), m_f(), m_str(), m_pair(), m_vectoru(), m_structB(), m_structExt(), m_templateExt_u32_bool(), m_vectorStructB() {}
 
     // Note how to implement a constructor that can be exposed to generic code.
-    TestClass_C(auto_initialized_t) : TestClass_C() { reflection::ObjectCreationContext context; EndCreationIFN(context); }
+    TestClass_C(auto_initialized_t) : TestClass_C() { EndAutoCreation(); }
 
     virtual void f() override { }
     bool m_b;
@@ -151,6 +160,7 @@ public:
     virtual void f() override { }
     refptr<TestClass_B> m_object;
     std::vector<refptr<TestClass_A> > m_objectlist;
+    std::vector<TestStruct_C> m_vectorStructC;
 };
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 template <typename T>

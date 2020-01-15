@@ -85,9 +85,23 @@ void ScrollingContainer::VirtualOnDraw(ui::DrawContext const& iContext)
         float2 const lineMargin = styleGuide.GetVector(common.LineMargin2).Resolve(magnification, float2(std::numeric_limits<float>::lowest()));
         float const minBarLength = styleGuide.GetLength(common.MinManipulationLength).Resolve(magnification, std::numeric_limits<float>::lowest());
         Color4f const color = styleGuide.GetLinearColor(common.FillColorB);
+        //bool areBothBarsVisible = visibleBars.x() && visibleBars.y();
         if(visibleBars.x())
         {
-            SG_ASSERT_NOT_IMPLEMENTED();
+            box2f const fullBarBox = box2f::FromMinMax(
+                placementBox.Corner(BitSet<2>(0x2)) + float2(lineMargin.x(), barsMargins.Max().y()),
+                placementBox.Max() + float2(barsMargins.Max().x() - lineMargin.x(), -lineMargin.y()));
+            float const fullBarLength = fullBarBox.Delta().x();
+            box1f barBoxX = relativeBox.SubBox<1>(0) * fullBarLength + fullBarBox.Min().x();
+            if(minBarLength > barBoxX.Delta())
+            {
+                float const barLength = std::min(minBarLength, 0.3f * fullBarLength);
+                float const relativePosition = GetRelativeScrollPosition().x();
+                barBoxX = box1f::FromMinDelta((fullBarLength-barLength) * relativePosition + fullBarBox.Min().x(), barLength);
+            }
+            box2f barBox = CartesianProduct(barBoxX, fullBarBox.SubBox<1>(1));
+            if(barBox.NVolume_NegativeIfNonConvex() > 0)
+                drawer->DrawQuad(iContext, barBox, color);
         }
         if(visibleBars.y())
         {
@@ -102,7 +116,7 @@ void ScrollingContainer::VirtualOnDraw(ui::DrawContext const& iContext)
                 float const relativePosition = GetRelativeScrollPosition().y();
                 barBoxY = box1f::FromMinDelta((fullBarLength-barLength) * relativePosition + fullBarBox.Min().y(), barLength);
             }
-            box2f barBox = fullBarBox.SubBox<1>(0) * barBoxY;
+            box2f barBox = CartesianProduct(fullBarBox.SubBox<1>(0), barBoxY);
             if(barBox.NVolume_NegativeIfNonConvex() > 0)
                 drawer->DrawQuad(iContext, barBox, color);
         }

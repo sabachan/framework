@@ -16,6 +16,7 @@ public:
     void Pause();
     void SetMultiplier(float iMultiplier);
     void Update();
+    bool IsPaused() const { return m_paused; }
 private:
     typedef FixedPoint<i32, 8> ifp8;
 private:

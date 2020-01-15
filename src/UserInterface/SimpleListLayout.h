@@ -1,8 +1,11 @@
 #ifndef UserInterface_SimpleListLayout_H
 #define UserInterface_SimpleListLayout_H
 
+#if 0
+
 #include "Container.h"
 #include "FitMode.h"
+#include "Focusable.h"
 #include "FrameProperty.h"
 #include "Length.h"
 #include "Movable.h"
@@ -20,9 +23,11 @@ class Magnifier;
 template <size_t direction>
 class SimpleListLayout : public Container
                        , public IMovable
+                       , protected IFocusable
 {
     static_assert(0 == direction || 1 == direction, "direction must be 0 or 1");
     static size_t const widthDirection = 1 - direction;
+    typedef Container parent_type;
     PARENT_SAFE_COUNTABLE(Container)
 public:
     struct Properties
@@ -50,11 +55,16 @@ public:
     //void SortItems(T iComp);
     ArrayView<safeptr<IMovable> const> Items() const { return ArrayView<safeptr<IMovable> const>(m_items.data(), m_items.size()); }
 protected:
+    virtual bool VirtualMoveFocusReturnHasMoved(FocusDirection iDirection) override;
+    virtual ui::Component* VirtualAsComponent() override { return this; }
+    virtual ui::IFocusable* VirtualAsFocusableIFP() override { return this; }
+    virtual void VirtualOnInsertInUI() override { parent_type::VirtualOnInsertInUI(); OnInsertFocusableInUI(); }
+    virtual void VirtualOnRemoveFromUI() override { parent_type::VirtualOnRemoveFromUI(); OnRemoveFocusableFromUI(); }
+protected:
     virtual void VirtualResetOffset() override;
     virtual void VirtualAddOffset(float2 const& iOffset) override;
     virtual void VirtualUpdatePlacement() override;
     virtual void VirtualOnChildInvalidatePlacement() override { InvalidatePlacement(); }
-    virtual ui::Component* VirtualAsComponent() { return this; }
 private:
 #if SG_ENABLE_ASSERT
     void CheckConstraintsOnItem(IMovable* iItem);
@@ -75,5 +85,7 @@ typedef SimpleListLayout<1> VerticalSimpleListLayout;
 //=============================================================================
 }
 }
+
+#endif
 
 #endif

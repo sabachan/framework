@@ -29,10 +29,34 @@ ShaderConstantDatabase::~ShaderConstantDatabase()
 {
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+void ShaderConstantDatabase::AddReference(ShaderConstantName iName, IShaderVariable const* iValue)
+{
+    Entry entry;
+    entry.reference = iValue;
+    auto r = m_constants.insert(std::make_pair(iName, entry));
+    SG_ASSERT_MSG(r.second, "already in database");
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 void ShaderConstantDatabase::AddVariable(ShaderConstantName iName, IShaderVariable* iValue)
 {
-    auto r = m_constants.insert(std::make_pair(iName, iValue));
+    Entry entry;
+    entry.reference = iValue;
+    entry.variable = iValue;
+    auto r = m_constants.insert(std::make_pair(iName, entry));
     SG_ASSERT_MSG(r.second, "already in database");
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+void ShaderConstantDatabase::RemoveVariable(ShaderConstantName iName)
+{
+    auto f = m_constants.find(iName);
+    SG_ASSERT_MSG(m_constants.end() != f, "variable not in database");
+    if(m_constants.end() != f)
+        m_constants.erase(f);
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+void ShaderConstantDatabase::Clear()
+{
+    m_constants.clear();
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 IShaderVariable* ShaderConstantDatabase::GetConstantForWriting(ShaderConstantName iName)
@@ -40,7 +64,10 @@ IShaderVariable* ShaderConstantDatabase::GetConstantForWriting(ShaderConstantNam
     auto f = m_constants.find(iName);
     SG_ASSERT_MSG(m_constants.end() != f, "variable not in database");
     if(m_constants.end() != f)
-        return f->second.get();
+    {
+        SG_ASSERT_MSG(nullptr != f->second.variable, "variable is not writable");
+        return f->second.variable.get();
+    }
     else
         return nullptr;
 }
@@ -49,9 +76,46 @@ IShaderVariable const* ShaderConstantDatabase::GetConstantIFP(ShaderConstantName
 {
     auto f = m_constants.find(iName);
     if(m_constants.end() != f)
-        return f->second.get();
+        return f->second.reference.get();
     else
         return nullptr;
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+size_t ShaderConstantDatabase::ComputeHash() const
+{
+    size_t const rot = 7;
+    size_t h = m_constants.size();
+    for(auto const& it : m_constants)
+    {
+        BitRotate<rot>(h);
+        h ^= it.first.Hash();
+        BitRotate<rot>(h);
+        h ^= ptrdiff_t(it.second.reference.get());
+    }
+    return h;
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+bool ShaderConstantDatabase::IsSameAs(ShaderConstantDatabase const& other) const
+{
+    auto const& variables1 = m_constants;
+    auto const& variables2 = other.m_constants;
+    if(variables1.size() != variables2.size())
+        return false;
+    {
+        auto begin1 = variables1.begin();
+        auto begin2 = variables2.begin();
+        auto end1 = variables1.end();
+        auto end2 = variables2.end();
+        for(auto it1 = begin1, it2 = begin2; it1 != end1; ++it1, ++it2)
+        {
+            SG_ASSERT(it2 != end2);
+            if(it1->first != it2->first)
+                return false;
+            if(it1->second.reference != it2->second.reference)
+                return false;
+        }
+    }
+    return true;
 }
 //=============================================================================
 template <bool keepRefOnFirst, bool keepRefOnSecond>

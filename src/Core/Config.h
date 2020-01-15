@@ -31,4 +31,10 @@
 
 #define SG_CONTAINERS_EXPOSE_STD_NAMES 1
 
+#if SG_ENABLE_TOOLS
+#define SG_CODE_FOR_TOOLS(code) code
+#else
+#define SG_CODE_FOR_TOOLS(code)
+#endif
+
 #endif

@@ -2,8 +2,10 @@
 
 #include "Material.h"
 
-#include "ShaderResource.h"
-#include <d3d11.h>
+#include "IShaderResource.h"
+#include <Core/Utils.h>
+
+#include "WTF/IncludeD3D11.h"
 
 namespace sg {
 namespace rendering {
@@ -79,44 +81,36 @@ size_t Material::ComputeHash() const
     // from frame to frame. It implies that Materials having same constants values
     // cannot be merged, but we assume that this case is rare.
     size_t const rot = 7;
-#define BIT_ROTATE(A, N) do { A = (A << N) ^ (A >> (8*sizeof(h)-N)); } while(SG_CONSTANT_CONDITION(0))
     size_t h = m_priority;
-    BIT_ROTATE(h, rot);
+    BitRotate<rot>(h);
     h ^= m_inputLayout.Hash();
-    BIT_ROTATE(h, rot);
+    BitRotate<rot>(h);
     h ^= m_vertexShader.Hash();
-    BIT_ROTATE(h, rot);
+    BitRotate<rot>(h);
     h ^= m_pixelShader.Hash();
-    BIT_ROTATE(h, rot);
+    BitRotate<rot>(h);
     h ^= m_blendMode.Hash();
-    BIT_ROTATE(h, rot);
-    h ^= m_constants.Constants().size();
-    BIT_ROTATE(h, rot);
+    BitRotate<rot>(h);
+    h ^= m_constants.ComputeHash();
+    BitRotate<rot>(h);
     h ^= m_resources.Resources().size();
-    BIT_ROTATE(h, rot);
+    BitRotate<rot>(h);
     h ^= m_resources.Samplers().size();
-    for(auto const& it : m_constants.Constants())
-    {
-        BIT_ROTATE(h, rot);
-        h ^= it.first.Hash();
-        BIT_ROTATE(h, rot);
-        h ^= ptrdiff_t(it.second.get());
-    }
     for(auto const& it : m_resources.Resources())
     {
-        BIT_ROTATE(h, rot);
+        BitRotate<rot>(h);
         h ^= it.first.Hash();
-        BIT_ROTATE(h, rot);
+        BitRotate<rot>(h);
         h ^= ptrdiff_t(it.second.get());
     }
     for(auto const& it : m_resources.Samplers())
     {
-        BIT_ROTATE(h, rot);
+        BitRotate<rot>(h);
         h ^= it.first.Hash();
-        BIT_ROTATE(h, rot);
+        BitRotate<rot>(h);
         h ^= ptrdiff_t(it.second.get());
     }
-    BIT_ROTATE(h, rot);
+    BitRotate<rot>(h);
 #undef BIT_ROTATE
     h ^= m_blendMode.Hash();
     return h;
@@ -137,34 +131,19 @@ bool operator==(Material const& m1, Material const& m2)
     if(m1.m_blendMode != m2.m_blendMode)
         return false;
 
-    auto const& constants1 = m1.m_constants.Constants();
     auto const& resources1 = m1.m_resources.Resources();
     auto const& samplers1 = m1.m_resources.Samplers();
-    auto const& constants2 = m2.m_constants.Constants();
     auto const& resources2 = m2.m_resources.Resources();
     auto const& samplers2 = m2.m_resources.Samplers();
 
-    if(constants1.size() != constants2.size())
-        return false;
     if(resources1.size() != resources2.size())
         return false;
     if(samplers1.size() != samplers2.size())
         return false;
 
-    {
-        auto begin1 = constants1.begin();
-        auto begin2 = constants2.begin();
-        auto end1 = constants1.end();
-        auto end2 = constants2.end();
-        for(auto it1 = begin1, it2 = begin2; it1 != end1; ++it1, ++it2)
-        {
-            SG_ASSERT(it2 != end2);
-            if(it1->first != it2->first)
-                return false;
-            if(it1->second != it2->second)
-                return false;
-        }
-    }
+    if(!m1.m_constants.IsSameAs(m2.m_constants))
+        return false;
+
     {
         auto begin1 = resources1.begin();
         auto begin2 = resources2.begin();

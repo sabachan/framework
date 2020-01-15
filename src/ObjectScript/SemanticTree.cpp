@@ -97,6 +97,18 @@ void ResolveIdentifier(semanticTree::EvaluationInputOutput& io, reflection::Iden
         }
     }
 }
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+void ResolveLValueIdentifier(semanticTree::EvaluationInputOutput& io, reflection::Identifier const& iIdentifier, ResolvedIdentifier& oResolved)
+{
+    SG_ASSERT(!iIdentifier.IsAbsolute());
+    SG_ASSERT(iIdentifier.Size() == 1);
+    ResolveIdentifier(io, iIdentifier, oResolved);
+    if(ResolvedIdentifier::Type::None != oResolved.type)
+    {
+        if(oResolved.fullIdentifier.ParentNamespace() != *io.pathForScript)
+            oResolved = ResolvedIdentifier();
+    }
+}
 //=============================================================================
 bool ConvertToValueROK(semanticTree::EvaluationInputOutput& io, Token const& iToken)
 {
@@ -186,9 +198,15 @@ bool ConvertToValueROK(semanticTree::EvaluationInputOutput& io, Token const& iTo
                     Function* function = checked_cast<Function*>(scriptObject);
                     io.returnValue = new reflection::PrimitiveData<refptr<reflection::BaseClass> >(function);
                 }
-                else
+                else if(scriptObject->GetMetaclass() == Template::StaticGetMetaclass())
                 {
                     Template* tpl = checked_cast<Template*>(scriptObject);
+                    io.returnValue = new reflection::PrimitiveData<refptr<reflection::BaseClass> >(tpl);
+                }
+                else
+                {
+                    SG_ASSERT(scriptObject->GetMetaclass() == TemplateNamespace::StaticGetMetaclass());
+                    TemplateNamespace* tpl = checked_cast<TemplateNamespace*>(scriptObject);
                     io.returnValue = new reflection::PrimitiveData<refptr<reflection::BaseClass> >(tpl);
                 }
             }
@@ -451,7 +469,7 @@ bool Function::CallImplROK(semanticTree::EvaluationInputOutput& io, std::vector<
     reflection::Identifier pathForScript = reflection::Identifier(m_identifier, reflection::IdentifierNode());
     for(auto const& it : iArgs)
     {
-        reflection::ObjectVisibility visibility = reflection::ObjectVisibility::Protected;
+        reflection::ObjectVisibility visibility = reflection::ObjectVisibility::Public;
         reflection::Identifier varName(pathForScript, it.name);
         Variable* var = new Variable(it.isConst, it.value.get());
         io.scriptDatabase->Add(visibility, varName, var);
@@ -562,9 +580,11 @@ bool Template::CallImplROK(semanticTree::EvaluationInputOutput& io, std::vector<
         }
     }
     SG_ASSERT(1 >= visibilityQualifierCount); // TODO: Error message "At most one visibility qualifier is allowed for object definition"
+    io.qualifiers.clear();
 
     reflection::Identifier objectPath(*io.pathForObjects);
     reflection::Identifier scriptPath(*io.pathForScript);
+    // TODO: Check if it is ok to do that? does that make referencing outside objects possible even if we don't want?
     if(nullptr != io.objectIdentifier)
     {
         SG_ASSERT(io.objectIdentifier->Size() <= 1);
@@ -623,6 +643,244 @@ bool Template::CallImplROK(semanticTree::EvaluationInputOutput& io, std::vector<
 REFLECTION_CLASS_BEGIN((sg, objectscript), Template)
 REFLECTION_CLASS_END
 //=============================================================================
+TemplateNamespace::TemplateNamespace()
+{
+    SG_ASSERT_NOT_IMPLEMENTED();
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+TemplateNamespace::TemplateNamespace(std::vector<ArgumentNameAndValue>& iArgumentsAndDefaultValuesCanBeCleared)
+{
+    swap(m_argumentNamesAndDefaultValues, iArgumentsAndDefaultValuesCanBeCleared);
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+void TemplateNamespace::SetBody(std::vector<refptr<semanticTree::ITreeNode> >& iInstructionsCanBeErased)
+{
+    SG_ASSERT(m_instructions.empty());
+    swap(m_instructions, iInstructionsCanBeErased);
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+bool TemplateNamespace::CallROK(semanticTree::EvaluationInputOutput& io, reflection::PrimitiveDataNamedList const& iArgs, Token const& iToken)
+{
+    bool ok = true;
+    size_t const inputArgCount = iArgs.size();
+    size_t const argCount = m_argumentNamesAndDefaultValues.size();
+    SG_ASSERT_AND_UNUSED(argCount >= inputArgCount);
+    std::vector<ArgumentNameAndValue> args = m_argumentNamesAndDefaultValues;
+    for(size_t i = 0; i < inputArgCount; ++i)
+    {
+        auto const& f = std::find_if(args.begin(), args.end(), [&](ArgumentNameAndValue const& a) { return a.name.Symbol().Value() == iArgs[i].first; });
+        if(f == args.end())
+        {
+            SG_ASSERT_NOT_REACHED(); // TODO: Error message
+            return false;
+        }
+        else
+        {
+            ArgumentNameAndValue& arg = *f;
+            arg.value = iArgs[i].second.get();
+            // TODO: How to check that it wasn't already set ?
+        }
+    }
+    ok = CallImplROK(io, args, iToken);
+    return ok;
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+bool TemplateNamespace::CallImplROK(semanticTree::EvaluationInputOutput& io, std::vector<ArgumentNameAndValue> const& iArgs, Token const& iToken)
+{
+    SG_UNUSED(iToken);
+    bool ok = true;
+
+    SG_ASSERT(io.enableNamespaceDefinition);
+    SG_ASSERT(io.qualifiers.empty());
+    SG_ASSERT(*io.pathForObjects == *io.pathForScript);
+    SG_ASSERT(io.objectIdentifier->Size() == 1);
+    io.returnNoValueFromTemplateNamespace = true;
+    reflection::IdentifierNode const& objectIdentifierNode = (*io.objectIdentifier)[0]; // TODO: rename?
+    reflection::Identifier path = *io.pathForObjects;
+    path.PushBack(objectIdentifierNode);
+
+    reflection::ObjectDatabaseScopedTransaction scopedTransaction(io.scriptDatabase.get());
+    reflection::Identifier pathForScript = reflection::Identifier(m_identifier, reflection::IdentifierNode());
+    for(auto const& it : iArgs)
+    {
+        reflection::ObjectVisibility const argVisibility = reflection::ObjectVisibility::Protected;
+        reflection::Identifier const varName(pathForScript, it.name);
+        Variable* var = new Variable(it.isConst, it.value.get());
+        io.scriptDatabase->Add(argVisibility, varName, var);
+    }
+    size_t const instructionCount = m_instructions.size();
+    for(size_t i = 0; i < instructionCount; ++i)
+    {
+        if(!m_instructions[i]->IsInstruction())
+        {
+            PushError(io, ErrorType::expression_is_not_an_instruction, m_instructions[i]->GetToken(), "expression is not an instruction");
+            ok = false;
+            break;
+        }
+        semanticTree::EvaluationInputOutput subio(io);
+        subio.pathForObjects = &path;
+        subio.pathForScript = &pathForScript;
+        subio.restrictedVariableScope = &pathForScript;
+        subio.enableScriptDefinitions = true;
+        subio.variablesAreRestricted = true;
+        subio.enableNamespaceDefinition = true;
+        subio.constructionInProgress = semanticTree::Construction::None;
+        subio.returnValue = io.returnValue;
+        ok = m_instructions[i]->EvaluateROK(subio);
+        if(!ok)
+        {
+            SG_ASSERT(io.errorHandler->DidErrorHappen());
+            break;
+        }
+        SG_ASSERT(nullptr == subio.jumpStatement); // TODO: Error message "invalid use of break/continue/return in template body"
+    }
+    return ok;
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+REFLECTION_CLASS_BEGIN((sg, objectscript), TemplateNamespace)
+REFLECTION_CLASS_END
+//=============================================================================
+TemplateAlias::TemplateAlias()
+{
+    SG_ASSERT_NOT_IMPLEMENTED();
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+TemplateAlias::TemplateAlias(std::vector<ArgumentNameAndValue>& iArgumentsAndDefaultValuesCanBeCleared)
+{
+    swap(m_argumentNamesAndDefaultValues, iArgumentsAndDefaultValuesCanBeCleared);
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+void TemplateAlias::SetBody(std::vector<refptr<semanticTree::ITreeNode> >& iInstructionsCanBeErased)
+{
+    SG_ASSERT(m_instructions.empty());
+    swap(m_instructions, iInstructionsCanBeErased);
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+bool TemplateAlias::CallROK(semanticTree::EvaluationInputOutput& io, reflection::PrimitiveDataNamedList const& iArgs, Token const& iToken)
+{
+    bool ok = true;
+    size_t const inputArgCount = iArgs.size();
+    size_t const argCount = m_argumentNamesAndDefaultValues.size();
+    SG_ASSERT_AND_UNUSED(argCount >= inputArgCount);
+    std::vector<ArgumentNameAndValue> args = m_argumentNamesAndDefaultValues;
+    for(size_t i = 0; i < inputArgCount; ++i)
+    {
+        auto const& f = std::find_if(args.begin(), args.end(), [&](ArgumentNameAndValue const& a) { return a.name.Symbol().Value() == iArgs[i].first; });
+        if(f == args.end())
+        {
+            SG_ASSERT_NOT_REACHED(); // TODO: Error message
+            return false;
+        }
+        else
+        {
+            ArgumentNameAndValue& arg = *f;
+            arg.value = iArgs[i].second.get();
+            // TODO: How to check that it wasn't already set ?
+        }
+    }
+    for_range(size_t, i, 0, args.size())
+    {
+        if(nullptr == args[i].value)
+        {
+            SG_ASSERT_NOT_REACHED(); // TODO: Error message, argument needs a value
+            return false;
+        }
+    }
+    ok = CallImplROK(io, args, iToken);
+    return ok;
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+bool TemplateAlias::CallImplROK(semanticTree::EvaluationInputOutput& io, std::vector<ArgumentNameAndValue> const& iArgs, Token const& iToken)
+{
+    SG_UNUSED(iToken);
+    bool ok = true;
+    SG_ASSERT(nullptr != m_alias || nullptr != m_aliasAlias || nullptr != m_aliasNamespace);
+
+    SG_ASSERT(io.enableObjectDefinitions);
+
+    // NB: Not doing that here as it will be done by Template
+    //reflection::Identifier objectPath(*io.pathForObjects);
+    //reflection::Identifier scriptPath(*io.pathForScript);
+    //if(nullptr != io.objectIdentifier)
+    //{
+    //    SG_ASSERT(io.objectIdentifier->Size() <= 1);
+    //    reflection::IdentifierNode const& objectIdentifierNode = (*io.objectIdentifier)[0];
+    //    objectPath.PushBack(objectIdentifierNode);
+    //    scriptPath.PushBack(objectIdentifierNode);
+    //}
+    //else
+    //{
+    //    reflection::IdentifierNode anonymous;
+    //    objectPath.PushBack(anonymous);
+    //    scriptPath.PushBack(anonymous);
+    //}
+
+    semanticTree::EvaluationInputOutput blocio(io);
+    reflection::PrimitiveData<reflection::PrimitiveDataNamedList>* valuesData = new reflection::PrimitiveData<reflection::PrimitiveDataNamedList>();
+    blocio.returnValue = valuesData;
+
+    reflection::ObjectDatabaseScopedTransaction scopedTransaction(io.scriptDatabase.get());
+    reflection::Identifier pathForScript = reflection::Identifier(m_identifier, reflection::IdentifierNode());
+    for(auto const& it : iArgs)
+    {
+        reflection::ObjectVisibility const argVisibility = reflection::ObjectVisibility::Protected;
+        reflection::Identifier const varName(pathForScript, it.name);
+        Variable* var = new Variable(it.isConst, it.value.get());
+        io.scriptDatabase->Add(argVisibility, varName, var);
+    }
+    size_t const instructionCount = m_instructions.size();
+    for(size_t i = 0; i < instructionCount; ++i)
+    {
+        if(!m_instructions[i]->IsInstruction())
+        {
+            PushError(io, ErrorType::expression_is_not_an_instruction, m_instructions[i]->GetToken(), "expression is not an instruction");
+            ok = false;
+            break;
+        }
+        semanticTree::EvaluationInputOutput subio(blocio);
+
+        //semanticTree::EvaluationInputOutput subio(io);
+        //subio.pathForObjects = &pathForScript; // TODO: check that
+        subio.pathForScript = &pathForScript; // TODO: check that
+        subio.restrictedVariableScope = &pathForScript;
+        subio.enableScriptDefinitions = true;
+        subio.variablesAreRestricted = true;
+        subio.enableNamespaceDefinition = false;
+        subio.constructionInProgress = semanticTree::Construction::Struct;
+        subio.returnValue = blocio.returnValue;
+        ok = m_instructions[i]->EvaluateROK(subio);
+
+
+        //subio.enableNamespaceDefinition = false;
+        //subio.constructionInProgress = semanticTree::Construction::Struct;
+        //subio.returnValue = blocio.returnValue;
+        //ok = m_instructions[i]->EvaluateROK(subio);
+        if(!ok)
+        {
+            SG_ASSERT(io.errorHandler->DidErrorHappen());
+            break;
+        }
+        //if(subio.returnValueContainsUnresolvedIdentifier)
+        //    SG_BREAKPOINT();
+        blocio.returnValueContainsUnresolvedIdentifier |= subio.returnValueContainsUnresolvedIdentifier;
+        subio.returnValueContainsUnresolvedIdentifier = false;
+    }
+    if(!ok)
+        return false;
+    if(nullptr != m_alias)
+        ok = m_alias->CallROK(io, valuesData->Get(), iToken);
+    else if(nullptr != m_aliasNamespace)
+        ok = m_alias->CallROK(io, valuesData->Get(), iToken);
+    else if(nullptr != m_aliasAlias)
+        ok = m_aliasAlias->CallROK(io, valuesData->Get(), iToken);
+
+    blocio.returnValueContainsUnresolvedIdentifier = false;
+    return ok;
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+REFLECTION_CLASS_BEGIN((sg, objectscript), TemplateAlias)
+REFLECTION_CLASS_END
+//=============================================================================
 REFLECTION_CLASS_BEGIN((sg, objectscript), FreeVariable)
 REFLECTION_CLASS_END
 //=============================================================================
@@ -635,6 +893,8 @@ namespace semanticTree {
 //=============================================================================
 EvaluationInputOutput::~EvaluationInputOutput()
 {
+    SG_ASSERT(!returnValueContainsUnresolvedIdentifier || errorHandler->DidErrorHappen());
+    SG_ASSERT(qualifiers.empty() || errorHandler->DidErrorHappen());
     if(nullptr != jumpStatement)
         PushError(*this, ErrorType::unexpected_use_of_jump_statement, jumpStatement->GetToken(), "unexpected use of jump statement");
 }
@@ -643,14 +903,32 @@ bool Root::EvaluateScriptROK(EvaluationInputOutput& io)
 {
     SG_ASSERT(nullptr != io.objectDatabase);
     SG_ASSERT(nullptr == io.scriptDatabase);
+    Token token;
+    token.fileid = io.errorHandler->GetCurrentFileId();
+    SetToken(token);
     reflection::ObjectDatabase scriptDatabase(reflection::ObjectDatabase::ReferencingMode::BackwardReferenceOnly);
     io.scriptDatabase = &scriptDatabase;
     io.objectDatabase->BeginTransaction();
     bool ok = EvaluateImplROK(io);
     if(ok)
-        io.objectDatabase->EndTransaction();
+    {
+        auto r = io.objectDatabase->LinkTransactionReturnInvalidDeferredProperties();
+        if(!r.empty())
+        {
+            for(auto p : r)
+                PushError(io, ErrorType::invalid_value_type_for_property, GetToken(), Format("invalid value type for property '%0' of object: %1", p.property->Name(), p.objectname.AsString()).c_str());
+            io.objectDatabase->AbortTransaction();
+        }
+        else
+        {
+            io.objectDatabase->CheckTransaction();
+            io.objectDatabase->EndTransaction();
+        }
+    }
     else
+    {
         io.objectDatabase->AbortTransaction();
+    }
     io.scriptDatabase = nullptr;
     return ok;
 }
@@ -695,9 +973,10 @@ bool Root::EvaluateImplROK(EvaluationInputOutput& io)
             SG_ASSERT(io.errorHandler->DidErrorHappen());
             break;
         }
+        subio.returnValueContainsUnresolvedIdentifier = false;
     }
     if(!io.enableImports)
-        io.scriptDatabase->EndTransaction();
+        io.scriptDatabase->LinkCheckEndTransaction();
     io.pathForObjects = nullptr;
     io.pathForScript = nullptr;
     return ok;
@@ -805,6 +1084,7 @@ bool ScopeResolution::EvaluateROK(EvaluationInputOutput& io)
         }
         SG_ASSERT(nullptr == io.presesolvedNodeIFN);
         SG_ASSERT(arg0io.returnIdentifier.Size() == 1);
+        SG_ASSERT(arg0io.qualifiers.empty());
         io.returnIdentifier = reflection::Identifier(reflection::Identifier(), arg0io.returnIdentifier[0]);
     }
     else
@@ -814,6 +1094,7 @@ bool ScopeResolution::EvaluateROK(EvaluationInputOutput& io)
         if(!ok)
             return false;
         SG_ASSERT(arg1io.returnValue == nullptr);
+        SG_ASSERT(arg1io.qualifiers.empty());
         if(io.isPreresolutionPass && (nullptr != arg0io.presesolvedNodeIFN || nullptr != arg1io.presesolvedNodeIFN))
         {
             SG_ASSERT_NOT_IMPLEMENTED(); // maybe not to be supported
@@ -841,6 +1122,7 @@ bool ScopeResolution::EvaluateROK(EvaluationInputOutput& io)
         }
         SG_ASSERT(arg1io.returnIdentifier.Size() == 1);
         io.returnIdentifier = reflection::Identifier(arg0io.returnIdentifier, arg1io.returnIdentifier[0]);
+        swap(io.qualifiers, arg0io.qualifiers);
     }
     return ok;
 }
@@ -946,12 +1228,18 @@ bool ObjectDefinition::EvaluateROK(EvaluationInputOutput& io)
     ok = m_object->EvaluateROK(objectio);
     if(!ok)
         return false;
+    if(objectio.returnNoValueFromTemplateNamespace)
+    {
+        io.returnNoValueFromTemplateNamespace = true;
+        return true;
+    }
     if(nullptr == objectio.returnValue || objectio.returnValue->GetType() != reflection::PrimitiveDataType::Object)
     {
-        PushError(io, ErrorType::object_definition_expects_an_object, GetToken(), "objects definition excpects an object");
+        PushError(io, ErrorType::object_definition_expects_an_object, GetToken(), "objects definition expects an object");
         return false;
     }
     io.returnValue = objectio.returnValue;
+    SG_ASSERT(!objectio.returnValueContainsUnresolvedIdentifier);
     return ok;
 }
 //=============================================================================
@@ -968,10 +1256,12 @@ bool Object::EvaluateROK(EvaluationInputOutput& io)
     ok = m_type->EvaluateROK(typeio);
     if(!ok)
         return false;
+    // TODO: the following assert fires when forgetting a comma in a list
     SG_ASSERT(nullptr == typeio.returnValue);
     SG_ASSERT(!typeio.returnIdentifier.Empty() || io.isPreresolutionPass);
-    SG_ASSERT(typeio.qualifiers.empty());
+    SG_ASSERT(typeio.qualifiers.empty() || nullptr == io.objectIdentifier);
     reflection::Metaclass const* mc = nullptr;
+    bool isTemplate = false;
     if(nullptr == typeio.presesolvedNodeIFN)
     {
         ResolvedIdentifier resolved;
@@ -986,10 +1276,23 @@ bool Object::EvaluateROK(EvaluationInputOutput& io)
             break;
         case ResolvedIdentifier::Type::ScriptObject:
         {
-            SG_ASSERT(!io.isPreresolutionPass); // not impl
             reflection::BaseClass* scriptObject = resolved.scriptObject.get();
             SG_ASSERT(nullptr != scriptObject);
-            if(scriptObject->GetMetaclass() == Template::StaticGetMetaclass())
+            if(io.isPreresolutionPass)
+            {
+                if(scriptObject->GetMetaclass() == Template::StaticGetMetaclass() || scriptObject->GetMetaclass() == TemplateNamespace::StaticGetMetaclass() || scriptObject->GetMetaclass() == TemplateAlias::StaticGetMetaclass())
+                {
+                    typeio.returnIdentifier = resolved.fullIdentifier;
+                    isTemplate = true;
+                    break;
+                }
+                else if(scriptObject->GetMetaclass() == TemplateNamespace::StaticGetMetaclass())
+                {
+                    SG_ASSERT(false); // todo PushError();
+                }
+            }
+            SG_ASSERT(!io.isPreresolutionPass); // not impl
+            if(scriptObject->GetMetaclass() == Template::StaticGetMetaclass() || scriptObject->GetMetaclass() == TemplateNamespace::StaticGetMetaclass() || scriptObject->GetMetaclass() == TemplateAlias::StaticGetMetaclass())
             {
                 EvaluationInputOutput blocio(io);
                 reflection::PrimitiveData<reflection::PrimitiveDataNamedList>* valuesData = new reflection::PrimitiveData<reflection::PrimitiveDataNamedList>();
@@ -1014,12 +1317,30 @@ bool Object::EvaluateROK(EvaluationInputOutput& io)
                         SG_ASSERT(io.errorHandler->DidErrorHappen());
                         break;
                     }
+                    //if(subio.returnValueContainsUnresolvedIdentifier)
+                    //    SG_BREAKPOINT();
+                    blocio.returnValueContainsUnresolvedIdentifier |= subio.returnValueContainsUnresolvedIdentifier;
+                    subio.returnValueContainsUnresolvedIdentifier = false;
                 }
                 if(!ok)
                     return false;
-
-                Template* tpl = checked_cast<Template*>(scriptObject);
-                ok = tpl->CallROK(io, valuesData->Get(), GetToken());
+                if(scriptObject->GetMetaclass() == Template::StaticGetMetaclass())
+                {
+                    Template* tpl = checked_cast<Template*>(scriptObject);
+                    ok = tpl->CallROK(io, valuesData->Get(), GetToken());
+                }
+                else if(scriptObject->GetMetaclass() == TemplateNamespace::StaticGetMetaclass())
+                {
+                    TemplateNamespace* tpl = checked_cast<TemplateNamespace*>(scriptObject);
+                    ok = tpl->CallROK(io, valuesData->Get(), GetToken());
+                }
+                else
+                {
+                    SG_ASSERT(scriptObject->GetMetaclass() == TemplateAlias::StaticGetMetaclass());
+                    TemplateAlias* tpl = checked_cast<TemplateAlias*>(scriptObject);
+                    ok = tpl->CallROK(io, valuesData->Get(), GetToken());
+                }
+                blocio.returnValueContainsUnresolvedIdentifier = false;
                 return ok;
             }
             else
@@ -1037,11 +1358,14 @@ bool Object::EvaluateROK(EvaluationInputOutput& io)
     }
 
     SG_ASSERT(nullptr != mc || io.isPreresolutionPass);
-    SG_ASSERT(nullptr != mc); // even in preresolution pass, as class must be completely defined (no Identifierize)
+    SG_ASSERT(nullptr != mc || (io.isPreresolutionPass && isTemplate)); // even in preresolution pass, as class must be completely defined (no Identifierize)
     safeptr<reflection::BaseClass> object = io.isPreresolutionPass ? nullptr : mc->CreateObject();
 
     reflection::ObjectVisibility visibility = reflection::ObjectVisibility::Protected;
     size_t visibilityQualifierCount = 0;
+
+    if(nullptr == io.objectIdentifier)
+        swap(io.qualifiers, typeio.qualifiers);
     for(size_t i = 0; i < io.qualifiers.size(); ++i)
     {
         switch(io.qualifiers[i])
@@ -1055,6 +1379,7 @@ bool Object::EvaluateROK(EvaluationInputOutput& io)
         }
     }
     SG_ASSERT(1 >= visibilityQualifierCount); // TODO: Error message "At most one visibility qualifier is allowed for object definition"
+    io.qualifiers.clear();
 
     if(io.isPreresolutionPass)
     {
@@ -1114,7 +1439,7 @@ bool Object::EvaluateROK(EvaluationInputOutput& io)
             SG_ASSERT(nullptr != subio.presesolvedNodeIFN);
             preresolvedSubInstructions.push_back(subio.presesolvedNodeIFN.get());
         }
-        preresolved->SetSubNodes(preresolvedSubInstructions);
+        preresolved->SetSubNodes(preresolvedSubInstructions, io.errorHandler.get());
         io.presesolvedNodeIFN = preresolved;
         return ok;
     }
@@ -1160,6 +1485,7 @@ bool Object::EvaluateROK(EvaluationInputOutput& io)
             SG_ASSERT(io.errorHandler->DidErrorHappen());
             break;
         }
+        SG_ASSERT(!subio.returnValueContainsUnresolvedIdentifier);
     }
     return ok;
 }
@@ -1181,7 +1507,7 @@ bool Struct::EvaluateROK(EvaluationInputOutput& io)
         ok = PreresolveInstructionROK(subio, *io.pathForScript, m_instructions, preresolvedIstructions);
         if(!ok)
             return false;
-        preresolved->SetSubNodes(preresolvedIstructions);
+        preresolved->SetSubNodes(preresolvedIstructions, io.errorHandler.get());
         io.presesolvedNodeIFN = preresolved;
         return true;
     }
@@ -1207,6 +1533,8 @@ bool Struct::EvaluateROK(EvaluationInputOutput& io)
             SG_ASSERT(io.errorHandler->DidErrorHappen());
             break;
         }
+        io.returnValueContainsUnresolvedIdentifier |= subio.returnValueContainsUnresolvedIdentifier;
+        subio.returnValueContainsUnresolvedIdentifier = false;
     }
     return ok;
 }
@@ -1241,7 +1569,7 @@ bool List::EvaluateROK(EvaluationInputOutput& io)
             List* preresolved = new List;
             preresolved->SetToken(this->GetToken());
             std::vector<refptr<ITreeNode>> subNodes(1, subio.presesolvedNodeIFN.get());
-            preresolved->SetSubNodes(subNodes);
+            preresolved->SetSubNodes(subNodes, io.errorHandler.get());
             io.presesolvedNodeIFN = preresolved;
             return true;
         }
@@ -1251,6 +1579,7 @@ bool List::EvaluateROK(EvaluationInputOutput& io)
             SG_ASSERT(nullptr != subio.returnValue);
             io.returnValue = subio.returnValue;
             io.returnValueContainsUnresolvedIdentifier = subio.returnValueContainsUnresolvedIdentifier;
+            subio.returnValueContainsUnresolvedIdentifier = false;
         }
         else
         {
@@ -1259,6 +1588,7 @@ bool List::EvaluateROK(EvaluationInputOutput& io)
             list->GetForWriting().emplace_back(subio.returnValue.get());
             io.returnValue = list;
             io.returnValueContainsUnresolvedIdentifier = subio.returnValueContainsUnresolvedIdentifier;
+            subio.returnValueContainsUnresolvedIdentifier = false;
         }
     }
     return ok;
@@ -1287,6 +1617,7 @@ bool Parenthesis::EvaluateROK(EvaluationInputOutput& io)
     SG_ASSERT(!subio.returnValueIsCommaSeparatedList);
     io.returnValue = subio.returnValue;
     io.returnValueContainsUnresolvedIdentifier =  subio.returnValueContainsUnresolvedIdentifier;
+    subio.returnValueContainsUnresolvedIdentifier = false;
     return ok;
 }
 //=============================================================================
@@ -1361,6 +1692,7 @@ bool Indexing::EvaluateROK(EvaluationInputOutput& io)
             if(indexedio.returnValueIsLValue)
                 io.returnLValueReference = &(list[index]);
             io.returnValueContainsUnresolvedIdentifier = indexedio.returnValueContainsUnresolvedIdentifier;
+            indexedio.returnValueContainsUnresolvedIdentifier = false;
         }
         break;
     default:
@@ -1409,21 +1741,24 @@ bool PropertyAffectation::EvaluateROK(EvaluationInputOutput& io)
     {
     case Construction::Object:
     {
-
         refptr<reflection::BaseClass> object;
         io.returnValue->As<refptr<reflection::BaseClass> >(&object);
         SG_ASSERT(nullptr != object);
+        reflection::IProperty const* property = object->GetMetaclass()->GetPropertyIFP(propertyName.c_str());
+        if(nullptr == property)
+        {
+            PushError(rightio, ErrorType::unknown_property_name, m_left->GetToken(), Format("unknown property name \"%0\"", propertyName).c_str());
+            return false;
+        }
         if(!rightio.returnValueContainsUnresolvedIdentifier)
         {
-            SG_ASSERT(nullptr != object->GetMetaclass()->GetPropertyIFP(propertyName.c_str())); // TODO: Error message "uknown property"
-            ok = object->SetPropertyROK(propertyName.c_str(), rightio.returnValue.get());
+            ok = property->SetROK(object.get(), rightio.returnValue.get());
             SG_ASSERT_AND_UNUSED(ok); // TODO: Error message "invalid type for property"
         }
         else
         {
-            reflection::IProperty const* property = object->GetMetaclass()->GetPropertyIFP(propertyName.c_str());
-            SG_ASSERT(nullptr != property); // TODO: Error message "uknown property"
             io.objectDatabase->AddDeferredProperty(*io.pathForObjects, property, rightio.returnValue.get());
+            rightio.returnValueContainsUnresolvedIdentifier = false;
         }
         break;
     }
@@ -1433,6 +1768,7 @@ bool PropertyAffectation::EvaluateROK(EvaluationInputOutput& io)
         reflection::PrimitiveDataNamedList& strct = data->GetForWriting();
         strct.emplace_back(propertyName, rightio.returnValue.get());
         io.returnValueContainsUnresolvedIdentifier = io.returnValueContainsUnresolvedIdentifier || rightio.returnValueContainsUnresolvedIdentifier;
+        rightio.returnValueContainsUnresolvedIdentifier = false;
         break;
     }
     default:
@@ -1505,7 +1841,21 @@ bool Assignment::EvaluateROK(EvaluationInputOutput& io)
         {
             reflection::BaseClass* object = resolved.scriptObject.get();
             SG_ASSERT(nullptr != object);
-            SG_ASSERT_MSG(leftio.qualifiers.empty(), "Qualifiers are not allowed on already declared variables");
+            if(!leftio.qualifiers.empty())
+            {
+                if(resolved.fullIdentifier.ParentNamespace() == *io.pathForScript)
+                {
+                    PushError(io, ErrorType::name_already_defined, GetToken(), "this name conflicts with a previous definition");
+                    leftio.qualifiers.clear();
+                    return false;
+                }
+                else
+                {
+                    PushError(io, ErrorType::name_already_defined_in_outer_scope, GetToken(), "this name conflicts with a definition in an outer scope or namespace");
+                    leftio.qualifiers.clear();
+                    return false;
+                }
+            }
             SG_ASSERT(object->GetMetaclass() == Variable::StaticGetMetaclass());
             Variable* var = checked_cast<Variable*>(object);
             SG_ASSERT_MSG_AND_UNUSED(!var->IsConst(), "Can not modify const variable");
@@ -1541,7 +1891,7 @@ bool Assignment::EvaluateROK(EvaluationInputOutput& io)
         {
             if(isDeclaration)
             {
-                reflection::ObjectVisibility visibility = reflection::ObjectVisibility::Protected;
+                reflection::ObjectVisibility visibility = reflection::ObjectVisibility::Public;
                 SG_ASSERT(leftio.returnIdentifier.Size() == 1);
                 SG_ASSERT(!leftio.returnIdentifier.IsAbsolute());
                 reflection::Identifier varName(*io.pathForScript, leftio.returnIdentifier[0]);
@@ -1577,14 +1927,15 @@ bool Assignment::EvaluateROK(EvaluationInputOutput& io)
     if(!leftio.returnIdentifier.Empty())
     {
         ResolvedIdentifier resolved;
-        ResolveIdentifier(io, leftio.returnIdentifier, resolved);
+        ResolveLValueIdentifier(io, leftio.returnIdentifier, resolved);
         switch(resolved.type)
         {
         case ResolvedIdentifier::Type::None:
             {
-                reflection::ObjectVisibility visibility = reflection::ObjectVisibility::Protected;
+                reflection::ObjectVisibility visibility = reflection::ObjectVisibility::Public;
                 reflection::Identifier varName(*io.pathForScript, leftio.returnIdentifier[0]);
                 Variable* var = new Variable(isConstDeclaration, valueCopy.get());
+                leftio.qualifiers.clear();
                 io.scriptDatabase->Add(visibility, varName, var);
             }
             break;
@@ -1624,6 +1975,7 @@ bool Assignment::EvaluateROK(EvaluationInputOutput& io)
         io.returnValueIsLValue = leftio.returnValueIsLValue;
         io.returnLValueReference = leftio.returnLValueReference;
     }
+    rightio.returnValueContainsUnresolvedIdentifier = false;
     return ok;
 }
 //=============================================================================
@@ -1775,6 +2127,8 @@ bool Comma::EvaluateROK(EvaluationInputOutput& io)
     io.returnValue = list;
     io.returnValueIsCommaSeparatedList = true;
     io.returnValueContainsUnresolvedIdentifier = arg0io.returnValueContainsUnresolvedIdentifier || arg1io.returnValueContainsUnresolvedIdentifier;
+    arg0io.returnValueContainsUnresolvedIdentifier = false;
+    arg1io.returnValueContainsUnresolvedIdentifier = false;
     return ok;
 }
 //=============================================================================
@@ -1794,7 +2148,7 @@ bool Namespace::EvaluateROK(EvaluationInputOutput& io)
     SG_ASSERT(nameio.qualifiers.empty());
 
     ResolvedIdentifier resolved;
-    ResolveIdentifier(io, nameio.returnIdentifier, resolved);
+    ResolveLValueIdentifier(io, nameio.returnIdentifier, resolved);
     if(ResolvedIdentifier::Type::None != resolved.type)
     {
         switch(resolved.type)
@@ -1912,7 +2266,7 @@ bool If::EvaluateROK(EvaluationInputOutput& io)
             ok = PreresolveInstructionROK(io, pathForScript, cond ? m_instructions : m_elseinstructions, preresolvedIstructions);
             if(!ok)
                 return false;
-            preresolved->SetSubNodes(preresolvedIstructions);
+            preresolved->SetSubNodes(preresolvedIstructions, io.errorHandler.get());
             io.presesolvedNodeIFN = preresolved;
             return true;
         }
@@ -1937,6 +2291,7 @@ bool If::EvaluateROK(EvaluationInputOutput& io)
                 return false;
             if(nullptr != subio.jumpStatement)
                 subio.ForwardJumpStatement(io);
+            subio.returnValueContainsUnresolvedIdentifier = false;
         }
     }
     else
@@ -1951,6 +2306,7 @@ bool If::EvaluateROK(EvaluationInputOutput& io)
                 return false;
             if(nullptr != subio.jumpStatement)
                 subio.ForwardJumpStatement(io);
+            subio.returnValueContainsUnresolvedIdentifier = false;
         }
     }
     return ok;
@@ -2054,6 +2410,7 @@ bool While::EvaluateROK(EvaluationInputOutput& io)
                         SG_ASSERT_NOT_REACHED();
                     }
                 }
+                subio.returnValueContainsUnresolvedIdentifier = false;
             }
         }
 
@@ -2209,7 +2566,7 @@ bool For::EvaluateROK(EvaluationInputOutput& io)
                         {
                         case semanticTree::JumpStatement::Type::Return:
                             subio.ForwardJumpStatement(io);
-                            break;
+                            return ok;
                         case semanticTree::JumpStatement::Type::Break:
                             subio.jumpStatement = nullptr;
                             return ok;
@@ -2221,6 +2578,7 @@ bool For::EvaluateROK(EvaluationInputOutput& io)
                             SG_ASSERT_NOT_REACHED();
                         }
                     }
+                    subio.returnValueContainsUnresolvedIdentifier = false;
                 }
             }
 
@@ -2510,9 +2868,14 @@ bool FunctionCall::EvaluateROK(EvaluationInputOutput& io)
         if(!ok)
             return false;
 
+        if(nullptr == callableio.returnValue || callableio.returnValue->GetType() == reflection::PrimitiveDataType::ObjectReference)
+        {
+            PushError(io, ErrorType::callable_not_found, m_callable->GetToken(), "callable not found!");
+            return false;
+        }
         if(callableio.returnValue->GetType() != reflection::PrimitiveDataType::Object)
         {
-            PushError(io, ErrorType::call_to_uncallable_object, m_callable->GetToken(), "expression is not callable!");
+            PushError(io, ErrorType::expression_is_not_callable, m_callable->GetToken(), "expression is not callable!");
             return false;
         }
         refptr<reflection::BaseClass> callableObject;
@@ -2595,12 +2958,13 @@ bool FunctionCall::EvaluateROK(EvaluationInputOutput& io)
             if(!ok)
                 return false;
         }
+        SG_ASSERT(!argsio.returnValueContainsUnresolvedIdentifier); // TODO: Not implemented yet.
     }
     return ok;
 }
 //=============================================================================
 namespace {
-bool ParseArgsROK(EvaluationInputOutput& io, std::vector<ArgumentNameAndValue>& oArgs, std::vector<std::pair<refptr<ITreeNode>, refptr<ITreeNode> > > const& iArgumentNamesAndDefaultValues)
+bool ParseArgsROK(EvaluationInputOutput& io, std::vector<ArgumentNameAndValue>& oArgs, std::vector<std::pair<refptr<ITreeNode>, refptr<ITreeNode> > > const& iArgumentNamesAndDefaultValues, bool requiresTrailingDefaultValues)
 {
     SG_ASSERT(oArgs.empty());
     oArgs.reserve(iArgumentNamesAndDefaultValues.size());
@@ -2658,7 +3022,7 @@ bool ParseArgsROK(EvaluationInputOutput& io, std::vector<ArgumentNameAndValue>& 
         }
         else
         {
-            SG_ASSERT(!defaultValueWasEncountered); // TODO: Error message "missing default value for argument"
+            SG_ASSERT_AND_UNUSED(!defaultValueWasEncountered || !requiresTrailingDefaultValues); // TODO: Error message "missing default value for argument. default values must be for the last arguments"
         }
 
         oArgs.emplace_back(isConst, argName, defaultValue.get());
@@ -2678,7 +3042,7 @@ bool FunctionDeclaration::EvaluateROK(EvaluationInputOutput& io)
     SG_ASSERT(nullptr == nameio.presesolvedNodeIFN);
 
     std::vector<ArgumentNameAndValue> args;
-    ok = ParseArgsROK(io, args, m_argumentNamesAndDefaultValues);
+    ok = ParseArgsROK(io, args, m_argumentNamesAndDefaultValues, true);
     if(!ok)
         return false;
 
@@ -2686,13 +3050,13 @@ bool FunctionDeclaration::EvaluateROK(EvaluationInputOutput& io)
     if(!nameio.returnIdentifier.Empty())
     {
         ResolvedIdentifier resolved;
-        ResolveIdentifier(io, nameio.returnIdentifier, resolved);
+        ResolveLValueIdentifier(io, nameio.returnIdentifier, resolved);
         switch(resolved.type)
         {
         case ResolvedIdentifier::Type::None:
             {
                 SG_ASSERT(nameio.returnIdentifier.Size() == 1); // TODO: Error message "Can not declare function outside of current namespace"
-                reflection::ObjectVisibility visibility = reflection::ObjectVisibility::Protected;
+                reflection::ObjectVisibility visibility = reflection::ObjectVisibility::Public;
 
                 reflection::Identifier functionName(*io.pathForScript, nameio.returnIdentifier[0]);
                 function = new Function(args);
@@ -2753,7 +3117,7 @@ bool FunctionDeclaration::EvaluateROK(EvaluationInputOutput& io)
         reflection::Identifier pathForScript = reflection::Identifier(function->Identifier(), reflection::IdentifierNode());
         for(auto const& it : function->ArgumentNamesAndDefaultValues())
         {
-            reflection::ObjectVisibility visibility = reflection::ObjectVisibility::Protected;
+            reflection::ObjectVisibility visibility = reflection::ObjectVisibility::Public;
             reflection::Identifier varName(pathForScript, it.name);
             FreeVariable* var = new FreeVariable(it.isConst);
             io.scriptDatabase->Add(visibility, varName, var);
@@ -2801,53 +3165,68 @@ bool TemplateDeclaration::EvaluateROK(EvaluationInputOutput& io)
     if(!ok)
         return false;
 
-    EvaluationInputOutput typeio(io);
-    ok = m_type->EvaluateROK(typeio);
-    if(!ok)
-        return false;
-    SG_ASSERT(nullptr == typeio.returnValue);
-    SG_ASSERT(typeio.qualifiers.empty());
-
     reflection::Metaclass const* mc = nullptr;
-    ResolvedIdentifier resolvedType;
-    ResolveIdentifier(io, typeio.returnIdentifier, resolvedType);
-    switch(resolvedType.type)
+    refptr<reflection::BaseClass> alias = nullptr;
+    SG_ASSERT(m_isNamespace == (m_type == nullptr));
+    if(!m_isNamespace)
     {
-    case ResolvedIdentifier::Type::None:
-        PushError(io, ErrorType::class_not_found, m_type->GetToken(), "class not found");
-        return false;
-    case ResolvedIdentifier::Type::Metaclass:
-        mc = resolvedType.metaclass;
-        break;
-    case ResolvedIdentifier::Type::ScriptObject:
-        SG_ASSERT_NOT_IMPLEMENTED(); // TODO: typedef
-        break;
-    default:
-        SG_ASSERT_NOT_REACHED();
+        EvaluationInputOutput typeio(io);
+        ok = m_type->EvaluateROK(typeio);
+        if(!ok)
+            return false;
+        SG_ASSERT(nullptr == typeio.returnValue);
+        SG_ASSERT(typeio.qualifiers.empty());
+
+        ResolvedIdentifier resolvedType;
+        ResolveIdentifier(io, typeio.returnIdentifier, resolvedType);
+        switch(resolvedType.type)
+        {
+        case ResolvedIdentifier::Type::None:
+            PushError(io, ErrorType::class_not_found, m_type->GetToken(), "class not found");
+            return false;
+        case ResolvedIdentifier::Type::Metaclass:
+            mc = resolvedType.metaclass;
+            break;
+        case ResolvedIdentifier::Type::ScriptObject:
+        {
+            reflection::BaseClass* object = resolvedType.scriptObject.get();
+            SG_ASSERT(nullptr != object);
+            if(object->GetMetaclass() == Variable::StaticGetMetaclass())
+                SG_ASSERT_MSG(false, "invalid type for template");
+            else if(object->GetMetaclass() == Function::StaticGetMetaclass())
+                SG_ASSERT_MSG(false, "invalid type for template");
+            else
+            {
+                SG_ASSERT(object->GetMetaclass() == Template::StaticGetMetaclass() || object->GetMetaclass() == TemplateNamespace::StaticGetMetaclass() || object->GetMetaclass() == TemplateAlias::StaticGetMetaclass());
+                alias = object;
+            }
+            break;
+        }
+        default:
+            SG_ASSERT_NOT_REACHED();
+        }
+        SG_ASSERT(nullptr != mc || nullptr != alias);
     }
-    SG_ASSERT(nullptr != mc);
 
     std::vector<ArgumentNameAndValue> args;
-    ok = ParseArgsROK(io, args, m_argumentNamesAndDefaultValues);
+    ok = ParseArgsROK(io, args, m_argumentNamesAndDefaultValues, false);
     if(!ok)
         return false;
 
-    Template* tmplt = nullptr;
     if(!nameio.returnIdentifier.Empty())
     {
         ResolvedIdentifier resolved;
-        ResolveIdentifier(io, nameio.returnIdentifier, resolved);
+        ResolveLValueIdentifier(io, nameio.returnIdentifier, resolved);
         switch(resolved.type)
         {
         case ResolvedIdentifier::Type::None:
             {
                 SG_ASSERT(nameio.returnIdentifier.Size() == 1); // TODO: Error message "Can not declare template outside of current namespace"
-                reflection::ObjectVisibility const visibility = reflection::ObjectVisibility::Protected;
+                reflection::ObjectVisibility const visibility = reflection::ObjectVisibility::Public;
 
                 reflection::Identifier const templateName(*io.pathForScript, nameio.returnIdentifier[0]);
-                tmplt = new Template(args);
-                tmplt->SetIdentifier(templateName);
-                tmplt->SetMetaclass(mc);
+
+                std::vector<refptr<ITreeNode>> preresolvedInstructions;
                 {
                     reflection::ObjectDatabaseScopedTransaction scopedTransaction(io.scriptDatabase.get());
 
@@ -2855,15 +3234,14 @@ bool TemplateDeclaration::EvaluateROK(EvaluationInputOutput& io)
                     objectPath.PushBack(reflection::IdentifierNode());
                     reflection::Identifier pathForScript = reflection::Identifier(templateName, reflection::IdentifierNode());
 
-                    for(auto const& it : tmplt->ArgumentNamesAndDefaultValues())
+                    for(auto const& it : args)
                     {
-                        reflection::ObjectVisibility const argVisibility = reflection::ObjectVisibility::Protected;
+                        reflection::ObjectVisibility const argVisibility = reflection::ObjectVisibility::Public;
                         reflection::Identifier const varName(pathForScript, it.name);
                         FreeVariable* var = new FreeVariable(it.isConst);
                         io.scriptDatabase->Add(argVisibility, varName, var);
                     }
                     size_t const instructionCount = m_instructions.size();
-                    std::vector<refptr<ITreeNode>> preresolvedInstructions;
                     preresolvedInstructions.reserve(instructionCount);
                     for(size_t i = 0; i < instructionCount; ++i)
                     {
@@ -2899,9 +3277,38 @@ bool TemplateDeclaration::EvaluateROK(EvaluationInputOutput& io)
                             return false;
                         }
                     }
-                    tmplt->SetBody(preresolvedInstructions);
                 }
-                io.scriptDatabase->Add(visibility, templateName, tmplt);
+                if(m_isNamespace)
+                {
+                    TemplateNamespace* tmplt = new TemplateNamespace(args);
+                    tmplt->SetIdentifier(templateName);
+                    tmplt->SetBody(preresolvedInstructions);
+                    io.scriptDatabase->Add(visibility, templateName, tmplt);
+                }
+                else if (nullptr != mc)
+                {
+                    Template* tmplt = new Template(args);
+                    tmplt->SetIdentifier(templateName);
+                    tmplt->SetMetaclass(mc);
+                    tmplt->SetBody(preresolvedInstructions);
+                    io.scriptDatabase->Add(visibility, templateName, tmplt);
+                }
+                else
+                {
+                    SG_ASSERT(nullptr != alias);
+                    TemplateAlias* tmplt = new TemplateAlias(args);
+                    tmplt->SetIdentifier(templateName);
+                    if(alias->GetMetaclass() == Template::StaticGetMetaclass())
+                        tmplt->SetType(checked_cast<Template*>(alias.get()));
+                    else if(alias->GetMetaclass() == TemplateNamespace::StaticGetMetaclass())
+                        tmplt->SetType(checked_cast<TemplateNamespace*>(alias.get()));
+                    else if(alias->GetMetaclass() == TemplateAlias::StaticGetMetaclass())
+                        tmplt->SetType(checked_cast<TemplateAlias*>(alias.get()));
+                    else
+                        SG_ASSERT_NOT_REACHED();
+                    tmplt->SetBody(preresolvedInstructions);
+                    io.scriptDatabase->Add(visibility, templateName, tmplt);
+                }
             }
             break;
         case ResolvedIdentifier::Type::Metaclass:
@@ -2953,7 +3360,7 @@ bool TypedefDeclaration::EvaluateROK(EvaluationInputOutput& io)
     SG_ASSERT(nullptr == aliasio.returnValue);
     SG_ASSERT(!aliasio.returnIdentifier.Empty());
 
-    reflection::ObjectVisibility const visibility = reflection::ObjectVisibility::Protected;
+    reflection::ObjectVisibility const visibility = reflection::ObjectVisibility::Public;
     ResolvedIdentifier resolvedTypeName;
     ResolveIdentifier(io, typeio.returnIdentifier, resolvedTypeName);
     reflection::Identifier const& fullTypeName = resolvedTypeName.fullIdentifier;
@@ -3038,6 +3445,7 @@ bool UnaryExpression::EvaluateROK(EvaluationInputOutput& io)
     }
 
     io.returnValueContainsUnresolvedIdentifier = argio.returnValueContainsUnresolvedIdentifier;
+    argio.returnValueContainsUnresolvedIdentifier = false;
     reflection::PrimitiveDataType type = argio.returnValue->GetType();
     for(size_t i = 0; i < unaryExpressionEntriesCount; ++i)
     {
@@ -3160,7 +3568,9 @@ template <TokenType OP, typename T1, typename T2> bool BinaryExpressionImplROK(E
     MACRO(TokenType::operator_plus, StrConcat(o,l,r), std::string, float,       std::string) \
     MACRO(TokenType::operator_plus, StrConcat(o,l,r), std::string, bool,        std::string) \
     MACRO(TokenType::operator_plus, o=l,              std::string, nullptr_t,   std::string) \
-    MACRO(TokenType::operator_plus, ListConcat(o,l,r), reflection::PrimitiveDataList, reflection::PrimitiveDataList, reflection::PrimitiveDataList)
+    MACRO(TokenType::operator_plus, ListConcat(o,l,r), reflection::PrimitiveDataList, reflection::PrimitiveDataList, reflection::PrimitiveDataList) \
+    MACRO(TokenType::operator_equal_equal,  o=(l==r), std::string, std::string, bool) \
+/* end of macro */
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 #define DEFINE_BINARY_EXPRESSION(TOKEN, EXPR, LEFT_TYPE, RIGHT_TYPE, OUTPUT_TYPE) \
     template <> bool BinaryExpressionImplROK<TOKEN, LEFT_TYPE, RIGHT_TYPE>(EvaluationInputOutput& io, Token const& iToken, refptr<reflection::IPrimitiveData>& oData, reflection::IPrimitiveData const* iLeft, reflection::IPrimitiveData const* iRight) \
@@ -3175,7 +3585,8 @@ template <TokenType OP, typename T1, typename T2> bool BinaryExpressionImplROK(E
         EXPR; \
         oData = output; \
         return true; \
-    };
+    }; \
+/* end of macro */
 APPLY_MACRO_TO_BINARY_EXPRESSION_IMPL(DEFINE_BINARY_EXPRESSION)
 #undef DEFINE_BINARY_EXPRESSION
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
@@ -3242,6 +3653,8 @@ bool BinaryExpression::EvaluateROK(EvaluationInputOutput& io)
     }
 
     io.returnValueContainsUnresolvedIdentifier = arg0io.returnValueContainsUnresolvedIdentifier || arg1io.returnValueContainsUnresolvedIdentifier;
+    arg0io.returnValueContainsUnresolvedIdentifier = false;
+    arg1io.returnValueContainsUnresolvedIdentifier = false;
     reflection::PrimitiveDataType leftType = arg0io.returnValue->GetType();
     reflection::PrimitiveDataType rightType = arg1io.returnValue->GetType();
     for(size_t i = 0; i < binaryExpressionEntryCount; ++i)
@@ -3370,6 +3783,8 @@ bool CompoundAssignment::EvaluateROK(EvaluationInputOutput& io)
     SG_ASSERT(arg1io.qualifiers.empty());
 
     io.returnValueContainsUnresolvedIdentifier = arg0io.returnValueContainsUnresolvedIdentifier || arg1io.returnValueContainsUnresolvedIdentifier;
+    arg0io.returnValueContainsUnresolvedIdentifier = false;
+    arg1io.returnValueContainsUnresolvedIdentifier = false;
     reflection::PrimitiveDataType leftType = arg0io.returnValue->GetType();
     reflection::PrimitiveDataType rightType = arg1io.returnValue->GetType();
     for(size_t i = 0; i < compoundAssignmentEntryCount; ++i)
@@ -3467,11 +3882,13 @@ bool TernaryExpression::EvaluateROK(EvaluationInputOutput& io)
     {
         io.returnValue = arg1io.returnValue;
         io.returnValueContainsUnresolvedIdentifier = arg1io.returnValueContainsUnresolvedIdentifier;
+        arg1io.returnValueContainsUnresolvedIdentifier = false;
     }
     else
     {
         io.returnValue = arg2io.returnValue;
         io.returnValueContainsUnresolvedIdentifier = arg2io.returnValueContainsUnresolvedIdentifier;
+        arg2io.returnValueContainsUnresolvedIdentifier = false;
     }
     return ok;
 }

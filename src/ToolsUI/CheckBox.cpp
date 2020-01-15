@@ -121,13 +121,44 @@ void CheckBox::VirtualOnPointerEvent(ui::PointerEventContext const& iContext, ui
     m_sensitiveArea.OnPointerEvent(iContext, iPointerEvent, m_boxArea, *this);
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+void CheckBox::OnButtonUpToDown(SG_UI_SENSITIVE_AREA_LISTENER_PARAMETERS_ONE_BUTTON)
+{
+    SG_ASSERT(&m_sensitiveArea == iSensitiveArea);
+    if(0 == iButton)
+    {
+        RequestFocusIFN();
+        MoveToFrontOfAllUI();
+    }
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 void CheckBox::OnButtonDownToUp(SG_UI_SENSITIVE_AREA_LISTENER_PARAMETERS_ONE_BUTTON)
 {
     SG_ASSERT(&m_sensitiveArea == iSensitiveArea);
     if(0 == iButton)
     {
-        MoveToFrontOfAllUI();
         FlipState();
+    }
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+void CheckBox::VirtualOnFocusableEvent(ui::FocusableEvent const& iFocusableEvent)
+{
+    focusable_parent_type::VirtualOnFocusableEvent(iFocusableEvent);
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+bool CheckBox::VirtualMoveFocusReturnHasMoved(ui::FocusDirection iDirection)
+{
+    if(!HasFocus())
+    {
+        RequestFocusIFN();
+        return true;
+    }
+    switch(iDirection)
+    {
+    case ui::FocusDirection::Activate:
+        FlipState();
+        return true;
+    default:
+        return false;
     }
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
@@ -140,7 +171,7 @@ void CheckBox::VirtualOnDraw(ui::DrawContext const& iContext)
     box2f const& placementBox = PlacementBox();
 
     ButtonLikeRenderParam renderParam;
-    GetButtonLikeRenderParam(renderParam, placementBox, true, IsHover(), IsClicked());
+    GetButtonLikeRenderParam(renderParam, placementBox, true, IsHover(), IsClicked(), HasTerminalFocus());
 
     float2 const outDelta = renderParam.outBox.Delta();
     float2 const inDelta = renderParam.inBox.Delta();

@@ -44,6 +44,7 @@ private:
     safeptr<system::Window> m_window;
     safeptr<renderengine::CompositingLayer> m_layer;
     SG_CODE_FOR_ASSERT(size_t m_pointerEventIndex;)
+    SG_CODE_FOR_ASSERT(size_t m_focusaleEventIndex;)
 };
 //=============================================================================
 }

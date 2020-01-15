@@ -14,6 +14,7 @@ WheelHelper::WheelHelper()
     SG_CODE_FOR_ASSERT(SG_COMMA m_stateForCheck(State::Begin))
 {
 }
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 void WheelHelper::OnPointerEventPreChildren(PointerEventContext const& iContext, PointerEvent const& iEvent, IArea const& iArea)
 {
     SG_ASSERT_MSG(State::Begin == m_stateForCheck, "This helper should be allocated on stack and used for one event only");
@@ -40,6 +41,7 @@ void WheelHelper::OnPointerEventPreChildren(PointerEventContext const& iContext,
         }
     }
 }
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 void WheelHelper::OnPointerEventPostChildren(PointerEventContext const& iContext, PointerEvent const& iEvent, IWheelListener& iListener)
 {
 #if SG_ENABLE_ASSERT
@@ -61,6 +63,12 @@ void WheelHelper::OnPointerEventPostChildren(PointerEventContext const& iContext
             event.SetMaskedFromPremasked();
         }
     }
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+void WheelHelper::OnPointerEventNoChild(PointerEventContext const& iContext, PointerEvent const& iEvent, IArea const& iArea, IWheelListener& iListener)
+{
+    OnPointerEventPreChildren(iContext, iEvent, iArea);
+    OnPointerEventPostChildren(iContext, iEvent, iListener);
 }
 //=============================================================================
 }

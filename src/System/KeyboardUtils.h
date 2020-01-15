@@ -3,6 +3,7 @@
 
 #include <Core/Platform.h>
 #include <Core/IntTypes.h>
+#include <Core/Tribool.h>
 
 namespace sg {
 namespace system {
@@ -18,6 +19,8 @@ enum class KeyboardKey
     Control,
     LeftShift,
     LeftControl,
+    RightShift,
+    RightControl,
     Menu,
     Pause,
     CapsLock,
@@ -100,24 +103,86 @@ enum class KeyboardKey
     F10,
     F11,
     F12,
+
+    Count,
+};
+//=============================================================================
+enum class KeyboardModifier
+{
+    Shift = 0,
+    Control = 1,
+    Alt = 2,
 };
 //=============================================================================
 enum class KeyboardLayout { QWERTY, UserLayout };
+//=============================================================================
+struct KeyboardState
+{
+public:
+    static u8 const MOUSE_BUTTONS_MASK = 0x1F;
+public:
+    KeyboardState() : data(0) {}
+    explicit KeyboardState(u64 iData) : data(iData) {}
+    bool IsModifierOn(KeyboardModifier m) const { return 0 != (data & (u64(1) << size_t(m))); }
+    void SetModifier(KeyboardModifier m, bool b) { if(b) { data |= u64(1) << size_t(m); } else { data &= ~(u64(1) << size_t(m)); } }
+    u64 Data() const { return data; }
+private:
+    u64 data;
+};
 //=============================================================================
 class KeyboardEntryAdapter
 {
 public:
     KeyboardEntryAdapter();
-    KeyboardEntryAdapter(KeyboardKey iKey, KeyboardLayout iMode);
+    KeyboardEntryAdapter(KeyboardKey iKey, KeyboardLayout iLayout);
 
+    void SetKey(KeyboardKey iKey, KeyboardLayout iLayout);
     bool IsValid() const { return -1 != m_code; }
     bool DoesMatch(UserInputEvent const& iEvent) const;
+    static bool IsKeyEvent(UserInputEvent const& iEvent);
     bool DoesMatch_AssumeKeyEvent(UserInputEvent const& iEvent) const;
 private:
 #if SG_PLATFORM_IS_WIN
     bool m_isScanCodeElseVirtualKey;
     u32 m_code;
 #endif
+};
+//=============================================================================
+class KeyboardEntryStateAdapter
+{
+    SG_NON_COPYABLE(KeyboardEntryStateAdapter)
+public:
+    KeyboardEntryStateAdapter() {}
+    KeyboardEntryStateAdapter(KeyboardKey iKey, KeyboardLayout iLayout) : m_entryAdapter(iKey, iLayout) {}
+
+    void SetKey(KeyboardKey iKey, KeyboardLayout iLayout) { m_entryAdapter.SetKey(iKey, iLayout); m_state = false; }
+    bool IsValid() const { return m_entryAdapter.IsValid(); }
+    void Update(UserInputEvent const& iEvent);
+    bool State() const { return m_state; };
+private:
+    KeyboardEntryAdapter m_entryAdapter;
+    bool m_state { false };
+};
+//=============================================================================
+class KeyboardShortcutAdapter
+{
+public:
+    KeyboardShortcutAdapter();
+    KeyboardShortcutAdapter(KeyboardKey iKey, tribool shift, tribool ctrl, tribool alt, KeyboardLayout iMode);
+
+    bool IsTriggered(UserInputEvent const& iEvent) const;
+    static bool IsTriggerableEvent(UserInputEvent const& iEvent);
+    bool IsTriggered_AssumeTriggerableEvent(UserInputEvent const& iEvent) const;
+
+    bool IsValid() const { return m_entry.IsValid(); }
+    bool DoesMatch(UserInputEvent const& iEvent) const;
+    static bool IsKeyEvent(UserInputEvent const& iEvent) { return KeyboardEntryAdapter::IsKeyEvent(iEvent); }
+    bool DoesMatch_AssumeKeyEvent(UserInputEvent const& iEvent) const;
+private:
+    KeyboardEntryAdapter m_entry;
+    tribool m_shift;
+    tribool m_ctrl;
+    tribool m_alt;
 };
 //=============================================================================
 }

@@ -168,7 +168,7 @@ template <typename T> class PropertyTraitsForInteger : public PropertyTraitsForM
 template <typename T> class PropertyTraitsForUnsigned : public PropertyTraitsForMimic<T, u32, UnsignedGetter<T>, UnsignedSetter<T> > {};
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 struct FilePathGetter { std::string operator() (FilePath const& fp) { return fp.GetPrintableString(); } };
-struct FilePathSetter { void operator() (FilePath* fp, std::string const& v) { *fp = FilePath(v); } };
+struct FilePathSetter { void operator() (FilePath* fp, std::string const& v) { *fp = FilePath::CreateFromAnyPath(v); } };
 template <> class PropertyTraits<FilePath> : public PropertyTraitsForMimic<FilePath, std::string, FilePathGetter, FilePathSetter> {};
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 template <typename domain> struct FastSymbolGetter { std::string operator() ( fastsymbol::TemplateFastSymbol<domain> const& s) { return s.Value(); } };
@@ -249,6 +249,7 @@ public:
             for(size_t i = 0; i < size; ++i)
             {
                 IProperty const* prop = mc->GetPropertyIFP(valueVector[i].first.c_str());
+                // TODO: error message: this property doesn't exist in type
                 SG_ASSERT(nullptr != prop);
                 bool ok = prop->SetROK((void*)oValue, valueVector[i].second.get());
                 if(!ok)
@@ -343,7 +344,7 @@ public:
     static bool UnBoxIFP(vector_type* oValue, IPrimitiveData const* iValue)
     {
         SG_ASSERT_MSG(iValue->IsRefCounted_ForAssert(), "Input PrimitiveData should be owned by client to prevent memory leak.");
-        SG_ASSERT(iValue->GetType() == PrimitiveDataType::List);
+        SG_ASSERT(iValue->GetType() == PrimitiveDataType::List); // TODO: error message
         if(iValue->GetType() != PrimitiveDataType::List)
             return false;
         primitive_data_type const* value = checked_cast<primitive_data_type const*>(iValue);
@@ -552,7 +553,7 @@ public:
     static bool UnBoxIFP(ptr_type* oValue, IPrimitiveData const* iValue)
     {
         SG_ASSERT_MSG(iValue->IsRefCounted_ForAssert(), "Input PrimitiveData should be owned by client to prevent memory leak.");
-        SG_ASSERT(iValue->GetType() == PrimitiveDataType::Object || iValue->GetType() == PrimitiveDataType::ObjectReference || iValue->GetType() == PrimitiveDataType::Null);
+        //SG_ASSERT(iValue->GetType() == PrimitiveDataType::Object || iValue->GetType() == PrimitiveDataType::ObjectReference || iValue->GetType() == PrimitiveDataType::Null);
         if(iValue->GetType() == PrimitiveDataType::Object)
         {
             primitive_data_type const* value = checked_cast<primitive_data_type const*>(iValue);
@@ -565,6 +566,7 @@ public:
             primitive_value_type ptr;
             bool ok = iValue->AsROK<refptr<BaseClass> >(&ptr);
             SG_ASSERT_AND_UNUSED(ok);
+            SG_ASSERT(object_type::StaticGetMetaclass()->IsBaseOf(ptr->GetMetaclass())); // TODO: error message
             *oValue = checked_cast<object_type*>(ptr.get());
             return true;
         }

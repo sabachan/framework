@@ -132,7 +132,7 @@ SG_TEST((sg,core), FastSymbol, (quick))
         size_t const strCount = SG_ARRAYSIZE(strs);
         UnitTest_FastSymbol a = "Hello World!";
         {
-            SIMPLE_CPU_PERF_LOG_SCOPE("FastSymbol perf test 1");
+            SG_SIMPLE_CPU_PERF_LOG_SCOPE("FastSymbol perf test 1");
             for(size_t kk = 0; kk < 1000; ++kk)
             {
                 size_t const i = kk % strCount;
@@ -141,7 +141,7 @@ SG_TEST((sg,core), FastSymbol, (quick))
             }
         }
         {
-            SIMPLE_CPU_PERF_LOG_SCOPE("FastSymbol perf test 2");
+            SG_SIMPLE_CPU_PERF_LOG_SCOPE("FastSymbol perf test 2");
             for(size_t kk = 0; kk < 1000; ++kk)
             {
                 size_t const i = kk % strCount;

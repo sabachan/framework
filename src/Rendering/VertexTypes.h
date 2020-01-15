@@ -19,6 +19,8 @@ namespace rendering {
 //      Normal
 //      Tex
 //      Col
+//      BlendIndices
+//      BlendWeights
 // - Order floats before ints, and ints in increasing sizes,
 // - Order number of components in increasing order.
 //=============================================================================
@@ -85,6 +87,15 @@ struct Vertex_Pos2f_Tex4f_2Col4f
     float4 col[2];
     VERTEX_DECL();
 };
+struct Vertex_Pos3f_Pos2f_Tex2f_Col4f_Col4ub
+{
+    float3 pos;
+    float2 pos2f;
+    float2 tex;
+    float4 col;
+    ubyte4 col4ub;
+    VERTEX_DECL();
+};
 struct Vertex_Pos3f_Normal3f_Tex2f_Col4f
 {
     float3 pos;
@@ -93,10 +104,37 @@ struct Vertex_Pos3f_Normal3f_Tex2f_Col4f
     float4 col;
     VERTEX_DECL();
 };
+struct Vertex_Pos3f_Normal3f_Tex2f_Col4f_BlendIndices2u16_BlendWeights2u16
+{
+    float3 pos;
+    float3 normal;
+    float2 tex;
+    float4 col;
+    u16vec2 blendIndices;
+    u16vec2 blendWeights;
+    VERTEX_DECL();
+};
+struct Vertex_Pos3f_2Normal3f_Tex2f_Col4f_BlendIndices2u16_BlendWeights2u16
+{
+    float3 pos;
+    float3 normals[2];
+    float2 tex;
+    float4 col;
+    u16vec2 blendIndices;
+    u16vec2 blendWeights;
+    VERTEX_DECL();
+};
 struct Vertex_Pos3f_Tex2f
 {
     float3 pos;
     float2 tex;
+    VERTEX_DECL();
+};
+struct Vertex_Pos3f_Tex2f_Col4f
+{
+    float3 pos;
+    float2 tex;
+    float4 col;
     VERTEX_DECL();
 };
 struct Vertex_Pos3f_Tex2f_2Col4f_Col4ub

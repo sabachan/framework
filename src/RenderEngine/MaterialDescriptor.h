@@ -34,6 +34,7 @@ public:
         ResourcesView iResources,
         SamplersView iSamplers,
         int iPriority);
+    void Clear();
 private:
     struct LightKey
     {
@@ -136,6 +137,7 @@ public:
         ConstantsView iConstants = nullptr,
         ResourcesView iResources = nullptr,
         SamplersView iSamplers = nullptr);
+    void ClearCache();
 private:
     void CreateCache();
     void OnCreatedOrModified();

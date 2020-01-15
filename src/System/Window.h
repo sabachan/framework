@@ -26,7 +26,7 @@ public:
     ObservableValue<uint2> const& ClientSize() const { return m_clientSize; }
     void Show(bool iShow);
     bool IsVisible();
-    void Close();
+    void CloseIFP();
     bool IsClosed();
     void SetClientSize(uint2 const& iSize);
     void SetClientPlacement(box2i const& iPlacement);

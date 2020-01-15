@@ -4,12 +4,6 @@
 
 #include <Rendering/RenderDevice.h>
 #include <Rendering/ShaderConstantBuffers.h>
-#include <Rendering/ShaderConstantDatabase.h>
-#include <Rendering/ShaderResourceBuffer.h>
-#include <Rendering/ShaderResourceDatabase.h>
-#include <d3d11.h>
-#include <d3d11shader.h>
-
 
 namespace sg {
 namespace renderengine {
@@ -175,11 +169,6 @@ void RenderBatch::FinishWritingIndex(size_t iIndexCount)
     SG_CODE_FOR_ASSERT(m_reservedIndexCount = 0);
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-int RenderBatch::GetPriority()
-{
-    return 0;
-}
-//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 void RenderBatch::UpdateBuffers(rendering::RenderDevice const* iRenderDevice)
 {
     size_t const vertexCount = m_vertexCount[0];
@@ -273,17 +262,26 @@ void RenderBatch::UpdateBuffers(rendering::RenderDevice const* iRenderDevice)
     }
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-size_t RenderBatch::GetSubLayerCount()
+int RenderBatch::GetPriority(rendering::RenderBatchPassId iPassId)
 {
+    SG_ASSERT_AND_UNUSED(iPassId == rendering::RenderBatchPassId());
+    return 0;
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+size_t RenderBatch::GetSubLayerEnd(rendering::RenderBatchPassId iPassId)
+{
+    SG_ASSERT_AND_UNUSED(iPassId == rendering::RenderBatchPassId());
     return 1;
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-void RenderBatch::Execute(rendering::RenderDevice const* iRenderDevice,
+void RenderBatch::Execute(rendering::RenderBatchPassId iPassId,
+                          rendering::RenderDevice const* iRenderDevice,
                           rendering::IShaderConstantDatabase const* iShaderConstantDatabase,
                           rendering::IShaderResourceDatabase const* iShaderResourceDatabase,
                           size_t iSubLayer,
                           size_t& ioNextSubLayer)
 {
+    SG_ASSERT_AND_UNUSED(iPassId == rendering::RenderBatchPassId());
     SG_UNUSED((ioNextSubLayer));
     ID3D11DeviceContext* context = iRenderDevice->ImmediateContext();
     SG_ASSERT(nullptr != context);

@@ -5,6 +5,7 @@
 #include <Core/SmartPtr.h>
 #include <Math/Vector.h>
 #include <Reflection/BaseClass.h>
+#include <Rendering/RenderStateDico.h>
 #include <Rendering/Shader.h>
 #include <Rendering/ShaderResourceDatabase.h>
 #include <Rendering/ShaderResourceBuffer.h>
@@ -15,6 +16,7 @@ struct ID3D11Buffer;
 
 namespace sg {
 namespace rendering {
+    class CPUSurfaceReader;
     class DepthStencilSurface;
     class IRenderTarget;
     class IShaderConstantDatabase;
@@ -22,6 +24,7 @@ namespace rendering {
     class IShaderResourceDatabase;
     class RenderDevice;
     class ShaderConstantBuffers;
+    class ShaderConstantDatabase;
     class Surface;
 }
 }
@@ -75,6 +78,34 @@ public:
     virtual ICompositingInstruction* CreateInstance(Compositing* iCompositing) const { SG_UNUSED(iCompositing); return nullptr; } //= 0;
 };
 //=============================================================================
+class SetBlendStateDescriptor;
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+class SetBlendState : public ICompositingInstruction
+{
+    SG_NON_COPYABLE(SetBlendState)
+    friend class SetBlendStateDescriptor;
+private:
+    virtual ~SetBlendState() override;
+    virtual void Execute(Compositing* iCompositing) override;
+    SetBlendState(SetBlendStateDescriptor const* iDescriptor, Compositing* iCompositing);
+private:
+    safeptr<SetBlendStateDescriptor const> m_descriptor;
+    comptr<ID3D11BlendState> m_blendState;
+};
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+class SetBlendStateDescriptor : public AbstractCompositingInstructionDescriptor
+{
+    SG_NON_COPYABLE(SetBlendStateDescriptor)
+    REFLECTION_CLASS_HEADER(SetBlendStateDescriptor, AbstractCompositingInstructionDescriptor)
+    friend class SetBlendState;
+public:
+    SetBlendStateDescriptor();
+    virtual ~SetBlendStateDescriptor() override;
+    virtual SetBlendState* CreateInstance(Compositing* iCompositing) const override;
+private:
+    rendering::RenderStateName m_preregisteredName;
+};
+//=============================================================================
 class ClearSurfacesDescriptor;
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 class ClearSurfaces : public ICompositingInstruction
@@ -107,6 +138,38 @@ private:
     std::vector<refptr<DepthStencilSurfaceDescriptor> > m_depthStencils;
     float m_depth;
     u8 m_stencil;
+};
+//=============================================================================
+class SwapSurfacesDescriptor;
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+class SwapSurfaces : public ICompositingInstruction
+{
+    SG_NON_COPYABLE(SwapSurfaces)
+    friend class SwapSurfacesDescriptor;
+private:
+    SwapSurfaces(SwapSurfacesDescriptor const* iDescriptor, Compositing* iCompositing);
+    virtual ~SwapSurfaces() override;
+    virtual void Execute(Compositing* iCompositing) override;
+private:
+    safeptr<SwapSurfacesDescriptor const> m_descriptor;
+    ArrayList<std::pair<refptr<rendering::Surface>, refptr<rendering::Surface>>> m_surfaces;
+};
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+class SwapSurfacesDescriptor : public AbstractCompositingInstructionDescriptor
+{
+    SG_NON_COPYABLE(SwapSurfacesDescriptor)
+    REFLECTION_CLASS_HEADER(SwapSurfacesDescriptor, AbstractCompositingInstructionDescriptor)
+    friend class SwapSurfaces;
+public:
+    SwapSurfacesDescriptor();
+    virtual ~SwapSurfacesDescriptor() override;
+    virtual SwapSurfaces* CreateInstance(Compositing* iCompositing) const override;
+private:
+#if ENABLE_REFLECTION_PROPERTY_CHECK
+    virtual void VirtualCheckProperties(reflection::ObjectPropertyCheckContext& iContext) const override;
+#endif
+private:
+    ArrayList<std::pair<refptr<SurfaceDescriptor const>, refptr<SurfaceDescriptor const>>> m_surfaces;
 };
 //=============================================================================
 class GenerateMipmapDescriptor;
@@ -296,6 +359,81 @@ private:
 private:
     refptr<ShaderResourceDatabaseDescriptor> m_database;
 };
+//=============================================================================
+class ConstantDatabaseDescriptor;
+class SetConstantDatabaseDescriptor;
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+class SetAliasesInConstantDatabase : public ICompositingInstruction
+{
+    SG_NON_COPYABLE(SetAliasesInConstantDatabase)
+    friend class SetAliasesInConstantDatabaseDescriptor;
+private:
+    SetAliasesInConstantDatabase(SetAliasesInConstantDatabaseDescriptor const* iDescriptor, Compositing* iCompositing);
+    virtual ~SetAliasesInConstantDatabase() override;
+    virtual void Execute(Compositing* iCompositing) override;
+private:
+    safeptr<SetAliasesInConstantDatabaseDescriptor const> m_descriptor;
+    safeptr<rendering::IShaderConstantDatabase const> m_database;
+    safeptr<rendering::ShaderConstantDatabase> m_writableDatabase;
+};
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+class SetAliasesInConstantDatabaseDescriptor : public AbstractCompositingInstructionDescriptor
+{
+    SG_NON_COPYABLE(SetAliasesInConstantDatabaseDescriptor)
+    REFLECTION_CLASS_HEADER(SetAliasesInConstantDatabaseDescriptor, AbstractCompositingInstructionDescriptor)
+    friend class SetAliasesInConstantDatabase;
+public:
+    SetAliasesInConstantDatabaseDescriptor();
+    virtual ~SetAliasesInConstantDatabaseDescriptor() override;
+    virtual SetAliasesInConstantDatabase* CreateInstance(Compositing* iCompositing) const override;
+private:
+#if ENABLE_REFLECTION_PROPERTY_CHECK
+    virtual void VirtualCheckProperties(reflection::ObjectPropertyCheckContext& iContext) const override;
+#endif
+private:
+    ArrayList<std::pair<std::string, std::string>> m_aliases;
+    refptr<ConstantDatabaseDescriptor> m_database;
+};
+//=============================================================================
+class DebugDumpSurfacesDescriptor;
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+class DebugDumpSurfaces : public ICompositingInstruction
+{
+    SG_NON_COPYABLE(DebugDumpSurfaces)
+    friend class DebugDumpSurfacesDescriptor;
+private:
+    DebugDumpSurfaces(DebugDumpSurfacesDescriptor const* iDescriptor, Compositing* iCompositing);
+    virtual ~DebugDumpSurfaces() override;
+    virtual void Execute(Compositing* iCompositing) override;
+private:
+    safeptr<DebugDumpSurfacesDescriptor const> m_descriptor;
+    ArrayList<refptr<rendering::CPUSurfaceReader>> m_surfaceReaders;
+    u32 m_iter = 0;
+    u32 m_count = 0;
+};
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+class DebugDumpSurfacesDescriptor : public AbstractCompositingInstructionDescriptor
+{
+    SG_NON_COPYABLE(DebugDumpSurfacesDescriptor)
+    REFLECTION_CLASS_HEADER(DebugDumpSurfacesDescriptor, AbstractCompositingInstructionDescriptor)
+    friend class DebugDumpSurfaces;
+public:
+    DebugDumpSurfacesDescriptor();
+    virtual ~DebugDumpSurfacesDescriptor() override;
+    virtual DebugDumpSurfaces* CreateInstance(Compositing* iCompositing) const override;
+protected:
+#if ENABLE_REFLECTION_PROPERTY_CHECK
+    virtual void VirtualCheckProperties(reflection::ObjectPropertyCheckContext& iContext) const override;
+#endif
+private:
+    FilePath m_directory;
+    ArrayList<std::pair<std::string, refptr<SurfaceDescriptor const>>> m_surfaces;
+    u32 m_start = 0;
+    u32 m_skip  = 0;
+    u32 m_stop  = 0;
+};
+//=============================================================================
+// TODO: SetAliasesInResourceDatabase
 //=============================================================================
 //class ViewportDescriptor : public AbstractCompositingInstructionDescriptor
 //{

@@ -93,6 +93,18 @@ SG_DEFINE_TYPED_TAG(SensitiveAreaListener_PleaseUseMacroForParameters)
     SG_CODE_FOR_ASSERT(::sg::ui::SensitiveAreaListener_PleaseUseMacroForParameters_t /*no name*/ SG_COMMA) \
     ::sg::ui::SensitiveArea const* iSensitiveArea
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+#define SG_UI_SENSITIVE_AREA_LISTENER_FORWARD_PARAMETERS_FREE \
+    SG_CODE_FOR_ASSERT(::sg::ui::SensitiveAreaListener_PleaseUseMacroForParameters SG_COMMA) \
+    iSensitiveArea, iContext, iEvent, iPointerLocalPosition
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+#define SG_UI_SENSITIVE_AREA_LISTENER_FORWARD_PARAMETERS_ONE_BUTTON \
+    SG_CODE_FOR_ASSERT(::sg::ui::SensitiveAreaListener_PleaseUseMacroForParameters SG_COMMA) \
+    iSensitiveArea, iContext, iEvent, iPointerLocalPosition, iButton
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+#define SG_UI_SENSITIVE_AREA_LISTENER_FORWARD_PARAMETERS_RESET \
+    SG_CODE_FOR_ASSERT(::sg::ui::SensitiveAreaListener_PleaseUseMacroForParameters SG_COMMA) \
+    iSensitiveArea
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 #define SG_UI_SENSITIVE_AREA_LISTENER_UNUSED_PARAMETERS_FREE \
     SG_UNUSED((iSensitiveArea, iContext, iEvent, iPointerLocalPosition))
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
@@ -100,7 +112,7 @@ SG_DEFINE_TYPED_TAG(SensitiveAreaListener_PleaseUseMacroForParameters)
     SG_UNUSED((iSensitiveArea, iContext, iEvent, iPointerLocalPosition, iButton))
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 #define SG_UI_SENSITIVE_AREA_LISTENER_UNUSED_PARAMETERS_RESET \
-    SG_UNUSED(iSensitiveArea)
+    SG_UNUSED((iSensitiveArea))
 //=============================================================================
 class ISensitiveAreaListener
 {

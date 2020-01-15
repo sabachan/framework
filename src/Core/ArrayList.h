@@ -14,6 +14,7 @@ namespace internal {
 template<typename T, typename S>
 class ArrayListBase : public internal::ArrayBase<T, true, S>
 {
+    typedef internal::ArrayBase<T, true, S> parent_type;
     typedef S size_type;
 public:
     size_t Capacity() const { return m_capacity; }
@@ -24,12 +25,18 @@ public:
     void PopBack();
     void SizeDown(size_t iSize);
     void Clear();
+    T& InsertAt_AssumeCapacity(size_t index, T const& iVal);
+    void RemoveAt(size_t index);
+    void RemoveRange(size_t begin, size_t end);
 #if SG_CONTAINERS_EXPOSE_STD_NAMES
     void pop_back() { return PopBack(); }
     void clear() { return Clear(); }
+    template <typename I> void erase(I iter) { RemoveAt(&*iter - Data()); }
+    template <typename I> void erase(I iterBegin, I iterEnd) { RemoveRange(&*iterBegin - Data(), &*iterEnd - Data()); }
 #endif
 protected:
     ArrayListBase(T* data, size_type size, size_t capacity) : ArrayBase(data, size), m_capacity(capacity) {}
+    friend void swap(ArrayListBase& a, ArrayListBase& b) { using std::swap; swap(static_cast<parent_type&>(a), static_cast<parent_type&>(a)); swap(a.m_capacity, b.m_capacity); }
 protected:
     size_t m_capacity;
 };
@@ -105,6 +112,46 @@ void ArrayListBase<T, S>::Clear()
     m_size = 0;
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+template<typename T, typename S>
+T& ArrayListBase<T, S>::InsertAt_AssumeCapacity(size_t index, T const& iVal)
+{
+    size_t const size = m_size;
+    SG_ASSERT(size < m_capacity);
+    SG_ASSERT(index <= size);
+    if(index < size)
+        Relocate_Backward(m_data + index + 1, m_data + index, size - index);
+    new(m_data + index) T(iVal);
+    m_size = size+1;
+    return m_data[index];
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+template<typename T, typename S>
+void ArrayListBase<T, S>::RemoveAt(size_t index)
+{
+    size_t const size = m_size;
+    SG_ASSERT(index < size);
+    if(index + 1 < size)
+        Relocate_Forward(m_data + index, m_data + index + 1, size - index - 1);
+    size_t const newSize = size-1;
+    m_data[newSize].~T();
+    m_size = size-1;
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+template<typename T, typename S>
+void ArrayListBase<T, S>::RemoveRange(size_t begin, size_t end)
+{
+    size_t const size = m_size;
+    SG_ASSERT(begin < end);
+    SG_ASSERT(begin < size);
+    SG_ASSERT(end <= size);
+    if(end < size)
+        Relocate_Forward(m_data + begin, m_data + end, size - end);
+    size_t const newSize = size-(end-begin);
+    for_range(size_t, i, newSize, size)
+        m_data[i].~T();
+    m_size = newSize;
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 template<typename T, typename A>
 class ArrayListImpl : public ArrayListBase<T, size_t>
 {
@@ -126,6 +173,11 @@ public:
     template<typename... Args> T& EmplaceBack(Args&&... iArgs) { Reserve(m_size + 1); return EmplaceBack_AssumeCapacity(std::forward<Args>(iArgs)...); }
 
     template <typename... Args> void Resize(size_t iSize, Args&&... iArgs) { Reserve(iSize); Resize_AssumeCapacity(iSize, std::forward<Args>(iArgs)...); }
+
+    T& InsertAt(size_t index, T const& iVal);
+
+    void SwapWith(ArrayListImpl& other);
+    friend void swap(ArrayListImpl& a, ArrayListImpl& b) { a.SwapWith(b); }
 
 #if SG_CONTAINERS_EXPOSE_STD_NAMES
     void reserve(size_t iCapacity) { return Reserve(iCapacity); }
@@ -210,6 +262,25 @@ ArrayListImpl<T, A>& ArrayListImpl<T, A>::operator=(ArrayListImpl&& other)
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 template<typename T, typename A>
+void ArrayListImpl<T, A>::SwapWith(ArrayListImpl& other)
+{
+    bool const isSwappable = allocator_type::is_always_equal
+        || m_allocator == other.m_allocator
+        || allocator_type::AreBuffersSwappable(m_allocator, m_data, other.m_allocator, other.m_data);
+
+    if(SG_POTENTIAL_CONSTANT_CONDITION(isSwappable))
+    {
+        std::swap(m_data, other.m_data);
+        std::swap(m_size, other.m_size);
+        std::swap(m_capacity, other.m_capacity);
+    }
+    else
+    {
+        SG_ASSERT_NOT_IMPLEMENTED();
+    }
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+template<typename T, typename A>
 void ArrayListImpl<T, A>::Reserve(size_t iCapacity)
 {
     size_t const prevCapacity = m_capacity;
@@ -233,6 +304,13 @@ void ArrayListImpl<T, A>::ChangeCapacity(size_t iCapacity)
     m_data = newData;
     m_size = size;
     m_capacity = newCapacity;
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+template<typename T, typename A>
+T& ArrayListImpl<T, A>::InsertAt(size_t index, T const& iVal)
+{
+    Reserve(m_size+1);
+    return InsertAt_AssumeCapacity(index, iVal);
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 }

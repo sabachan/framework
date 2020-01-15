@@ -7,6 +7,8 @@
 namespace sg {
 namespace image {
 //=============================================================================
+namespace impl {
+//=============================================================================
 template <typename T>
 uint2 GetWidthHeightHelper(ImageView<T> const& img) { return img.WidthHeight(); }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
@@ -14,7 +16,7 @@ template <typename T, typename... U>
 uint2 GetWidthHeightHelper(ImageView<T> const& img, ImageView<U> const&... imgs)
 {
     uint2 const wh = img.WidthHeight();
-    SG_ASSERT(wh == GetWidthHeightHelper(imgs...));
+    SG_ASSERT_AND_UNUSED(wh == GetWidthHeightHelper(imgs...));
     return wh;
 }
 //=============================================================================
@@ -52,33 +54,37 @@ void CoInvokeWithPositionAtRowPos(F&& f, Tup&& rows, uint2 xy)
         std::make_index_sequence<size>{});
 }
 //=============================================================================
-template <typename F, typename... T>
-void CoIterate(F&& f, ImageView<T>... imgs)
+}
+//=============================================================================
+template <typename F, typename T, typename... Ts>
+void CoIterate(F&& f, ImageView<T> img, ImageView<Ts>... imgs)
 {
-    uint2 const wh = GetWidthHeightHelper(imgs...);
+    uint2 const wh = impl::GetWidthHeightHelper(img, imgs...);
     for_range(size_t, y, 0, wh.y())
     {
-        auto rows = std::make_tuple(imgs.Row(y)...);
+        auto rows = std::make_tuple(img.Row(y), imgs.Row(y)...);
         for_range(size_t, x, 0, wh.x())
         {
-            CoInvokeAtRowPos(std::forward<F>(f), rows, x);
+            impl::CoInvokeAtRowPos(std::forward<F>(f), rows, x);
         }
     }
 }
 //=============================================================================
-template <typename F, typename... T>
-void CoIterateWithPosition(F&& f, ImageView<T>... imgs)
+template <typename F, typename T, typename... Ts>
+void CoIterateWithPosition(F&& f, ImageView<T> img, ImageView<Ts>... imgs)
 {
-    uint2 const wh = GetWidthHeightHelper(imgs...);
+    uint2 const wh = impl::GetWidthHeightHelper(img, imgs...);
     for_range(unsigned int, y, 0, wh.y())
     {
-        auto rows = std::make_tuple(imgs.Row(y)...);
+        auto rows = std::make_tuple(img.Row(y), imgs.Row(y)...);
         for_range(unsigned int, x, 0, wh.x())
         {
-            CoInvokeWithPositionAtRowPos(std::forward<F>(f), rows, uint2(x,y));
+            impl::CoInvokeWithPositionAtRowPos(std::forward<F>(f), rows, uint2(x,y));
         }
     }
 }
+//=============================================================================
+namespace impl {
 //=============================================================================
 template <typename F>
 struct CoIterator
@@ -90,15 +96,17 @@ private:
     F& m_f;
 };
 template <typename F>
-CoIterator<F> MakeCoIterator(F& f) { return CoIterator<F>(f); }
+CoIterator<F> MakeCoIterator(F&& f) { return CoIterator<F>(std::forward<F>(f)); }
 //=============================================================================
-template <typename F, typename... T>
-void ComputeFromCoIteration(Image<decltype(std::declval<F>()(std::declval<T>()...))>& oImage, F& f, ImageView<T const>... imgs)
+}
+//=============================================================================
+template <typename F, typename T, typename... Ts>
+void ComputeFromCoIteration(Image<decltype(std::declval<F>()(std::declval<T>(), std::declval<Ts>()...))>& oImage, F&& f, ImageView<T> img, ImageView<Ts>... imgs)
 {
-    typedef decltype(std::declval<F>()(std::declval<T>()...)) out_t;
-    uint2 const wh = GetWidthHeightHelper(imgs...);
+    typedef decltype(std::declval<F>()(std::declval<T>(), std::declval<Ts>()...)) out_t;
+    uint2 const wh = impl::GetWidthHeightHelper(img, imgs...);
     oImage = Image<out_t>(wh);
-    CoIterate(MakeCoIterator(f), oImage, imgs...);
+    CoIterate(impl::MakeCoIterator(f), oImage.View(), img, imgs...);
 }
 //=============================================================================
 }

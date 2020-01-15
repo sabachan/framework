@@ -324,12 +324,12 @@ SG_TEST((sg,renderengine), RenderEngine, (RenderEngine, super slow))
         TestApplication app(&constantDatabase);
         rendering::RenderWindow* window = app.RenderWindow(0);
         rendering::IRenderTarget* renderTargets[] = { window->BackBuffer() };
-        rendering::IShaderConstantDatabase* constantDbArrray[] = { &constantDatabase };
+        rendering::IShaderConstantDatabase const* constantDbArrray[] = { &constantDatabase };
 
         ArrayView<rendering::IShaderResource*> const inputSurfaces;
         ArrayView<rendering::IRenderTarget*> const outputSurfaces = AsArrayView(renderTargets);
-        ArrayView<rendering::IShaderConstantDatabase*> const constantDatabases = AsArrayView(constantDbArrray);
-        ArrayView<rendering::IShaderResourceDatabase*> const resourceDatabases;
+        ArrayView<rendering::IShaderConstantDatabase const*> const constantDatabases = AsArrayView(constantDbArrray);
+        ArrayView<rendering::IShaderResourceDatabase const*> const resourceDatabases;
         refptr<ICompositing> compositing = compositingDesc->CreateInstance(app.RenderDevice(), inputSurfaces, outputSurfaces, constantDatabases, resourceDatabases);
 
         DrawCubes drawCubes(compositing.get());

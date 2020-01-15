@@ -13,11 +13,11 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Header Files\WTF">
+      <UniqueIdentifier>{4f6178f7-f75c-4dcd-963d-cb6418e292f7}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\src\Rendering\ShaderResource.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\src\Rendering\stdafx.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -37,9 +37,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\Rendering\RenderDevice.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\Rendering\RenderTarget.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\Rendering\RenderWindow.h">
@@ -112,6 +109,45 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\Rendering\SurfaceFormat.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\Rendering\IShaderResource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\Rendering\IRenderTarget.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\Rendering\ISurface.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\Rendering\CameraUtils.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\Rendering\WTF\IncludeD3DCommon.h">
+      <Filter>Header Files\WTF</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\Rendering\WTF\IncludeD3DCompiler.h">
+      <Filter>Header Files\WTF</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\Rendering\WTF\IncludeDxgi.h">
+      <Filter>Header Files\WTF</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\Rendering\WTF\IncludeDxgiFormat.h">
+      <Filter>Header Files\WTF</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\Rendering\WTF\IncludeD3D11.h">
+      <Filter>Header Files\WTF</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\Rendering\WTF\IncludeD3D11SDKLayers.h">
+      <Filter>Header Files\WTF</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\Rendering\WTF\IncludeD3D11Shader.h">
+      <Filter>Header Files\WTF</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\Rendering\WTF\IncludeWincodec.h">
+      <Filter>Header Files\WTF</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\Rendering\RenderBatchPassId.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -201,6 +237,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\Rendering\SurfaceFormat.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\Rendering\CameraUtils.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

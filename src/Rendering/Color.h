@@ -112,7 +112,7 @@ public:
 //     ((r*a)^gamma, (g*a)^gamma, (b*a)^gamma, a)
 // alpha-premultiplication should be made before for multiple reasons, one of
 // them being that the GPU will decode an sRGB texture by decoding the 3 rgb
-// channels as sRGB encodedwhile leaving the a channel untouched.
+// channels as sRGB encoded while leaving the a channel untouched.
 //
 // We hence have 4 potential ways to code a color.
 // Here are some recommandations about when to use them:
@@ -121,26 +121,14 @@ public:
 //   represent linear colors with alpha premultiplication.
 // - For the same reason, Color3f should contain only linear colors.
 // - When presenting a color value to a user, using a non premultiplied SRGBA
-//   color is better as he is used to see this kind of values. Also, alpha
-//   premultiplication under gamma is difficult to manipulate by hand.
+//   color may be better as they may be used to see this kind of values. Also,
+//   alpha premultiplication under gamma is difficult to manipulate by hand.
 //   We can then assume that most of R8G8B8A8 variables in the code are using
 //   sRGB with no alpha premultiplication.
 // - Textures should contains alpha premultiplied sRGBA colors. Hence, the type
 //   R8G8B8A8 used in a texture should represent that, but the transformation
 //   to another encoding should be done as soon as possible.
 // Any other usage should be explicit, eg. by adding a hint in variable names.
-//
-// We will use the following naming convention.
-// Use lower case (r,g,b) for color channels that are NOT alpha premultiplied.
-// Use upper case (R,G,B) for color channels that ARE alpha premultiplied.
-// Use prefix s for standard-RGB color space and l for linear color space.
-// Alpha channel should be writen using lower case a.
-// - srgba means not alpha premultiplied sRGB colors:
-//      (r^gamma, g^gamma, b^gamma, a)
-// - lRGBa means alpha premultiplied linear colors:
-//      (r*a, g*a, b*a, a)
-// - sRGBa means alpha premultiplied sRGB colors:
-//      ((r*a)^gamma, (g*a)^gamma, (b*a)^gamma, a)
 typedef rendering::Color<float, 3> Color3f;
 typedef rendering::Color<float, 4> Color4f;
 typedef rendering::Color<u8, 4> R8G8B8A8;

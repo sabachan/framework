@@ -2,7 +2,8 @@
 #define Rendering_SurfaceFormat_H
 
 #include <Core/ArrayView.h>
-#include <dxgiformat.h>
+
+#include "WTF/IncludeDxgiFormat.h"
 
 namespace sg {
 namespace rendering {

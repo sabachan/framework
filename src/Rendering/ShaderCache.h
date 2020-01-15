@@ -16,6 +16,9 @@ struct ID3D11VertexShader;
 namespace sg {
 namespace rendering {
 class RenderDevice;
+#if SHADER_CACHE_ENABLE_RELOADABLE_SHADERS
+u64 ComputeShaderReflectionHash(ID3D11ShaderReflection* iShaderReflection);
+#endif
 namespace shadercache {
 //=============================================================================
 void Init();

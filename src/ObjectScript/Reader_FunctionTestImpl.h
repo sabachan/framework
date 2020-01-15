@@ -138,7 +138,21 @@
     // return value
     false,
     // first error
-    ErrorType::call_to_uncallable_object
+    ErrorType::callable_not_found
+},
+{
+    // description
+    "unknown function call in function",
+    // file content
+    "function f(x) { return 2*x+1 }"                        "\n"
+    "function g(x) { return 2*F(x)+1 }"                     "\n"
+    "obj is sg::reflectionTest::TestClass_A { u : g(1) }"   "\n",
+    // equivalent file
+    "",
+    // return value
+    false,
+    // first error
+    ErrorType::callable_not_found
 },
 {
     // description
@@ -151,7 +165,33 @@
     // return value
     false,
     // first error
-    ErrorType::call_to_uncallable_object
+    ErrorType::callable_not_found
+},
+{
+    // description
+    "trying to call a variable",
+    // file content
+    "const f = 2"                                           "\n"
+    "obj is sg::reflectionTest::TestClass_A { u : f(1) }"   "\n",
+    // equivalent file
+    "",
+    // return value
+    false,
+    // first error
+    ErrorType::expression_is_not_callable
+},
+{
+    // description
+    "trying to call an object",
+    // file content
+    "f is sg::reflectionTest::TestClass_A { u : 1 }"        "\n"
+    "obj is sg::reflectionTest::TestClass_A { u : f(1) }"   "\n",
+    // equivalent file
+    "",
+    // return value
+    false,
+    // first error
+    ErrorType::callable_not_found
 },
 {
     // description
@@ -314,4 +354,28 @@
     false,
     // first error
     ErrorType::object_definition_forbidden_in_context
+},
+{
+    // description
+    "functions in nested namespace",
+    // file content
+    "namespace n {"                                             "\n"
+    "    function f(x) {"                                       "\n"
+    "        return x+1"                                        "\n"
+    "    }"                                                     "\n"
+    "    namespace m {"                                         "\n"
+    "        function f(x) {"                                   "\n"
+    "            return ::n::f(x + 2)"                          "\n"
+    "        }"                                                 "\n"
+    "    }"                                                     "\n"
+    "}"                                                         "\n"
+    "obj1 is sg::reflectionTest::TestClass_C { u : ::n::f(1) }" "\n"
+    "obj2 is sg::reflectionTest::TestClass_C { u : n::m::f(1) }""\n",
+    // equivalent file
+    "obj1 is sg::reflectionTest::TestClass_C { u : 2 }"         "\n"
+    "obj2 is sg::reflectionTest::TestClass_C { u : 4 }"         "\n",
+    // return value
+    true,
+    // first error
+    ErrorType::unknown
 },

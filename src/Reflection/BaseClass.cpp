@@ -5,8 +5,21 @@
 namespace sg {
 namespace reflection {
 //=============================================================================
+namespace {
 char const*const sg_reflection_namespace[] = { "sg", "reflection", nullptr};
+MetaclassInfo const sg_reflection_metaclass_info_BaseType = {
+    sg_reflection_namespace,
+    SG_ARRAYSIZE(sg_reflection_namespace)-1,
+    "BaseType",
+    false,
+    false,
+    true,
+    true
+};
+}
 //=============================================================================
+bool BaseType::s_sg_reflection_isMetaclassDeclared = false;
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 Metaclass* BaseType::sg_reflection_CreateMetaclass(MetaclassRegistrator* iRegistrator)
 {
     Metaclass* mc = new Metaclass(iRegistrator, nullptr);
@@ -14,15 +27,10 @@ Metaclass* BaseType::sg_reflection_CreateMetaclass(MetaclassRegistrator* iRegist
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 MetaclassRegistrator BaseType::s_sg_reflection_metaclassRegistrator(
-        sg_reflection_namespace,
-        SG_ARRAYSIZE(sg_reflection_namespace)-1,
-        "BaseType",
         nullptr,
         BaseType::sg_reflection_CreateMetaclass,
-        false,
-        false,
-        true,
-        true
+        sg_reflection_metaclass_info_BaseType,
+        BaseType::s_sg_reflection_isMetaclassDeclared
     );
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 SG_REFLECTION_IMPL_DEFINE_force_registration(BaseType, BaseType)
@@ -34,6 +42,9 @@ BaseClass::BaseClass()
     , m_isBeingCreated(false)
     , m_isBeingModified(false)
     , m_virtualCheckPropertiesCalled(false)
+#endif
+#if ENABLE_REFLECTION_PROPERTY_CHECK
+    , m_arePropertiesChecked(false)
 #endif
 {
 }
@@ -101,8 +112,11 @@ void BaseClass::EndCreationIFN(ObjectCreationContext& iContext)
     if(m_onCreatedCalled)
         return;
 #if ENABLE_REFLECTION_PROPERTY_CHECK
-    ObjectPropertyCheckContext propertyCheckContext;
-    CheckProperties(propertyCheckContext);
+    if(!m_arePropertiesChecked)
+    {
+        ObjectPropertyCheckContext propertyCheckContext;
+        CheckProperties(propertyCheckContext);
+    }
 #endif
     SG_ASSERT(!m_onCreatedCalled);
     SG_CODE_FOR_ASSERT(m_isBeingCreated = true);
@@ -123,9 +137,25 @@ void BaseClass::AbortCreation()
 void BaseClass::VirtualOnCreated(ObjectCreationContext& iContext)
 {
     SG_UNUSED(iContext);
+#if ENABLE_REFLECTION_PROPERTY_CHECK
+    SG_ASSERT(m_arePropertiesChecked);
+#endif
     SG_ASSERT(!m_creationAborted);
     SG_ASSERT(!m_onCreatedCalled);
     m_onCreatedCalled = true;
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+void BaseClass::EndAutoCreation()
+{
+    SG_ASSERT(!m_creationAborted);
+    SG_ASSERT(!m_isBeingCreated);
+    SG_ASSERT(!m_isBeingModified);
+    SG_ASSERT(!m_onCreatedCalled);
+    SG_ASSERT(!m_virtualCheckPropertiesCalled);
+    SG_CODE_FOR_ASSERT(m_onCreatedCalled = true);
+#if ENABLE_REFLECTION_PROPERTY_CHECK
+    m_arePropertiesChecked = true;
+#endif
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 void BaseClass::BeginModification()
@@ -135,14 +165,20 @@ void BaseClass::BeginModification()
     SG_ASSERT(!m_isBeingModified);
     SG_CODE_FOR_ASSERT(m_isBeingModified = true);
     SG_CODE_FOR_ASSERT(m_virtualCheckPropertiesCalled = false);
+#if ENABLE_REFLECTION_PROPERTY_CHECK
+    m_arePropertiesChecked = false;
+#endif
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 void BaseClass::EndModification(ObjectModificationContext& iContext)
 {
     SG_ASSERT(!m_creationAborted);
 #if ENABLE_REFLECTION_PROPERTY_CHECK
-    ObjectPropertyCheckContext propertyCheckContext;
-    CheckProperties(propertyCheckContext);
+    if(!m_arePropertiesChecked)
+    {
+        ObjectPropertyCheckContext propertyCheckContext;
+        CheckProperties(propertyCheckContext);
+    }
 #endif
     SG_ASSERT(m_onCreatedCalled);
     SG_ASSERT(m_isBeingModified);
@@ -170,6 +206,9 @@ void BaseClass::CheckProperties(ObjectPropertyCheckContext& iContext) const
     SG_ASSERT(nullptr != metaclass);
     SG_CODE_FOR_ASSERT(std::string className = metaclass->FullClassName().AsString());
     SG_ASSERT_MSG(m_virtualCheckPropertiesCalled, "a call to reflection_parent_type::VirtualCheckProperties has been forgotten.");
+#if ENABLE_REFLECTION_PROPERTY_CHECK
+    m_arePropertiesChecked = true;
+#endif
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 void BaseClass::VirtualCheckProperties(ObjectPropertyCheckContext& iContext) const
@@ -179,6 +218,8 @@ void BaseClass::VirtualCheckProperties(ObjectPropertyCheckContext& iContext) con
     SG_CODE_FOR_ASSERT(m_virtualCheckPropertiesCalled = true);
 }
 #endif
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+bool BaseClass::s_sg_reflection_isMetaclassDeclared = false;
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 Metaclass* BaseClass::sg_reflection_CreateMetaclass(MetaclassRegistrator* iRegistrator)
 {
@@ -193,16 +234,23 @@ Metaclass const* BaseClass::GetMetaclass() const
     return mc;
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+namespace {
+MetaclassInfo const sg_reflection_metaclass_info_BaseClass = {
+    sg_reflection_namespace,
+    SG_ARRAYSIZE(sg_reflection_namespace)-1,
+    "BaseClass",
+    true,
+    false,
+    false,
+    true
+};
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 MetaclassRegistrator BaseClass::s_sg_reflection_metaclassRegistrator(
-        sg_reflection_namespace,
-        SG_ARRAYSIZE(sg_reflection_namespace)-1,
-        "BaseClass",
         &BaseType::s_sg_reflection_metaclassRegistrator,
         BaseClass::sg_reflection_CreateMetaclass,
-        true,
-        false,
-        false,
-        true
+        sg_reflection_metaclass_info_BaseClass,
+        BaseClass::s_sg_reflection_isMetaclassDeclared
     );
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 SG_REFLECTION_IMPL_DEFINE_force_registration(BaseClass, BaseClass)

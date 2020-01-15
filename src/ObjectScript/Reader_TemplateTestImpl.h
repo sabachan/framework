@@ -262,12 +262,12 @@
     "break in template",
     // file content
     "template tplObj("                                          "\n"
-    "    x,"                                                    "\n"
+    "    x"                                                     "\n"
     ") is sg::reflectionTest::TestClass_C {"                    "\n"
     "    u : x"                                                 "\n"
     "    break"                                                 "\n"
     "}"                                                         "\n"
-    "object1 is myNamespace::tplObj(1)"                         "\n",
+    "object1 is tplObj(1)"                                      "\n",
     // equivalent file
     "",
     // return value
@@ -316,6 +316,86 @@
     "       sg::reflectionTest::TestClass_C { i: 4 }"                   "\n"
     "    ]"                                                             "\n"
     "}"                                                                 "\n",
+    // return value
+    true,
+    // first error
+    ErrorType::unknown
+},
+{
+    // description
+    "template namespace",
+    // file content
+    "template tpl("                                             "\n"
+    "    x, y"                                                  "\n"
+    ") is namespace {"                                          "\n"
+    "    A is sg::reflectionTest::TestClass_C {"                "\n"
+    "        u : x"                                             "\n"
+    "    }"                                                     "\n"
+    "    B is sg::reflectionTest::TestClass_C {"                "\n"
+    "        u : y"                                             "\n"
+    "    }"                                                     "\n"
+    "}"                                                         "\n"
+    "ns1 is tpl { x:1 y:2 }"                                    "\n"
+    "ns2 is tpl { x:3 y:4 }"                                    "\n",
+    // equivalent file
+    "namespace ns1 {"                                                       "\n"
+    "    protected A is ::sg::reflectionTest::TestClass_C { u: 1 }"         "\n"
+    "    protected B is ::sg::reflectionTest::TestClass_C { u: 2 }"         "\n"
+    "}"                                                                     "\n"
+    "namespace ns2 {"                                                       "\n"
+    "    protected A is ::sg::reflectionTest::TestClass_C { u: 3 }"         "\n"
+    "    protected B is ::sg::reflectionTest::TestClass_C { u: 4 }"         "\n"
+    "}"                                                                     "\n",
+    // return value
+    true,
+    // first error
+    ErrorType::unknown
+},
+{
+    // description
+    "template of template",
+    // file content
+    "namespace myNamespace {"                                   "\n"
+    "   template tplObj1("                                       "\n"
+    "       x,"                                                 "\n"
+    "       y = 1"                                              "\n"
+    "   ) is sg::reflectionTest::TestClass_C {"                 "\n"
+    "       u : x"                                              "\n"
+    "       i : y"                                              "\n"
+    "       f : 1.*x/y"                                         "\n"
+    "   }"                                                      "\n"
+    "   template tplObj2("                                      "\n"
+    "       a"                                                  "\n"
+    "   ) is tplObj1 {"                                         "\n"
+    "       x : 2*a"                                            "\n"
+    "       y : a"                                              "\n"
+    "   }"                                                      "\n"
+    "   template tplObj3("                                      "\n"
+    "       b"                                                  "\n"
+    "   ) is tplObj2 {"                                         "\n"
+    "       a : 3 * b"                                          "\n"
+    "   }"                                                      "\n"
+    "}"                                                         "\n"
+    "object1 is myNamespace::tplObj1 {"                         "\n"
+    "    x : 3"                                                 "\n"
+    "    y : 2"                                                 "\n"
+    "}"                                                         "\n"
+    "object2 is myNamespace::tplObj2 {"                         "\n"
+    "    a : 4"                                                 "\n"
+    "}"                                                         "\n"
+    "object3 is myNamespace::tplObj3 {"                         "\n"
+    "    b : 2"                                                 "\n"
+    "}"                                                         "\n",
+    // equivalent file
+    "object1 is sg::reflectionTest::TestClass_C {"              "\n"
+    "   u : 3 i : 2 f : 3./2"                                   "\n"
+    "}"                                                         "\n"
+    "object2 is sg::reflectionTest::TestClass_C {"              "\n"
+    "   u : 8 i : 4 f : 2"                                      "\n"
+    "}"                                                         "\n"
+    "object3 is sg::reflectionTest::TestClass_C {"              "\n"
+    "   u : 12 i : 6 f : 2"                                     "\n"
+    "}"                                                         "\n",
     // return value
     true,
     // first error

@@ -69,6 +69,9 @@ public:
         size_t const r = m_observers.erase(iListener);
         SG_ASSERT_MSG_AND_UNUSED(r, "listener was not in container!");
     }
+#if SG_ENABLE_ASSERT
+    bool HasObserverForDebug() const { return m_observers.size() != 0; }
+#endif
 private:
     mutable std::unordered_set<safeptr<Observer<T> > > m_observers;
 };
@@ -99,7 +102,7 @@ public:
     }
     void UnregisterObserver(Observer<T>* iListener) const
     {
-        SG_ASSERT(nullptr != iListener);
+        SG_ASSERT_AND_UNUSED(nullptr != iListener);
         SG_ASSERT_MSG(m_observer == iListener, "listener was not registered!");
         m_observer = nullptr;
     }

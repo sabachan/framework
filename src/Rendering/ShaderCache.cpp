@@ -3,20 +3,48 @@
 #include "ShaderCache.h"
 
 #include "RenderDevice.h"
+#include <Core/ArrayList.h>
 #include <Core/Assert.h>
 #include <Core/ComPtr.h>
+#include <Core/FileSystem.h>
 #include <Core/Log.h>
 #include <Core/PerfLog.h>
 #include <Core/SimpleFileReader.h>
 #include <Core/StringUtils.h>
 #include <Core/WinUtils.h>
-#include <d3d11.h>
-#include <d3d11sdklayers.h>
-#include <d3dcommon.h>
-#include <D3Dcompiler.h>
 #include <sstream>
 #include <unordered_map>
 
+#include "WTF/IncludeD3D11.h"
+#include "WTF/IncludeD3D11SDKLayers.h"
+#include "WTF/IncludeD3DCommon.h"
+#include "WTF/IncludeD3DCompiler.h"
+
+
+namespace sg {
+namespace rendering {
+//=============================================================================
+#if SHADER_CACHE_ENABLE_RELOADABLE_SHADERS
+u64 ComputeShaderReflectionHash(ID3D11ShaderReflection* iShaderReflection)
+{
+    D3D11_SHADER_DESC shDesc;
+    HRESULT hr = iShaderReflection->GetDesc(&shDesc);
+    SG_ASSERT_AND_UNUSED(SUCCEEDED(hr));
+    u64 hash = shDesc.ConstantBuffers;
+    hash = (hash << 7) ^ (hash >> (64-7)) ^ shDesc.InputParameters;
+    hash = (hash << 7) ^ (hash >> (64-7)) ^ shDesc.OutputParameters;
+    hash = (hash << 7) ^ (hash >> (64-7)) ^ shDesc.InstructionCount;
+    hash = (hash << 7) ^ (hash >> (64-7)) ^ shDesc.FloatInstructionCount;
+    hash = (hash << 7) ^ (hash >> (64-7)) ^ shDesc.IntInstructionCount;
+    hash = (hash << 7) ^ (hash >> (64-7)) ^ shDesc.UintInstructionCount;
+    hash = (hash << 7) ^ (hash >> (64-7)) ^ shDesc.TempRegisterCount;
+    hash = (hash << 7) ^ (hash >> (64-7)) ^ shDesc.TempArrayCount;
+    return hash;
+}
+#endif
+//=============================================================================
+}
+}
 
 namespace sg {
 namespace rendering {
@@ -106,10 +134,8 @@ private:
         {
         case D3D10_INCLUDE_LOCAL:
             {
-                std::string const& parentpath = m_pathStack.back();
-                std::ostringstream oss;
-                oss << parentpath << "/" << pFileName;
-                FilePath file = FilePath::CreateFromFullSystemPath(oss.str().c_str());
+                filesystem::SetWorkingDir(m_pathStack.back());
+                FilePath const file = FilePath::CreateFromAnyPath(pFileName);
 #if SHADER_CACHE_ENABLE_RELOADABLE_SHADERS
                 u64 ts = winutils::GetFileModificationTimestamp(file.GetSystemFilePath().c_str());
                 m_filesAndTimestamps.push_back(std::make_pair(file, ts));
@@ -156,17 +182,24 @@ void CreateInputLayout(ID3D11Device* iD3DDevice, ArrayView<D3D11_INPUT_ELEMENT_D
     SG_ASSERT_AND_UNUSED(SUCCEEDED(hr));
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-void CompileFromFile(FilePath const& iFile, char const* iEntryPoint, char const* target, ID3DBlob **opBlob, IncludeManager* includeManager)
+void CompileFromFile(ShaderType iType, FilePath const& iFile, char const* iEntryPoint, char const* iTarget, ArrayView<std::pair<std::string, std::string> const> iDefines, ID3DBlob **opBlob, IncludeManager* includeManager)
 {
     std::string srcFile = iFile.GetSystemFilePath();
     std::wstring srcFileW = ConvertUTF8ToUCS2(srcFile);
 
-    D3D10_SHADER_MACRO defines[] = {
+    ArrayList<D3D10_SHADER_MACRO, InPlaceAllocator<16, StandardAllocator<>>> defines;
 #if SG_ENABLE_ASSERT
-        { "DEBUG", "true" },
+    defines.PushBack(D3D10_SHADER_MACRO{ "SG_RENDERING_ENABLE_DEBUG", "1" });
+#else
+    defines.PushBack(D3D10_SHADER_MACRO{ "SG_RENDERING_ENABLE_DEBUG", "0" });
 #endif
-        { 0, 0 },
-    };
+    defines.PushBack(D3D10_SHADER_MACRO{ "SG_RENDERING_IS_VERTEX_SHADER", ShaderType::Vertex == iType ? "1" : "0" });
+    defines.PushBack(D3D10_SHADER_MACRO{ "SG_RENDERING_IS_PIXEL_SHADER",  ShaderType::Pixel  == iType ? "1" : "0" });
+    defines.PushBack(D3D10_SHADER_MACRO{ "SG_RENDERING_IS_HLSL", "1" });
+    defines.PushBack(D3D10_SHADER_MACRO{ "SG_RENDERING_IS_GLSL", "0" });
+    for(auto const& it : iDefines)
+            defines.PushBack(D3D10_SHADER_MACRO{it.first.c_str(), it.second.c_str()});
+    defines.PushBack(D3D10_SHADER_MACRO{ 0, 0 });
 
     comptr<ID3D10Blob> errorMsgs;
 
@@ -177,13 +210,13 @@ void CompileFromFile(FilePath const& iFile, char const* iEntryPoint, char const*
     {
         retry = false;
         {
-            SIMPLE_CPU_PERF_LOG_SCOPE("D3DCompileFromFile");
+            SG_SIMPLE_CPU_PERF_LOG_SCOPE("D3DCompileFromFile");
             hr = D3DCompileFromFile(
                 srcFileW.c_str(),
-                defines,
+                defines.Data(),
                 includeManager,
                 iEntryPoint,
-                target,
+                iTarget,
                 D3DCOMPILE_ENABLE_STRICTNESS | D3DCOMPILE_OPTIMIZATION_LEVEL3 | D3DCOMPILE_WARNINGS_ARE_ERRORS,
                 0,
                 opBlob,
@@ -262,7 +295,7 @@ void CompileShader(ID3D11Device* iD3DDevice, VertexShaderDescriptor const* iDesc
 
     IncludeManager includeManager = IncludeManager(file);
 
-    CompileFromFile(file, entryPoint, target, ioShaderInstance->blob.GetPointerForInitialisation(), &includeManager);
+    CompileFromFile(ShaderType::Vertex, file, entryPoint, target, iDescriptor->Defines(), ioShaderInstance->blob.GetPointerForInitialisation(), &includeManager);
 
     const void *bytecode = ioShaderInstance->blob->GetBufferPointer();
     size_t bytecodeLength = ioShaderInstance->blob->GetBufferSize();
@@ -361,7 +394,7 @@ void CompileShader(ID3D11Device* iD3DDevice, PixelShaderDescriptor const* iDescr
     comptr<ID3DBlob> blob;
     IncludeManager includeManager = IncludeManager(file);
 
-    CompileFromFile(file, entryPoint, target, blob.GetPointerForInitialisation(), &includeManager);
+    CompileFromFile(ShaderType::Pixel, file, entryPoint, target, iDescriptor->Defines(), blob.GetPointerForInitialisation(), &includeManager);
 
     const void *bytecode = blob->GetBufferPointer();
     size_t bytecodeLength = blob->GetBufferSize();
@@ -433,6 +466,7 @@ public:
     }
     VertexShaderProxy GetProxy(VertexShaderDescriptor const* iDescriptor)
     {
+        SG_ASSERT(iDescriptor->IsRefCounted_ForAssert());
         auto f = m_vertexShadersMap.find(iDescriptor);
         if(f != m_vertexShadersMap.end())
         {

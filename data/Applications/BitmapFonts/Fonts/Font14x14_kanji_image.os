@@ -1,0 +1,223 @@
+import "oslib:/std.oslib"
+import "oslib:/math.oslib"
+import "oslib:/math_vector.oslib"
+import "oslib:/math_quaternion.oslib"
+
+function GlyphPos(i, j) { return [i * 16 + 1, j * 16 + 1] }
+
+export font is sg::image::tool::Font
+{
+    famillyName : "tech kanji"
+    bold : false
+    italic : false
+    advance : 16
+    baseline : 18
+    glyphSize : [14, 14]
+    kernings : []
+    glyphsImageFile : "Font14x14_kanji.png"
+    imageGlyphs : [
+        { pos : GlyphPos( 0, 0)      character : "\0" },
+        { pos : GlyphPos( 0, 1)      character : " " },
+        { pos : GlyphPos( 0, 2)      character : "ん" },
+        { pos : GlyphPos( 0, 3)      character : "。" },
+        { pos : GlyphPos( 0, 4)      character : "、" },
+        { pos : GlyphPos( 1, 0)      character : "あ" },
+        { pos : GlyphPos( 1, 1)      character : "い" },
+        { pos : GlyphPos( 1, 2)      character : "う" },
+        { pos : GlyphPos( 1, 3)      character : "え" },
+        { pos : GlyphPos( 1, 4)      character : "お" },
+        { pos : GlyphPos( 2, 0)      character : "ま" },
+        { pos : GlyphPos( 2, 1)      character : "み" },
+        { pos : GlyphPos( 2, 2)      character : "む" },
+        { pos : GlyphPos( 2, 3)      character : "め" },
+        { pos : GlyphPos( 2, 4)      character : "も" },
+        { pos : GlyphPos( 3, 0)      character : "さ" },
+        { pos : GlyphPos( 3, 1)      character : "し" },
+        { pos : GlyphPos( 3, 2)      character : "す" },
+        { pos : GlyphPos( 3, 3)      character : "せ" },
+        { pos : GlyphPos( 3, 4)      character : "そ" },
+        { pos : GlyphPos( 4, 0)      character : "た" },
+        { pos : GlyphPos( 4, 1)      character : "ち" },
+        { pos : GlyphPos( 4, 2)      character : "つ" },
+        { pos : GlyphPos( 4, 3)      character : "て" },
+        { pos : GlyphPos( 4, 4)      character : "と" },
+        { pos : GlyphPos( 5, 0)      character : "な" },
+        { pos : GlyphPos( 5, 1)      character : "に" },
+        { pos : GlyphPos( 5, 2)      character : "ぬ" },
+        { pos : GlyphPos( 5, 3)      character : "ね" },
+        { pos : GlyphPos( 5, 4)      character : "の" },
+        { pos : GlyphPos( 6, 0)      character : "は" },
+        { pos : GlyphPos( 6, 1)      character : "ひ" },
+        { pos : GlyphPos( 6, 2)      character : "ふ" },
+        { pos : GlyphPos( 6, 3)      character : "へ" },
+        { pos : GlyphPos( 6, 4)      character : "ほ" },
+        { pos : GlyphPos( 7, 0)      character : "ら" },
+        { pos : GlyphPos( 7, 1)      character : "り" },
+        { pos : GlyphPos( 7, 2)      character : "る" },
+        { pos : GlyphPos( 7, 3)      character : "れ" },
+        { pos : GlyphPos( 7, 4)      character : "ろ" },
+        { pos : GlyphPos( 8, 0)      character : "か" },
+        { pos : GlyphPos( 8, 1)      character : "き" },
+        { pos : GlyphPos( 8, 2)      character : "く" },
+        { pos : GlyphPos( 8, 3)      character : "け" },
+        { pos : GlyphPos( 8, 4)      character : "こ" },
+        { pos : GlyphPos( 9, 0)      character : "ざ" },
+        { pos : GlyphPos( 9, 1)      character : "じ" },
+        { pos : GlyphPos( 9, 2)      character : "ず" },
+        { pos : GlyphPos( 9, 3)      character : "ぜ" },
+        { pos : GlyphPos( 9, 4)      character : "ぞ" },
+        { pos : GlyphPos(10, 0)      character : "だ" },
+        { pos : GlyphPos(10, 1)      character : "ぢ" },
+        { pos : GlyphPos(10, 2)      character : "づ" },
+        { pos : GlyphPos(10, 3)      character : "で" },
+        { pos : GlyphPos(10, 4)      character : "ど" },
+        { pos : GlyphPos(11, 0)      character : "ば" },
+        { pos : GlyphPos(11, 1)      character : "び" },
+        { pos : GlyphPos(11, 2)      character : "ぶ" },
+        { pos : GlyphPos(11, 3)      character : "べ" },
+        { pos : GlyphPos(11, 4)      character : "ぼ" },
+        { pos : GlyphPos(12, 0)      character : "が" },
+        { pos : GlyphPos(12, 1)      character : "ぎ" },
+        { pos : GlyphPos(12, 2)      character : "ぐ" },
+        { pos : GlyphPos(12, 3)      character : "げ" },
+        { pos : GlyphPos(12, 4)      character : "ご" },
+        { pos : GlyphPos(13, 0)      character : "ぱ" },
+        { pos : GlyphPos(13, 1)      character : "ぴ" },
+        { pos : GlyphPos(13, 2)      character : "ぷ" },
+        { pos : GlyphPos(13, 3)      character : "ぺ" },
+        { pos : GlyphPos(13, 4)      character : "ぽ" },
+        { pos : GlyphPos(14, 0)      character : "や" },
+        { pos : GlyphPos(14, 2)      character : "ゆ" },
+        { pos : GlyphPos(14, 4)      character : "よ" },
+        { pos : GlyphPos(15, 0)      character : "ゃ" },
+        { pos : GlyphPos(15, 2)      character : "ゅ" },
+        { pos : GlyphPos(15, 4)      character : "ょ" },
+
+        { pos : GlyphPos(16, 0)      character : "ア" },
+        { pos : GlyphPos(16, 1)      character : "イ" },
+        { pos : GlyphPos(16, 2)      character : "ウ" },
+        { pos : GlyphPos(16, 3)      character : "エ" },
+        { pos : GlyphPos(16, 4)      character : "オ" },
+        { pos : GlyphPos(17, 0)      character : "マ" },
+        { pos : GlyphPos(17, 1)      character : "ミ" },
+        { pos : GlyphPos(17, 2)      character : "ム" },
+        { pos : GlyphPos(17, 3)      character : "メ" },
+        { pos : GlyphPos(17, 4)      character : "モ" },
+        { pos : GlyphPos(18, 0)      character : "サ" },
+        { pos : GlyphPos(18, 1)      character : "シ" },
+        { pos : GlyphPos(18, 2)      character : "ス" },
+        { pos : GlyphPos(18, 3)      character : "セ" },
+        { pos : GlyphPos(18, 4)      character : "ソ" },
+        { pos : GlyphPos(19, 0)      character : "タ" },
+        { pos : GlyphPos(19, 1)      character : "チ" },
+        { pos : GlyphPos(19, 2)      character : "ツ" },
+        { pos : GlyphPos(19, 3)      character : "テ" },
+        { pos : GlyphPos(19, 4)      character : "ト" },
+        { pos : GlyphPos(20, 0)      character : "ナ" },
+        { pos : GlyphPos(20, 1)      character : "ニ" },
+        { pos : GlyphPos(20, 2)      character : "ヌ" },
+        { pos : GlyphPos(20, 3)      character : "ネ" },
+        { pos : GlyphPos(20, 4)      character : "ノ" },
+        { pos : GlyphPos(21, 0)      character : "ハ" },
+        { pos : GlyphPos(21, 1)      character : "ヒ" },
+        { pos : GlyphPos(21, 2)      character : "フ" },
+        { pos : GlyphPos(21, 3)      character : "ヘ" },
+        { pos : GlyphPos(21, 4)      character : "ホ" },
+        { pos : GlyphPos(22, 0)      character : "ラ" },
+        { pos : GlyphPos(22, 1)      character : "リ" },
+        { pos : GlyphPos(22, 2)      character : "ル" },
+        { pos : GlyphPos(22, 3)      character : "レ" },
+        { pos : GlyphPos(22, 4)      character : "ロ" },
+        { pos : GlyphPos(23, 0)      character : "カ" },
+        { pos : GlyphPos(23, 1)      character : "キ" },
+        { pos : GlyphPos(23, 2)      character : "ク" },
+        { pos : GlyphPos(23, 3)      character : "ケ" },
+        { pos : GlyphPos(23, 4)      character : "コ" },
+        { pos : GlyphPos(24, 0)      character : "ザ" },
+        { pos : GlyphPos(24, 1)      character : "ジ" },
+        { pos : GlyphPos(24, 2)      character : "ズ" },
+        { pos : GlyphPos(24, 3)      character : "ゼ" },
+        { pos : GlyphPos(24, 4)      character : "ゾ" },
+        { pos : GlyphPos(25, 0)      character : "ダ" },
+        { pos : GlyphPos(25, 1)      character : "ヂ" },
+        { pos : GlyphPos(25, 2)      character : "ヅ" },
+        { pos : GlyphPos(25, 3)      character : "デ" },
+        { pos : GlyphPos(25, 4)      character : "ド" },
+        { pos : GlyphPos(26, 0)      character : "バ" },
+        { pos : GlyphPos(26, 1)      character : "ビ" },
+        { pos : GlyphPos(26, 2)      character : "ブ" },
+        { pos : GlyphPos(26, 3)      character : "ベ" },
+        { pos : GlyphPos(26, 4)      character : "ボ" },
+        { pos : GlyphPos(27, 0)      character : "ガ" },
+        { pos : GlyphPos(27, 1)      character : "ギ" },
+        { pos : GlyphPos(27, 2)      character : "グ" },
+        { pos : GlyphPos(27, 3)      character : "ゲ" },
+        { pos : GlyphPos(27, 4)      character : "ゴ" },
+        { pos : GlyphPos(28, 0)      character : "パ" },
+        { pos : GlyphPos(28, 1)      character : "ピ" },
+        { pos : GlyphPos(28, 2)      character : "プ" },
+        { pos : GlyphPos(28, 3)      character : "ペ" },
+        { pos : GlyphPos(28, 4)      character : "ポ" },
+        { pos : GlyphPos(29, 0)      character : "ヤ" },
+        { pos : GlyphPos(29, 2)      character : "ユ" },
+        { pos : GlyphPos(29, 4)      character : "ヨ" },
+        { pos : GlyphPos(30, 0)      character : "ャ" },
+        { pos : GlyphPos(30, 1)      character : "ー" },
+        { pos : GlyphPos(30, 2)      character : "ュ" },
+        { pos : GlyphPos(30, 4)      character : "ョ" },
+        { pos : GlyphPos(31, 0)      character : "ァ" },
+        { pos : GlyphPos(31, 1)      character : "ィ" },
+        { pos : GlyphPos(31, 2)      character : "ゥ" },
+        { pos : GlyphPos(31, 3)      character : "ェ" },
+        { pos : GlyphPos(31, 4)      character : "ォ" },
+
+        { pos : GlyphPos( 0, 5)      character : "日" },
+        { pos : GlyphPos( 1, 5)      character : "目" },
+        { pos : GlyphPos( 2, 5)      character : "本" },
+        { pos : GlyphPos( 3, 5)      character : "語" },
+        { pos : GlyphPos( 4, 5)      character : "変" },
+        { pos : GlyphPos( 5, 5)      character : "更" },
+        { pos : GlyphPos( 6, 5)      character : "参" },
+        { pos : GlyphPos( 7, 5)      character : "照" },
+        { pos : GlyphPos( 8, 5)      character : "行" },
+        { pos : GlyphPos( 9, 5)      character : "来" },
+        { pos : GlyphPos(10, 5)      character : "木" },
+        { pos : GlyphPos(11, 5)      character : "休" },
+        { pos : GlyphPos(12, 5)      character : "引" },
+        { pos : GlyphPos(13, 5)      character : "置" },
+        { pos : GlyphPos(14, 5)      character : "押" },
+        { pos : GlyphPos(15, 5)      character : "人" },
+        { pos : GlyphPos(16, 5)      character : "大" },
+        { pos : GlyphPos(17, 5)      character : "火" },
+        { pos : GlyphPos(18, 5)      character : "水" },
+        { pos : GlyphPos(19, 5)      character : "土" },
+        { pos : GlyphPos(20, 5)      character : "曜" },
+        { pos : GlyphPos(21, 5)      character : "金" },
+        { pos : GlyphPos(22, 5)      character : "今" },
+
+        { pos : GlyphPos( 0, 6)      character : "鯖" },
+        { pos : GlyphPos( 1, 6)      character : "鯛" },
+        { pos : GlyphPos( 2, 6)      character : "鯉" },
+        { pos : GlyphPos( 3, 6)      character : "鯨" },
+        /*
+        ラーメン
+        日本語
+        返事
+        仕事
+        会社員
+        未来
+        参照
+        変更
+        引く
+        置く
+        押す
+        水曜日
+        金
+        土曜日
+        火曜日
+        木曜日
+        大きい
+        人
+        */
+    ]
+}

@@ -9,6 +9,7 @@
 #include "Platform.h"
 #include "StringFormat.h"
 #include "TestFramework.h"
+#include "Tool.h"
 #include <algorithm>
 #include <memory>
 #include <sstream>
@@ -61,6 +62,8 @@ namespace perflog {
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 void Init()
 {
+    SG_TOOL_FUNCTION_TRIGGER("Tools/PerfLog/Print last frame", "", LogPreviousFrame);
+    SG_TOOL_FUNCTION_TRIGGER("Tools/PerfLog/Print stats", "", LogStats);
     SG_ASSERT(nullptr == g_perfLog);
     g_perfLog = new PerfLog();
     Clear();
@@ -190,17 +193,27 @@ PerfLogParameters const& GetParameters()
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 namespace {
     template <typename T, typename U>
-    void PrintVarStat(std::ostream& os, PerfLogVariableStat<T, U> const& stat, size_t statCount)
+    void PrintVarStat(std::ostream& os, PerfLogVariableStat<T, U> const& stat, size_t statCount, float scale = 1.f, char const* suffix = "")
     {
         double ooStatCount = 1./statCount;
         double const avg = double(stat.sum) * ooStatCount;
         double const var = double(stat.sumSq) * ooStatCount - avg*avg;
-        double const stddev = std::sqrt(var);
-        os << "min: " << stat.min;
-        os << ", avg: " << avg;
-        os << ", max: " << stat.max;
-        os << ", var: " << var;
-        os << ", dev: " << stddev;
+        //double const var =  prevar * scale * scale;
+        double const stddev = std::sqrt(var) * scale;
+        SG_ASSERT(0 == errno);
+        if(0 != errno)
+        {
+            if(ERANGE == errno)
+                SG_ASSERT_NOT_REACHED();
+            else
+                SG_ASSERT_NOT_REACHED();
+            errno = 0;
+        }
+        os << "min: " << stat.min * scale << suffix;
+        os << ", avg: " << avg * scale << suffix;
+        os << ", max: " << stat.max * scale << suffix;
+        //os << ", var: " << var * scale * scale;
+        os << ", dev: " << stddev * scale << suffix;
     }
     template <typename T, typename U>
     void PrintVar(std::ostream& os, char const* tab, PerfLogVariableStat<T, U> const& var, size_t statCount)
@@ -247,7 +260,7 @@ void PrintPreviousFrame(std::ostream& os)
         PerfLogItemOccurence const& it = frame[i];
         if(i64(it.begin - endStack.back()) < 0)
         {
-            SG_ASSERT(i64(it.end - endStack.back()) < 0);
+            SG_ASSERT(i64(it.end - endStack.back()) <= 0);
             ++tabCount;
             SG_ASSERT(tabCount < MAX_TAB);
             for(size_t t = 0; t < tabCount; ++t)
@@ -338,6 +351,7 @@ void PrintPreviousFrame(std::ostream& os)
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 void PrintStats(std::ostream& os)
 {
+    u64 const freq = TicksPerSecond();
     char const* const tab = "    ";
     std::vector<refptr<PerfLogItem const> > log;
     GetStats(log);
@@ -368,7 +382,7 @@ void PrintStats(std::ostream& os)
         os << std::endl;
 
         os << tab << "duration - ";
-        PrintVarStat(os, item.delta, item.count);
+        PrintVarStat(os, item.delta, item.count, 1000000.f / freq, " us");
         os << std::endl;
 
         size_t intCursor = 0;
@@ -406,6 +420,22 @@ void PrintStats(std::ostream& os)
 
         //os << "}" << std::endl;
     }
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+void LogPreviousFrame()
+{
+    std::ostringstream oss;
+    oss << std::endl;
+    PrintPreviousFrame(oss);
+    SG_LOG_INFO("Perf", oss.str());
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+void LogStats()
+{
+    std::ostringstream oss;
+    oss << std::endl;
+    PrintStats(oss);
+    SG_LOG_INFO("Perf", oss.str());
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 }
@@ -550,7 +580,7 @@ PerfLogger::~PerfLogger()
             item.delta.min = delta;
             item.delta.max = delta;
             item.delta.sum = delta;
-            item.delta.sumSq = delta * delta;
+            item.delta.sumSq = u64(delta) * delta;
             if(0 != (levelMask & perfLog.param.statActiveLevels))
             {
                 size_t const intVarCount = intVariables.size();
@@ -667,28 +697,28 @@ namespace testperflog {
 namespace {
     size_t FunctionA(size_t x)
     {
-        CPU_PERF_LOG_SCOPE(0);
+        SG_CPU_PERF_LOG_SCOPE(0);
         size_t r = 0;
         for(size_t i = 0; i < 100000; ++i) { r += x; }
         return r;
     }
     size_t FunctionB(size_t x)
     {
-        CPU_PERF_LOG_SCOPE(0);
+        SG_CPU_PERF_LOG_SCOPE(0);
         size_t r = 1;
         for(size_t i = 0; i < 100000; ++i) { r *= x; }
         return r;
     }
     size_t FunctionC(size_t x)
     {
-        CPU_PERF_LOG_SCOPE(0);
+        SG_CPU_PERF_LOG_SCOPE(0);
         size_t r = 1;
         {
-            CPU_PERF_LOG_SCOPE(1, "sum");
+            SG_CPU_PERF_LOG_SCOPE(1, "sum");
             for(size_t i = 0; i < 100000; ++i) { r += x & i; }
         }
         {
-            CPU_PERF_LOG_SCOPE(2, "mul");
+            SG_CPU_PERF_LOG_SCOPE(2, "mul");
             for(size_t i = 0; i < 100000; ++i) { r *= x & i; }
         }
         return r;
@@ -696,7 +726,7 @@ namespace {
     size_t FunctionD1(size_t x)
     {
         size_t r = 0;
-        CPU_PERF_LOG_SCOPE(3,("x", x),("return", &r));
+        SG_CPU_PERF_LOG_SCOPE(3,("x", x),("return", &r));
         for(size_t i = 1; i < 1000; ++i)
         {
             r += i + x;
@@ -708,7 +738,7 @@ namespace {
     size_t FunctionD2(size_t x)
     {
         size_t r = x+1;
-        CPU_PERF_LOG_SCOPE(4,("x", x),("return", &r));
+        SG_CPU_PERF_LOG_SCOPE(4,("x", x),("return", &r));
         for(size_t i = 1; i < 1000; ++i)
         {
             r *= i;
@@ -720,11 +750,11 @@ namespace {
     }
     size_t FunctionD(size_t x)
     {
-        CPU_PERF_LOG_SCOPE(0);
+        SG_CPU_PERF_LOG_SCOPE(0);
         size_t r = 1;
         for(size_t i = 0; i < 2; ++i)
         {
-            CPU_PERF_LOG_SCOPE(1,Format("iteration %0", i));
+            SG_CPU_PERF_LOG_SCOPE(1,Format("iteration %0", i));
             r ^= FunctionD1(x + i * 13) * FunctionD2(x + i * 13);
         }
         return r;

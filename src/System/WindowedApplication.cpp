@@ -4,10 +4,14 @@
 
 #include "Window.h"
 
+#include <Core/ArrayList.h>
+#include <Core/Log.h>
 #include <Core/PerfLog.h>
 #include <Core/Platform.h>
+#include <Core/StringFormat.h>
 #if SG_PLATFORM_IS_WIN
 #include <Core/WinUtils.h>
+#include <shellapi.h>
 #endif
 
 namespace sg {
@@ -44,6 +48,8 @@ SG_CODE_FOR_ASSERT(SG_COMMA m_parentVirtualOneTurnCalled(false))
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 WindowedApplication::~WindowedApplication()
 {
+    SG_ASSERT(m_windows.empty());
+
     MSG msg;
     while(PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
     {
@@ -148,6 +154,7 @@ void WindowedApplication::Run()
             DispatchMessage(&msg);
         }
 
+
         if(!quitResquested)
         {
             m_userInputManager.RunEvents();
@@ -155,6 +162,8 @@ void WindowedApplication::Run()
             OneTurn();
         }
     }
+
+    m_userInputManager.ClearEventsBeforeDestruction();
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 void WindowedApplication::OneTurn()
@@ -169,36 +178,65 @@ void WindowedApplication::VirtualOneTurn()
     SG_CODE_FOR_ASSERT(m_parentVirtualOneTurnCalled = true);
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+// TODO: Have that in UserInputEvent?
+void WindowedApplication::VirtualOnDropFile(char const* iFilePath, Window* iWindow, uint2 const& iPosition)
+{
+    SG_UNUSED((iFilePath, iWindow, iPosition));
+    //SG_LOG_DEFAULT_INFO(Format("Drop file: %0 (%1, %2)", iFilePath, iPosition.x(), iPosition.y()));
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 LRESULT WindowedApplication::VirtualWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message)
     {
     case WM_CLOSE:
-        {
-            Window* window = GetWindow(hWnd);
-            // provisory code (client should be able to ask user confirmation)
-            window->Close();
-            if(m_windows.empty())
-                PostQuitMessage(0);
-        }
+    {
+        Window* window = GetWindow(hWnd);
+        // provisory code (client should be able to ask user confirmation)
+        // TODO: use a hookable action on window
+        window->CloseIFP();
+        if(m_windows.empty())
+            PostQuitMessage(0);
         break;
+    }
     case WM_DESTROY:
-        {
-            Window* window = GetWindow(hWnd);
-            // provisory assert (code is currently done in WM_CLOSE)
-            SG_ASSERT_AND_UNUSED(nullptr == window);
-        }
+    {
+        Window* window = GetWindow(hWnd);
+        // provisory assert (code is currently done in WM_CLOSE)
+        SG_ASSERT_AND_UNUSED(nullptr == window);
         break;
-    default:
+    }
+    case WM_DROPFILES:
+    {
+        Window* window = GetWindow(hWnd);
+        SG_ASSERT(nullptr != window);
+        HDROP hDrop = (HDROP)wParam;
+        UINT const getFileCount = UINT(-1);
+        UINT fileCount = DragQueryFileA(hDrop, getFileCount, nullptr, 0);
+        ArrayList<char> str;
+        for_range(UINT, i, 0, fileCount)
         {
-            SG_ASSERT(nullptr != hWnd);
-            Window* window = GetWindow(hWnd);
-            //SG_ASSERT(nullptr != window);
-            if(nullptr != window)
-                return window->WndProc(hWnd, message, wParam, lParam, m_userInputManager);
-            else
-                return DefWindowProc(hWnd, message, wParam, lParam);
+            UINT const size = DragQueryFileA(hDrop, i, nullptr, 0);
+            str.resize(size+1);
+            UINT const copied = DragQueryFileA(hDrop, i, str.Data(), UINT(str.Size()));
+            SG_ASSERT(copied == size);
+            POINT point;
+            bool isDropInClientArea = DragQueryPoint(hDrop, &point);
+            SG_ASSERT_AND_UNUSED(isDropInClientArea);
+            VirtualOnDropFile(str.Data(), window, uint2(uint(point.x), uint(point.y)));
         }
+        DragFinish(hDrop);
+        break;
+    }
+    default:
+    {
+        SG_ASSERT(nullptr != hWnd);
+        Window* window = GetWindow(hWnd);
+        if(nullptr != window && !m_userInputManager.IsAboutToBeDestroyed())
+            return window->WndProc(hWnd, message, wParam, lParam, m_userInputManager);
+        else
+            return DefWindowProc(hWnd, message, wParam, lParam);
+    }
     }
     return 0;
 }

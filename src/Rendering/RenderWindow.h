@@ -1,14 +1,15 @@
 #ifndef Rendering_RenderWindow_H
 #define Rendering_RenderWindow_H
 
+#include "IRenderTarget.h"
+#include "ISurface.h"
+#include "RenderDevice.h"
+#include "ResolutionServer.h"
+#include "Surface.h"
 #include <Core/ComPtr.h>
 #include <Core/Observer.h>
 #include <Core/SmartPtr.h>
 #include <Math/Vector.h>
-#include "Surface.h"
-#include "RenderDevice.h"
-#include "RenderTarget.h"
-#include "ResolutionServer.h"
 
 struct ID3D11DepthStencilView;
 struct ID3D11RenderTargetView;
@@ -26,6 +27,7 @@ namespace rendering {
 //=============================================================================
 class RenderWindow : public RefCountable
                    , public IRenderTarget
+                   , public ISurface
                    , private Observer<ObservableValue<uint2> >
                    , private Observer<PresentFrameNotification>
 {
@@ -37,6 +39,9 @@ public:
 
     virtual ID3D11RenderTargetView* GetRenderTargetView() const override { return m_backBufferRTV.get(); }
     virtual ResolutionServer const* RenderTargetResolution() const override { return &m_renderTargetResolution; }
+    virtual ID3D11Texture2D* GetSurfaceTexture() const override { return m_backBuffer.get(); }
+    virtual ResolutionServer const* GetSurfaceResolution() const override { return &m_renderTargetResolution; }
+    virtual SurfaceFormat GetSurfaceFormat() const override { return s_surfaceFormat; }
 
     IRenderTarget* BackBuffer() { return this; }
     IRenderTarget* BackBufferAsLinearRGB() { return &m_backBufferAsLinearRGBImpl; }
@@ -46,6 +51,8 @@ private:
     virtual void VirtualOnNotified(PresentFrameNotification const* iPresentFrame) override;
     void UpdateBackBuffer();
 private:
+    static SurfaceFormat const s_surfaceFormat = SurfaceFormat::R8G8B8A8_UNORM_SRGB;
+    static SurfaceFormat const s_surfaceFormatAsLinearRGB = SurfaceFormat::R8G8B8A8_UNORM;
     struct BackBufferAsLinearRGBImpl : public IRenderTarget
     {
         BackBufferAsLinearRGBImpl(RenderWindow* iRenderWidow) : m_renderWindow(iRenderWidow) {}

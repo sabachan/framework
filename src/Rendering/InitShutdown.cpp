@@ -1,4 +1,5 @@
 #include "stdafx.h"
+
 #include "InitShutdown.h"
 
 #include "RenderStateDico.h"

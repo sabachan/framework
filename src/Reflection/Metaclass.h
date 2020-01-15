@@ -22,48 +22,40 @@ void ShutdownMetaclasses();
 //=============================================================================
 typedef Metaclass* (*CreateMetaclassFct) (MetaclassRegistrator* iRegistrator);
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-struct MetaclassRegistrator
+struct MetaclassInfo
 {
-public:
-    MetaclassRegistrator(
-        char const*const* iNamespace,
-        size_t iNamespaceSize,
-        char const* iName,
-        MetaclassRegistrator* iParentRegistrator,
-        CreateMetaclassFct iMetaclassCreator,
-        bool iIsClass,
-        bool iIsConcrete,
-        bool iEnableListConstruct,
-        bool iEnableStructConstruct)
-        : classNamespace(iNamespace)
-        , classNamespaceSize(iNamespaceSize)
-        , className(iName)
-        , parentRegistrator(iParentRegistrator)
-        , metaclassCreator(iMetaclassCreator)
-        , isClass(iIsClass)
-        , isConcrete(iIsConcrete)
-        , enableListConstruct(iEnableListConstruct)
-        , enableStructConstruct(iEnableStructConstruct)
-        , metaclass(nullptr)
-        , nextRegistrator(firstRegistrator)
-    {
-        firstRegistrator = this;
-        SG_ASSERT(nullptr == classNamespace[classNamespaceSize]);
-        SG_ASSERT_MSG(isClass || !isConcrete, "isConcrete has no meaning for non-class. As a convention, it is requested to be set at false.");
-        SG_ASSERT(!isClass || !enableListConstruct);
-        SG_ASSERT(!isClass || enableStructConstruct);
-        SG_ASSERT(enableListConstruct || enableStructConstruct);
-    }
-public:
     char const*const* classNamespace;
     size_t classNamespaceSize;
     char const* className;
-    MetaclassRegistrator* parentRegistrator;
-    CreateMetaclassFct metaclassCreator;
     bool isClass;
     bool isConcrete;
     bool enableListConstruct;
     bool enableStructConstruct;
+};
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+struct MetaclassRegistrator
+{
+public:
+    MetaclassRegistrator(MetaclassRegistrator* iParentRegistrator, CreateMetaclassFct iMetaclassCreator, MetaclassInfo const& iInfo, bool& iIsDeclared)
+        : parentRegistrator(iParentRegistrator)
+        , metaclassCreator(iMetaclassCreator)
+        , info(iInfo)
+        , isDeclared(iIsDeclared)
+        , metaclass(nullptr)
+        , nextRegistrator(firstRegistrator)
+    {
+        firstRegistrator = this;
+        SG_ASSERT(nullptr == info.classNamespace[info.classNamespaceSize]);
+        SG_ASSERT_MSG(info.isClass || !info.isConcrete, "isConcrete has no meaning for non-class. As a convention, it is requested to be set at false.");
+        SG_ASSERT(!info.isClass || !info.enableListConstruct);
+        SG_ASSERT(!info.isClass || info.enableStructConstruct);
+        SG_ASSERT(info.enableListConstruct || info.enableStructConstruct);
+    }
+public:
+    MetaclassRegistrator* const parentRegistrator;
+    CreateMetaclassFct const metaclassCreator;
+    MetaclassInfo const& info;
+    bool const& isDeclared;
     Metaclass* metaclass;
     MetaclassRegistrator* nextRegistrator;
 public:
@@ -76,17 +68,17 @@ class Metaclass
     SG_NON_COPYABLE(Metaclass)
 public:
     Identifier const& FullClassName() const { return m_fullClassName; }
-    char const* ClassName() const { return m_registrator->className; }
+    char const* ClassName() const { return m_registrator->info.className; }
     BaseClass* CreateObject() const;
     IProperty const* GetPropertyIFP(char const* iName) const;
     IProperty const* GetProperty(size_t i) const;
     size_t GetPropertyCount() const;
     void GetObjectPropertyIFP(void const* iObject, char const* iName, refptr<IPrimitiveData>* oValue) const;
     bool SetObjectPropertyROK(void* iObject, char const* iName, IPrimitiveData const* iValue) const;
-    bool IsClass() const { return m_registrator->isClass; }
-    bool IsConcrete() const { return m_registrator->isConcrete; }
-    bool EnableListConstruct() const { return m_registrator->enableListConstruct; }
-    bool EnableStructConstruct() const { return m_registrator->enableStructConstruct; }
+    bool IsClass() const { return m_registrator->info.isClass; }
+    bool IsConcrete() const { return m_registrator->info.isConcrete; }
+    bool EnableListConstruct() const { return m_registrator->info.enableListConstruct; }
+    bool EnableStructConstruct() const { return m_registrator->info.enableStructConstruct; }
     Metaclass const* GetParentClass() const { SG_ASSERT(nullptr != m_registrator); return nullptr != m_registrator->parentRegistrator ? m_registrator->parentRegistrator->metaclass : nullptr; }
     bool IsBaseOf(Metaclass const* iOther) const;
 public:

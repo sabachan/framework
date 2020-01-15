@@ -1,5 +1,5 @@
-#ifndef Rendering_RenderTarget_H
-#define Rendering_RenderTarget_H
+#ifndef Rendering_IRenderTarget_H
+#define Rendering_IRenderTarget_H
 
 #include <Core/SmartPtr.h>
 

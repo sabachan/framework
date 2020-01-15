@@ -1,14 +1,15 @@
 #ifndef Rendering_ShaderResourceDatabase_H
 #define Rendering_ShaderResourceDatabase_H
 
+#include "IShaderResource.h"
 #include <Core/Assert.h>
 #include <Core/ComPtr.h>
 #include <Core/FastSymbol.h>
 #include <Core/IntTypes.h>
 #include <Core/SmartPtr.h>
-#include "ShaderResource.h"
 #include <unordered_map>
-#include <d3d11.h>
+
+#include "WTF/IncludeD3D11.h"
 
 struct ID3D11SamplerState;
 
@@ -38,6 +39,7 @@ public:
     ShaderResourceDatabase(ShaderResourceDatabase const&) = default;
     void AddResource(ShaderResourceName iName, IShaderResource const* iResource);
     void RemoveResource(ShaderResourceName iName, IShaderResource const* iResource);
+    void Clear();
     virtual IShaderResource const* GetResourceIFP(ShaderResourceName iName) const override;
     std::unordered_map<ShaderResourceName, refptr<IShaderResource const> > const& Resources() const { return m_resources; }
 

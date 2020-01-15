@@ -98,7 +98,7 @@ void SensitiveArea::OnPointerEvent(PointerEventContext const& iContext,
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 template<bool PremaskMode>
-void SensitiveArea::OnPointerEventImpl(PointerEventContext const& iContext, PointerEvent const& iEvent, IArea const* iArea, PremaskState const*iState, ISensitiveAreaListener& iListener)
+void SensitiveArea::OnPointerEventImpl(PointerEventContext const& iContext, PointerEvent const& iEvent, IArea const* iArea, PremaskState const* iState, ISensitiveAreaListener& iListener)
 {
     SG_CODE_FOR_ASSERT(SensitiveAreaListener_PleaseUseMacroForParameters_t const dummyParameter = SensitiveAreaListener_PleaseUseMacroForParameters;)
     SG_ASSERT((nullptr == iArea) == PremaskMode);
@@ -121,6 +121,7 @@ void SensitiveArea::OnPointerEventImpl(PointerEventContext const& iContext, Poin
         else
         {
             system::MouseState const mouseState(event.State());
+            bool const strictlyMoreThanOneMouseButtonDown = mouseState.StrictlyMoreThanOneMouseButtonDown();
             if(m_buttonsMessedUp)
             {
                 SG_ASSERT(m_buttonDownFromInside.none());
@@ -132,7 +133,7 @@ void SensitiveArea::OnPointerEventImpl(PointerEventContext const& iContext, Poin
                     m_buttonsMessedUp = false;
                 }
             }
-            else if(mouseState.StrictlyMoreThanOneMouseButtonDown())
+            else if(strictlyMoreThanOneMouseButtonDown)
             {
                 if(m_pointerInside || m_buttonDownFromInside.any())
                 {

@@ -54,7 +54,7 @@ bool ImportDatabase::ImportROK(FilePath const& iFilePath, reflection::ObjectData
             // NB: imported script objects are made public to be available.
             ioScriptDatabase.Add(reflection::ObjectVisibility::Public, it.first, it.second.get());
         }
-        ioScriptDatabase.EndTransaction();
+        ioScriptDatabase.LinkCheckEndTransaction();
         if(!m_importStack.empty())
         {
             size_t const stackBackIdx = m_importStack.back();

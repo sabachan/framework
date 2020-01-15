@@ -3,10 +3,12 @@
 #include "RenderStateDico.h"
 
 #include "RenderDevice.h"
+#include <Core/ArrayList.h>
 #include <Core/Assert.h>
 #include <Core/ComPtr.h>
-#include <d3d11.h>
 #include <unordered_map>
+
+#include "WTF/IncludeD3D11.h"
 
 namespace sg {
 namespace rendering {
@@ -47,7 +49,7 @@ namespace {
 
                     m_renderStates.emplace_back();
                     auto& back = m_renderStates.back();
-                    back.first = new RSDescriptor(*iDescIfNeedCreation);
+                    back.first.reset(new RSDescriptor(*iDescIfNeedCreation));
                     Creator creator;
                     creator(iD3DDevice, back.second, *back.first);
                     SG_ASSERT(m_renderStates[index].first->Equals(*iDescIfNeedCreation));
@@ -74,16 +76,28 @@ namespace {
             }
             else
             {
-                size_t const index = insertResult.second;
+                size_t const index = insertResult.first->second;
                 SG_ASSERT(index < m_renderStates.size());
                 SG_ASSERT(nullptr == iDescIfNeedCreation || m_renderStates[index].first->Equals(*iDescIfNeedCreation));
                 return m_renderStates[index].second.get();
             }
         }
     private:
+        struct Hash
+        {
+            size_t operator() (safeptr<RSDescriptor const> const& k) const { return k->Hash(); }
+            size_t operator() (RSDescriptor const* k) const { return k->Hash(); }
+        };
+        struct Pred
+        {
+            bool operator() (safeptr<RSDescriptor const> const& a, safeptr<RSDescriptor const> const& b) const { return a->Equals(*b); }
+            bool operator() (RSDescriptor const* a, safeptr<RSDescriptor const> const& b) const { return a->Equals(*b); }
+            bool operator() (safeptr<RSDescriptor const> const& a, RSDescriptor const* b) const { return a->Equals(*b); }
+            bool operator() (RSDescriptor const* a, RSDescriptor const* b) const { return a->Equals(*b); }
+        };
         std::unordered_map<RenderStateName, size_t> m_renderStatesFromName;
-        std::unordered_map<safeptr<BlendStateDescriptor const>, size_t> m_renderStatesFromDesc;
-        std::vector<std::pair<refptr<BlendStateDescriptor const>, comptr<ID3D11BlendState> > > m_renderStates;
+        std::unordered_map<safeptr<RSDescriptor const>, size_t, Hash, Pred> m_renderStatesFromDesc;
+        ArrayList<std::pair<scopedptr<RSDescriptor>, comptr<RS> > > m_renderStates;
     };
     struct BlendStateCreator
     {
@@ -113,7 +127,7 @@ namespace {
             SG_ASSERT_NOT_IMPLEMENTED();
             return nullptr;
         }
-        ID3D11RasterizerState* GetRasterizerState(RenderStateName iName, BlendStateDescriptor const* iDescIfNeedCreation)
+        ID3D11RasterizerState* GetRasterizerState(RenderStateName iName, RasterizerStateDescriptor const* iDescIfNeedCreation)
         {
             SG_UNUSED((iName, iDescIfNeedCreation));
             SG_ASSERT_NOT_IMPLEMENTED();
@@ -150,7 +164,7 @@ ID3D11DepthStencilState* GetDepthStencilState(RenderStateName iName, DepthStenci
     return s_dico->GetDepthStencilState(iName, iDescIfNeedCreation);
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-ID3D11RasterizerState* GetRasterizerState(RenderStateName iName, BlendStateDescriptor const* iDescIfNeedCreation)
+ID3D11RasterizerState* GetRasterizerState(RenderStateName iName, RasterizerStateDescriptor const* iDescIfNeedCreation)
 {
     SG_ASSERT(nullptr != s_dico);
     return s_dico->GetRasterizerState(iName, iDescIfNeedCreation);

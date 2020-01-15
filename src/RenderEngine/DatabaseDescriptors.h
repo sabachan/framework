@@ -23,13 +23,25 @@ class Compositing;
 class InputSurfaceDescriptor;
 class SamplerDescriptor;
 //=============================================================================
+class GenericConstantDatabaseInstance : public RefAndSafeCountableWithVirtualDestructor
+{
+public:
+    GenericConstantDatabaseInstance(rendering::IShaderConstantDatabase const* iDatabase);
+    ~GenericConstantDatabaseInstance() override;
+    SG_FORCE_INLINE rendering::IShaderConstantDatabase const* GetDatabase() const { return m_database.get(); }
+private:
+    refptr<rendering::IShaderConstantDatabase const> m_database;
+};
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 class AbstractConstantDatabaseDescriptor : public reflection::BaseClass
 {
     REFLECTION_CLASS_HEADER(AbstractConstantDatabaseDescriptor, reflection::BaseClass)
 public:
+    typedef GenericConstantDatabaseInstance instance_type;
     AbstractConstantDatabaseDescriptor();
     virtual ~AbstractConstantDatabaseDescriptor() override;
 protected:
+    bool IsEmpty() const { return m_constants.empty(); }
     void PopulateDatabase(rendering::ShaderConstantDatabase* ioDatabase) const;
 protected:
 #if ENABLE_REFLECTION_PROPERTY_CHECK
@@ -43,22 +55,34 @@ class InputConstantDatabaseDescriptor : public AbstractConstantDatabaseDescripto
 {
     REFLECTION_CLASS_HEADER(InputConstantDatabaseDescriptor, AbstractConstantDatabaseDescriptor)
 public:
+    typedef GenericConstantDatabaseInstance instance_type;
     InputConstantDatabaseDescriptor();
     virtual ~InputConstantDatabaseDescriptor() override;
-    rendering::IShaderConstantDatabase* CreateDatabase(rendering::IShaderConstantDatabase const* iInputDatabase) const;
+    GenericConstantDatabaseInstance* CreateInstance(rendering::IShaderConstantDatabase const* iInputDatabase) const;
 private:
 #if ENABLE_REFLECTION_PROPERTY_CHECK
     virtual void VirtualCheckProperties(reflection::ObjectPropertyCheckContext& iContext) const override;
 #endif
 };
 //=============================================================================
+class ConstantDatabaseInstance : public GenericConstantDatabaseInstance
+{
+public:
+    ConstantDatabaseInstance(rendering::ShaderConstantDatabase* iWritableDatabase, rendering::IShaderConstantDatabase const* iDatabase);
+    ~ConstantDatabaseInstance() override;
+    SG_FORCE_INLINE rendering::ShaderConstantDatabase* GetWritableDatabase() const { return m_writableDatabase.get(); }
+private:
+    refptr<rendering::ShaderConstantDatabase> m_writableDatabase;
+};
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 class ConstantDatabaseDescriptor : public AbstractConstantDatabaseDescriptor
 {
     REFLECTION_CLASS_HEADER(ConstantDatabaseDescriptor, AbstractConstantDatabaseDescriptor)
 public:
+    typedef ConstantDatabaseInstance instance_type;
     ConstantDatabaseDescriptor();
     virtual ~ConstantDatabaseDescriptor() override;
-    rendering::IShaderConstantDatabase* CreateDatabase(Compositing* iCompositing) const;
+    ConstantDatabaseInstance* CreateInstance(Compositing* iCompositing) const;
 private:
 #if ENABLE_REFLECTION_PROPERTY_CHECK
     virtual void VirtualCheckProperties(reflection::ObjectPropertyCheckContext& iContext) const override;
@@ -105,7 +129,7 @@ public:
     virtual ~ShaderResourceDatabaseDescriptor() override;
     rendering::IShaderResourceDatabase* CreateDatabase(Compositing* iCompositing) const;
 private:
-    refptr<ShaderResourceDatabaseDescriptor> m_parent;
+    refptr<AbstractShaderResourceDatabaseDescriptor> m_parent;
 };
 //=============================================================================
 }

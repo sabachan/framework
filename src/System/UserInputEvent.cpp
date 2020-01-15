@@ -60,7 +60,7 @@ void UserInputEvent::SetEntry(UserInputEventType iEventType, u32 iEntryId)
 {
     SG_ASSERT(UserInputEventType::None == m_type);
     SG_ASSERT(UserInputEventType::None != iEventType);
-    SG_ASSERT_MSG(-1 != iEntryId, "-1 is reserved for invalid entry");
+    SG_ASSERT_MSG(all_ones != iEntryId, "0xFFFFFFFF is reserved for invalid entry");
     m_type = iEventType;
     m_entryId = iEntryId;
 }

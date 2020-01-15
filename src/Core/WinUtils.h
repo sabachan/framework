@@ -13,6 +13,9 @@ namespace sg {
 namespace winutils {
 //=============================================================================
 bool DoesFileOrDirectoryExists(std::string const& iPath);
+bool IsDirectory(std::string const& iPath);
+void CreateDirectory(std::string const& iPath);
+void CreateDirectoryPathIFN(std::string const& iPath);
 u64 GetFileModificationTimestamp(std::string const& iPath);
 bool WriteFileOverwriteIFNROK(std::string const& iPath, u8 const* iData, size_t iSize);
 void GetWinWorkingDir(std::string& oPath);

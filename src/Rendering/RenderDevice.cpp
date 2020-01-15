@@ -6,12 +6,13 @@
 #include "RenderStateDico.h"
 #include "ShaderCache.h"
 #include "TextureCache.h"
+#include <Core/For.h>
 #include <Math/Vector.h>
 #include <algorithm>
 
 #if SG_PLATFORM_IS_WIN
-#include <dxgi.h>
-#include <d3d11.h>
+#include "WTF/IncludeDxgi.h"
+#include "WTF/IncludeD3D11.h"
 #include <Core/WindowsH.h>
 #endif
 
@@ -21,14 +22,16 @@ namespace rendering {
 #if SG_ENABLE_ASSERT
 void SetDebugName(ID3D11DeviceChild* child, std::string const& name)
 {
-  if (nullptr != child && !name.empty())
-    child->SetPrivateData(WKPDID_D3DDebugObjectName, checked_numcastable(name.size()), name.c_str());
+    if (nullptr != child && !name.empty())
+        child->SetPrivateData(WKPDID_D3DDebugObjectName, checked_numcastable(name.size()), name.c_str());
 }
 #endif
 //=============================================================================
 RenderDevice::RenderDevice()
     : m_d3dDevice()
     , m_immediateContext()
+    , m_noBlendName("No Blend")
+    , m_premultipliedAlphaBlendingName("Premultiplied Alpha Blending")
 #if SG_ENABLE_ASSERT
     , m_isInRender(false)
 #endif
@@ -99,8 +102,27 @@ RenderDevice::RenderDevice()
         desc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_INV_SRC_ALPHA;
         desc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
         desc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
-        m_blendState = renderstatedico::GetBlendState(RenderStateName("Premultiplied Alpha Blending"), &blendStateDesc);
+        m_blendState = renderstatedico::GetBlendState(RenderStateName_PremultipliedAlphaBlending(), &blendStateDesc);
         SG_ASSERT(nullptr != m_blendState);
+    }
+    {
+        BlendStateDescriptor blendStateDesc;
+        D3D11_BLEND_DESC& desc = blendStateDesc.GetWritableDesc();
+        desc.AlphaToCoverageEnable = false;
+        desc.IndependentBlendEnable = false;
+        for_range(size_t, i, 0, SG_ARRAYSIZE(desc.RenderTarget))
+        {
+            desc.RenderTarget[i].BlendEnable = false;
+            desc.RenderTarget[i].SrcBlend = D3D11_BLEND_ONE;
+            desc.RenderTarget[i].DestBlend = D3D11_BLEND_ZERO;
+            desc.RenderTarget[i].BlendOp = D3D11_BLEND_OP_ADD;
+            desc.RenderTarget[i].SrcBlendAlpha = D3D11_BLEND_ONE;
+            desc.RenderTarget[i].DestBlendAlpha = D3D11_BLEND_ZERO;
+            desc.RenderTarget[i].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+            desc.RenderTarget[i].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+        }
+        ID3D11BlendState* blendState = renderstatedico::GetBlendState(RenderStateName_NoBlend(), &blendStateDesc);
+        SG_ASSERT_AND_UNUSED(nullptr != blendState);
     }
 
     // TODO: migrate on renderstatedico
@@ -147,20 +169,25 @@ RenderDevice::~RenderDevice()
 #endif
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-void RenderDevice::BeginRender()
+void RenderDevice::SetDefaultState() const
 {
-    SG_ASSERT(!m_isInRender);
-    SG_CODE_FOR_ASSERT(m_isInRender = true);
     m_immediateContext->RSSetState( m_rasterizerState.get() );
     m_immediateContext->OMSetBlendState( m_blendState.get(), NULL, 0xFFFFFFFF );
     m_immediateContext->OMSetDepthStencilState( m_depthStencilState.get(), 0 );
     m_immediateContext->OMSetRenderTargets( 0, NULL, NULL );
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+void RenderDevice::BeginRender()
+{
+    SG_ASSERT(!m_isInRender);
+    SG_CODE_FOR_ASSERT(m_isInRender = true);
+    SetDefaultState();
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 void RenderDevice::EndRender()
 {
     SG_ASSERT(m_isInRender);
-    m_immediateContext->OMSetRenderTargets( 0, 0, 0 );
+    m_immediateContext->OMSetRenderTargets( 0, NULL, NULL );
     m_presentFrame.NotifyObservers();
     SG_CODE_FOR_ASSERT(m_isInRender = false);
 }

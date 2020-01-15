@@ -2,10 +2,11 @@
 
 #include "GrammarAnalyser.h"
 
-#include <Reflection\PrimitiveData.h>
 #include "Operators.h"
 #include "SemanticTree.h"
 #include "Tokenizer.h"
+#include <Reflection/PrimitiveData.h>
+#include <Core/StringFormat.h>
 #include <sstream>
 
 namespace sg {
@@ -458,8 +459,15 @@ bool GrammarAnalyser::ProcessGrammarConstructIFNReturnDone(Token const& iToken, 
             if(TokenType::open_bloc == iToken.type)
             {
                 PopStackNode(iToken, TokenType::unknown);
+                if(DidErrorHappen())
+                    return false;
                 SemanticNode& node = m_stack.back().semanticNodes.back();
                 semanticTree::Namespace* treeNode = checked_cast<semanticTree::Namespace*>(node.treeNode.get());
+                if(node.subTreeNodes.empty())
+                {
+                    PushError(ErrorType::missing_namespace_name, iToken, "missing namespace name");
+                    break;
+                }
                 SG_ASSERT(node.subTreeNodes.size() == 1);
                 treeNode->SetName(node.subTreeNodes[0].get());
                 node.subTreeNodes.clear();
@@ -471,6 +479,8 @@ bool GrammarAnalyser::ProcessGrammarConstructIFNReturnDone(Token const& iToken, 
             if(TokenType::close_bloc == iToken.type)
             {
                 PopStackNode(iToken, TokenType::close_bloc);
+                if(DidErrorHappen())
+                    return false;
                 SemanticNode& node = m_stack.back().semanticNodes.back();
                 semanticTree::Namespace* treeNode = checked_cast<semanticTree::Namespace*>(node.treeNode.get());
                 treeNode->SetInstructions(node.subTreeNodes);
@@ -493,6 +503,8 @@ bool GrammarAnalyser::ProcessGrammarConstructIFNReturnDone(Token const& iToken, 
             if(TokenType::close_parenthesis == iToken.type)
             {
                 PopStackNode(iToken, TokenType::close_parenthesis);
+                if(DidErrorHappen())
+                    return false;
                 SG_ASSERT(GrammarConstruct::If == m_stack.back().grammarConstructs.back());
                 SemanticNode& node = m_stack.back().semanticNodes.back();
                 semanticTree::If* treeNode = checked_cast<semanticTree::If*>(node.treeNode.get());
@@ -525,9 +537,11 @@ bool GrammarAnalyser::ProcessGrammarConstructIFNReturnDone(Token const& iToken, 
             }
             break;
         case GrammarConstruct::If_Instruction:
-            if(IsNewInstruction(iToken, iIsValueExpected))
+            if(IsNewInstruction(iToken, iIsValueExpected) || TokenType::close_bloc == iToken.type)
             {
                 PopStackNode(iToken, TokenType::unknown);
+                if(DidErrorHappen())
+                    return false;
                 SG_ASSERT(GrammarConstruct::If_PreInstruction == m_stack.back().grammarConstructs.back());
                 SemanticNode& node = m_stack.back().semanticNodes.back();
                 semanticTree::If* treeNode = checked_cast<semanticTree::If*>(node.treeNode.get());
@@ -550,6 +564,8 @@ bool GrammarAnalyser::ProcessGrammarConstructIFNReturnDone(Token const& iToken, 
             if(TokenType::close_bloc == iToken.type)
             {
                 PopStackNode(iToken, TokenType::close_bloc);
+                if(DidErrorHappen())
+                    return false;
                 SG_ASSERT(GrammarConstruct::If_PreInstruction == m_stack.back().grammarConstructs.back());
                 SemanticNode& node = m_stack.back().semanticNodes.back();
                 semanticTree::If* treeNode = checked_cast<semanticTree::If*>(node.treeNode.get());
@@ -585,9 +601,11 @@ bool GrammarAnalyser::ProcessGrammarConstructIFNReturnDone(Token const& iToken, 
             }
             break;
         case GrammarConstruct::If_ElseInstruction:
-            if(IsNewInstruction(iToken, iIsValueExpected))
+            if(IsNewInstruction(iToken, iIsValueExpected) || TokenType::close_bloc == iToken.type)
             {
                 PopStackNode(iToken, TokenType::unknown);
+                if(DidErrorHappen())
+                    return false;
                 SG_ASSERT(GrammarConstruct::If_ElsePreInstruction == m_stack.back().grammarConstructs.back());
                 SemanticNode& node = m_stack.back().semanticNodes.back();
                 semanticTree::If* treeNode = checked_cast<semanticTree::If*>(node.treeNode.get());
@@ -602,6 +620,8 @@ bool GrammarAnalyser::ProcessGrammarConstructIFNReturnDone(Token const& iToken, 
             if(TokenType::close_bloc == iToken.type)
             {
                 PopStackNode(iToken, TokenType::close_bloc);
+                if(DidErrorHappen())
+                    return false;
                 SG_ASSERT(GrammarConstruct::If_ElsePreInstruction == m_stack.back().grammarConstructs.back());
                 SemanticNode& node = m_stack.back().semanticNodes.back();
                 semanticTree::If* treeNode = checked_cast<semanticTree::If*>(node.treeNode.get());
@@ -627,6 +647,8 @@ bool GrammarAnalyser::ProcessGrammarConstructIFNReturnDone(Token const& iToken, 
             if(TokenType::close_parenthesis == iToken.type)
             {
                 PopStackNode(iToken, TokenType::close_parenthesis);
+                if(DidErrorHappen())
+                    return false;
                 SG_ASSERT(GrammarConstruct::While == m_stack.back().grammarConstructs.back());
                 SemanticNode& node = m_stack.back().semanticNodes.back();
                 semanticTree::While* treeNode = checked_cast<semanticTree::While*>(node.treeNode.get());
@@ -659,9 +681,11 @@ bool GrammarAnalyser::ProcessGrammarConstructIFNReturnDone(Token const& iToken, 
             }
             break;
         case GrammarConstruct::While_Instruction:
-            if(IsNewInstruction(iToken, iIsValueExpected))
+            if(IsNewInstruction(iToken, iIsValueExpected) || TokenType::close_bloc == iToken.type)
             {
                 PopStackNode(iToken, TokenType::unknown);
+                if(DidErrorHappen())
+                    return false;
                 SG_ASSERT(GrammarConstruct::While_PreInstruction == m_stack.back().grammarConstructs.back());
                 SemanticNode& node = m_stack.back().semanticNodes.back();
                 semanticTree::While* treeNode = checked_cast<semanticTree::While*>(node.treeNode.get());
@@ -676,6 +700,8 @@ bool GrammarAnalyser::ProcessGrammarConstructIFNReturnDone(Token const& iToken, 
             if(TokenType::close_bloc == iToken.type)
             {
                 PopStackNode(iToken, TokenType::close_bloc);
+                if(DidErrorHappen())
+                    return false;
                 SG_ASSERT(GrammarConstruct::While_PreInstruction == m_stack.back().grammarConstructs.back());
                 SemanticNode& node = m_stack.back().semanticNodes.back();
                 semanticTree::While* treeNode = checked_cast<semanticTree::While*>(node.treeNode.get());
@@ -774,6 +800,8 @@ bool GrammarAnalyser::ProcessGrammarConstructIFNReturnDone(Token const& iToken, 
             else if(TokenType::close_parenthesis == iToken.type)
             {
                 PopStackNode(iToken, TokenType::close_parenthesis);
+                if(DidErrorHappen())
+                    return false;
                 SG_ASSERT(GrammarConstruct::For == m_stack.back().grammarConstructs.back());
                 SemanticNode& node = m_stack.back().semanticNodes.back();
                 semanticTree::For* treeNode = checked_cast<semanticTree::For*>(node.treeNode.get());
@@ -831,9 +859,11 @@ bool GrammarAnalyser::ProcessGrammarConstructIFNReturnDone(Token const& iToken, 
             }
             break;
         case GrammarConstruct::For_Instruction:
-            if(IsNewInstruction(iToken, iIsValueExpected))
+            if(IsNewInstruction(iToken, iIsValueExpected) || TokenType::close_bloc == iToken.type)
             {
                 PopStackNode(iToken, TokenType::unknown);
+                if(DidErrorHappen())
+                    return false;
                 SG_ASSERT(GrammarConstruct::For_PreInstruction == m_stack.back().grammarConstructs.back());
                 SemanticNode& node = m_stack.back().semanticNodes.back();
                 semanticTree::For* treeNode = checked_cast<semanticTree::For*>(node.treeNode.get());
@@ -848,6 +878,8 @@ bool GrammarAnalyser::ProcessGrammarConstructIFNReturnDone(Token const& iToken, 
             if(TokenType::close_bloc == iToken.type)
             {
                 PopStackNode(iToken, TokenType::close_bloc);
+                if(DidErrorHappen())
+                    return false;
                 SG_ASSERT(GrammarConstruct::For_PreInstruction == m_stack.back().grammarConstructs.back());
                 SemanticNode& node = m_stack.back().semanticNodes.back();
                 semanticTree::For* treeNode = checked_cast<semanticTree::For*>(node.treeNode.get());
@@ -864,6 +896,8 @@ bool GrammarAnalyser::ProcessGrammarConstructIFNReturnDone(Token const& iToken, 
             if(TokenType::open_parenthesis == iToken.type)
             {
                 PopStackNode(iToken, TokenType::unknown);
+                if(DidErrorHappen())
+                    return false;
                 SG_ASSERT(GrammarConstruct::Function == m_stack.back().grammarConstructs.back());
                 SemanticNode& node = m_stack.back().semanticNodes.back();
                 semanticTree::FunctionDeclaration* treeNode = checked_cast<semanticTree::FunctionDeclaration*>(node.treeNode.get());
@@ -875,12 +909,19 @@ bool GrammarAnalyser::ProcessGrammarConstructIFNReturnDone(Token const& iToken, 
             }
             else
             {
-                SG_ASSERT(!IsNewInstruction(iToken, iIsValueExpected));
+                if(iToken.type != TokenType::identifier)
+                {
+                    PushError(ErrorType::missing_function_name, iToken, "missing function name");
+                    break;
+                }
+                break;
             }
         case GrammarConstruct::Function_Args:
             if(TokenType::close_parenthesis == iToken.type)
             {
                 PopStackNode(iToken, TokenType::unknown);
+                if(DidErrorHappen())
+                    return false;
                 SG_ASSERT(GrammarConstruct::Function == m_stack.back().grammarConstructs.back());
                 SemanticNode& node = m_stack.back().semanticNodes.back();
                 semanticTree::FunctionDeclaration* treeNode = checked_cast<semanticTree::FunctionDeclaration*>(node.treeNode.get());
@@ -896,6 +937,8 @@ bool GrammarAnalyser::ProcessGrammarConstructIFNReturnDone(Token const& iToken, 
             else if(TokenType::operator_equal == iToken.type)
             {
                 PopStackNode(iToken, TokenType::unknown);
+                if(DidErrorHappen())
+                    return false;
                 SG_ASSERT(GrammarConstruct::Function == m_stack.back().grammarConstructs.back());
                 SemanticNode& node = m_stack.back().semanticNodes.back();
                 semanticTree::FunctionDeclaration* treeNode = checked_cast<semanticTree::FunctionDeclaration*>(node.treeNode.get());
@@ -908,6 +951,8 @@ bool GrammarAnalyser::ProcessGrammarConstructIFNReturnDone(Token const& iToken, 
             else if(TokenType::operator_comma == iToken.type)
             {
                 PopStackNode(iToken, TokenType::unknown);
+                if(DidErrorHappen())
+                    return false;
                 SG_ASSERT(GrammarConstruct::Function == m_stack.back().grammarConstructs.back());
                 SemanticNode& node = m_stack.back().semanticNodes.back();
                 semanticTree::FunctionDeclaration* treeNode = checked_cast<semanticTree::FunctionDeclaration*>(node.treeNode.get());
@@ -922,6 +967,8 @@ bool GrammarAnalyser::ProcessGrammarConstructIFNReturnDone(Token const& iToken, 
             if(TokenType::close_parenthesis == iToken.type)
             {
                 PopStackNode(iToken, TokenType::unknown);
+                if(DidErrorHappen())
+                    return false;
                 SG_ASSERT(GrammarConstruct::Function == m_stack.back().grammarConstructs.back());
                 SemanticNode& node = m_stack.back().semanticNodes.back();
                 semanticTree::FunctionDeclaration* treeNode = checked_cast<semanticTree::FunctionDeclaration*>(node.treeNode.get());
@@ -934,6 +981,8 @@ bool GrammarAnalyser::ProcessGrammarConstructIFNReturnDone(Token const& iToken, 
             else if(TokenType::operator_comma == iToken.type)
             {
                 PopStackNode(iToken, TokenType::unknown);
+                if(DidErrorHappen())
+                    return false;
                 SG_ASSERT(GrammarConstruct::Function == m_stack.back().grammarConstructs.back());
                 SemanticNode& node = m_stack.back().semanticNodes.back();
                 semanticTree::FunctionDeclaration* treeNode = checked_cast<semanticTree::FunctionDeclaration*>(node.treeNode.get());
@@ -965,6 +1014,8 @@ bool GrammarAnalyser::ProcessGrammarConstructIFNReturnDone(Token const& iToken, 
             if(TokenType::close_bloc == iToken.type)
             {
                 PopStackNode(iToken, TokenType::close_bloc);
+                if(DidErrorHappen())
+                    return false;
                 SG_ASSERT(GrammarConstruct::Function_Prototype == m_stack.back().grammarConstructs.back());
                 SemanticNode& node = m_stack.back().semanticNodes.back();
                 semanticTree::FunctionDeclaration* treeNode = checked_cast<semanticTree::FunctionDeclaration*>(node.treeNode.get());
@@ -981,6 +1032,8 @@ bool GrammarAnalyser::ProcessGrammarConstructIFNReturnDone(Token const& iToken, 
             if(TokenType::open_parenthesis == iToken.type)
             {
                 PopStackNode(iToken, TokenType::unknown);
+                if(DidErrorHappen())
+                    return false;
                 SG_ASSERT(GrammarConstruct::Template == m_stack.back().grammarConstructs.back());
                 SemanticNode& node = m_stack.back().semanticNodes.back();
                 semanticTree::TemplateDeclaration* treeNode = checked_cast<semanticTree::TemplateDeclaration*>(node.treeNode.get());
@@ -992,12 +1045,18 @@ bool GrammarAnalyser::ProcessGrammarConstructIFNReturnDone(Token const& iToken, 
             }
             else
             {
-                SG_ASSERT(!IsNewInstruction(iToken, iIsValueExpected));
+                if(iToken.type != TokenType::identifier)
+                {
+                    PushError(ErrorType::missing_template_name, iToken, "missing template name");
+                    break;
+                }
             }
         case GrammarConstruct::Template_Args:
             if(TokenType::close_parenthesis == iToken.type)
             {
                 PopStackNode(iToken, TokenType::unknown);
+                if(DidErrorHappen())
+                    return false;
                 SG_ASSERT(GrammarConstruct::Template == m_stack.back().grammarConstructs.back());
                 SemanticNode& node = m_stack.back().semanticNodes.back();
                 semanticTree::TemplateDeclaration* treeNode = checked_cast<semanticTree::TemplateDeclaration*>(node.treeNode.get());
@@ -1013,6 +1072,8 @@ bool GrammarAnalyser::ProcessGrammarConstructIFNReturnDone(Token const& iToken, 
             else if(TokenType::operator_equal == iToken.type)
             {
                 PopStackNode(iToken, TokenType::unknown);
+                if(DidErrorHappen())
+                    return false;
                 SG_ASSERT(GrammarConstruct::Template == m_stack.back().grammarConstructs.back());
                 SemanticNode& node = m_stack.back().semanticNodes.back();
                 semanticTree::TemplateDeclaration* treeNode = checked_cast<semanticTree::TemplateDeclaration*>(node.treeNode.get());
@@ -1025,6 +1086,8 @@ bool GrammarAnalyser::ProcessGrammarConstructIFNReturnDone(Token const& iToken, 
             else if(TokenType::operator_comma == iToken.type)
             {
                 PopStackNode(iToken, TokenType::unknown);
+                if(DidErrorHappen())
+                    return false;
                 SG_ASSERT(GrammarConstruct::Template == m_stack.back().grammarConstructs.back());
                 SemanticNode& node = m_stack.back().semanticNodes.back();
                 semanticTree::TemplateDeclaration* treeNode = checked_cast<semanticTree::TemplateDeclaration*>(node.treeNode.get());
@@ -1039,6 +1102,8 @@ bool GrammarAnalyser::ProcessGrammarConstructIFNReturnDone(Token const& iToken, 
             if(TokenType::close_parenthesis == iToken.type)
             {
                 PopStackNode(iToken, TokenType::unknown);
+                if(DidErrorHappen())
+                    return false;
                 SG_ASSERT(GrammarConstruct::Template == m_stack.back().grammarConstructs.back());
                 SemanticNode& node = m_stack.back().semanticNodes.back();
                 semanticTree::TemplateDeclaration* treeNode = checked_cast<semanticTree::TemplateDeclaration*>(node.treeNode.get());
@@ -1051,6 +1116,8 @@ bool GrammarAnalyser::ProcessGrammarConstructIFNReturnDone(Token const& iToken, 
             else if(TokenType::operator_comma == iToken.type)
             {
                 PopStackNode(iToken, TokenType::unknown);
+                if(DidErrorHappen())
+                    return false;
                 SG_ASSERT(GrammarConstruct::Template == m_stack.back().grammarConstructs.back());
                 SemanticNode& node = m_stack.back().semanticNodes.back();
                 semanticTree::TemplateDeclaration* treeNode = checked_cast<semanticTree::TemplateDeclaration*>(node.treeNode.get());
@@ -1071,9 +1138,16 @@ bool GrammarAnalyser::ProcessGrammarConstructIFNReturnDone(Token const& iToken, 
             break;
         case GrammarConstruct::Template_Type:
             SG_ASSERT(!IsNewInstruction(iToken, iIsValueExpected)); // TODO: Error message
+            if(TokenType::keyword_namespace == iToken.type)
+            {
+                m_stack.back().grammarConstructs.back() = GrammarConstruct::Template_Namespace;
+                return true;
+            }
             if(TokenType::open_bloc == iToken.type)
             {
                 PopStackNode(iToken, TokenType::unknown);
+                if(DidErrorHappen())
+                    return false;
                 SG_ASSERT(GrammarConstruct::Template_Prototype == m_stack.back().grammarConstructs.back());
                 SemanticNode& node = m_stack.back().semanticNodes.back();
                 semanticTree::TemplateDeclaration* treeNode = checked_cast<semanticTree::TemplateDeclaration*>(node.treeNode.get());
@@ -1084,10 +1158,31 @@ bool GrammarAnalyser::ProcessGrammarConstructIFNReturnDone(Token const& iToken, 
                 return true;
             }
             break;
+        case GrammarConstruct::Template_Namespace:
+        {
+            if(TokenType::open_bloc != iToken.type)
+            {
+                PushError(ErrorType::expected_open_bloc_after_template_namespace, iToken, "template namespace expects an instruction bloc");
+                break;
+            }
+            SG_ASSERT(m_stack.back().semanticNodes.empty());
+            PopStackNode(iToken, TokenType::unknown);
+            if(DidErrorHappen())
+                return false;
+            SG_ASSERT(GrammarConstruct::Template_Prototype == m_stack.back().grammarConstructs.back());
+            SemanticNode& node = m_stack.back().semanticNodes.back();
+            semanticTree::TemplateDeclaration* treeNode = checked_cast<semanticTree::TemplateDeclaration*>(node.treeNode.get());
+            SG_ASSERT(node.subTreeNodes.size() == 0);
+            treeNode->SetNamespace();
+            PushStackNode(TokenType::open_bloc, GrammarConstruct::Template_Body);
+            return true;
+        }
         case GrammarConstruct::Template_Body:
             if(TokenType::close_bloc == iToken.type)
             {
                 PopStackNode(iToken, TokenType::close_bloc);
+                if(DidErrorHappen())
+                    return false;
                 SG_ASSERT(GrammarConstruct::Template_Prototype == m_stack.back().grammarConstructs.back());
                 SemanticNode& node = m_stack.back().semanticNodes.back();
                 semanticTree::TemplateDeclaration* treeNode = checked_cast<semanticTree::TemplateDeclaration*>(node.treeNode.get());
@@ -1109,6 +1204,8 @@ bool GrammarAnalyser::ProcessGrammarConstructIFNReturnDone(Token const& iToken, 
             if(TokenType::identifier == iToken.type && !iIsValueExpected)
             {
                 PopStackNode(iToken, TokenType::unknown);
+                if(DidErrorHappen())
+                    return false;
                 SG_ASSERT(GrammarConstruct::Typedef == m_stack.back().grammarConstructs.back());
                 SemanticNode& node = m_stack.back().semanticNodes.back();
                 semanticTree::TypedefDeclaration* treeNode = checked_cast<semanticTree::TypedefDeclaration*>(node.treeNode.get());
@@ -1122,6 +1219,8 @@ bool GrammarAnalyser::ProcessGrammarConstructIFNReturnDone(Token const& iToken, 
         case GrammarConstruct::Typedef_Alias:
             {
                 PopStackNode(iToken, TokenType::unknown);
+                if(DidErrorHappen())
+                    return false;
                 SG_ASSERT(GrammarConstruct::Typedef == m_stack.back().grammarConstructs.back());
                 SemanticNode& node = m_stack.back().semanticNodes.back();
                 semanticTree::TypedefDeclaration* treeNode = checked_cast<semanticTree::TypedefDeclaration*>(node.treeNode.get());
@@ -1156,6 +1255,8 @@ bool GrammarAnalyser::ProcessGrammarConstructIFNReturnDone(Token const& iToken, 
                 return true;
             }
             PopStackNode(iToken, TokenType::unknown);
+            if(DidErrorHappen())
+                return false;
             SG_ASSERT(GrammarConstruct::Alias == m_stack.back().grammarConstructs.back());
             SemanticNode& node = m_stack.back().semanticNodes.back();
             semanticTree::TypedefDeclaration* treeNode = checked_cast<semanticTree::TypedefDeclaration*>(node.treeNode.get());
@@ -1171,6 +1272,8 @@ bool GrammarAnalyser::ProcessGrammarConstructIFNReturnDone(Token const& iToken, 
             if(TokenType::operator_double_colon != iToken.type && !iIsValueExpected)
             {
                 PopStackNode(iToken, TokenType::unknown);
+                if(DidErrorHappen())
+                    return false;
                 SG_ASSERT(GrammarConstruct::Alias == m_stack.back().grammarConstructs.back());
                 SemanticNode& node = m_stack.back().semanticNodes.back();
                 semanticTree::TypedefDeclaration* treeNode = checked_cast<semanticTree::TypedefDeclaration*>(node.treeNode.get());
@@ -1625,8 +1728,22 @@ void GrammarAnalyser::PushStackNode(TokenType iTokenType, GrammarConstruct iGram
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 void GrammarAnalyser::PopStackNode(Token const& iToken, TokenType iTokenType)
 {
-    SG_ASSERT_AND_UNUSED(iTokenType == m_stack.back().expectedClosingToken); // TODO: error message
+    TokenType const expectedToken = m_stack.back().expectedClosingToken;
+    if(iTokenType != expectedToken)
+    {
+        PushError(ErrorType::unexpected_closing_token, iToken,
+            Format("Unexpected closing token %0. Expected was %1",
+                char(*iToken.begin),
+                TokenType::close_bloc == expectedToken ? "}" :
+                TokenType::close_bracket == expectedToken ? "]" :
+                TokenType::close_parenthesis == expectedToken ? ")" :
+                "[None]"
+            ).c_str());
+        return;
+    }
     ForceSolve(iToken);
+    if(DidErrorHappen())
+        return;
     std::vector<refptr<semanticTree::ITreeNode> > subNodes;
     {
         StackNode& stackNode = m_stack.back();
@@ -1693,7 +1810,7 @@ void GrammarAnalyser::Solve(Token const& iToken, size_t iLastOperatorIndex)
             semanticTree::ITreeNode* treenode = node.treeNode.get();
             if(!node.subTreeNodes.empty())
             {
-                treenode->SetSubNodes(node.subTreeNodes);
+                treenode->SetSubNodes(node.subTreeNodes, m_errorHandler.get());
                 node.subTreeNodes.clear();
             }
             node.operatorTraitsIndexIfIncomplete = all_ones;
@@ -1742,6 +1859,13 @@ void GrammarAnalyser::Solve(Token const& iToken, size_t iLastOperatorIndex)
                 {
                     SG_ASSERT(i > 0);
                     SemanticNode& left = stackNode.semanticNodes[i-1];
+                    if(-1 != left.operatorTraitsIndexIfIncomplete)
+                    {
+                        Token const& token = left.treeNode->GetToken();
+                        std::string const tokenStr = std::string(token.begin, token.end-token.begin);
+                        PushError(ErrorType::incorrect_use_of_operator, token, Format("Incorrect use of operator \"%0\"", tokenStr).c_str());
+                        return;
+                    }
                     SG_ASSERT(-1 == left.operatorTraitsIndexIfIncomplete);
                     SG_ASSERT(left.treeNode->IsValue());
                     SG_ASSERT(left.subTreeNodes.empty());

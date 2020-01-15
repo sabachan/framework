@@ -15,6 +15,7 @@ class Magnifier;
 // A FramingContainer is useful to add borders around a component that computes
 // its size from its parent. It can also be used to add a movable capacity to
 // its content.
+//
 class FramingContainer : public Container
                        , public IMovable
 {
@@ -23,7 +24,7 @@ public:
     FramingContainer(Magnifier const& iMagnifier, FrameProperty const& iFrameProperty, FitMode2 iFitMode);
     virtual ~FramingContainer() override;
     void SetContent(Component* iContent);
-    void SetFrameProperty(ui::FrameProperty const& iFrameProperty) { m_frameProperty = iFrameProperty; }
+    void SetFrameProperty(ui::FrameProperty const& iFrameProperty) { m_frameProperty = iFrameProperty; CheckConstraints(); }
     void SetFitMode(ui::FitMode2 const& iFitMode) { m_fitMode = iFitMode; }
     virtual void VirtualResetOffset() override;
     virtual void VirtualAddOffset(float2 const& iOffset) override;
@@ -45,6 +46,7 @@ private:
     //    parent_type::VirtualOnDraw(iContext);
     //}
     virtual void VirtualUpdatePlacement() override;
+    void CheckConstraints() const;
 private:
     safeptr<Magnifier const> m_magnifier;
     safeptr<Component> m_content;

@@ -6,7 +6,6 @@
 #include <UserInterface/GenericStyleGuide.h>
 
 #if SG_ENABLE_TOOLS
-#include "Toolbox.h"
 #include <Core/Assert.h>
 #include <Core/Log.h>
 #include <Core/Tool.h>
@@ -64,7 +63,6 @@ Common::Common()
 #if SG_ENABLE_TOOLS
     , m_windowContainer()
     , m_modalContainer()
-    , m_toolbox()
     , m_magnifier()
     , m_timeServer()
 #endif
@@ -76,7 +74,6 @@ Common::~Common()
 #if SG_ENABLE_TOOLS
     m_modalContainer = nullptr;
     m_windowContainer = nullptr;
-    m_toolbox = nullptr;
 #endif
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
@@ -87,8 +84,6 @@ void Common::VirtualOnCreated(reflection::ObjectCreationContext& iContext)
     m_styleGuide->EndCreationIFN(iContext);
     m_modalContainer = new ContainerForModal;
     m_windowContainer = new ui::Container;
-    m_toolbox = new Toolbox;
-    m_windowContainer->RequestAddToFront(m_toolbox.get(), 1);
     ResolveStyleGuide();
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
@@ -96,8 +91,9 @@ void Common::ResolveStyleGuide()
 {
     m_resolvedStyleGuide.BGColor = m_styleGuide->GetLinearColor(FillColorA);
     m_resolvedStyleGuide.ButtonFillColor = m_styleGuide->GetLinearColor(FillColorB);
-    m_resolvedStyleGuide.ButtonHighlightColor = m_styleGuide->GetLinearColor(FillColorB1);
+    m_resolvedStyleGuide.ButtonHighlightColor = m_styleGuide->GetLinearColor(FillColorB2);
     m_resolvedStyleGuide.ButtonLineColor = m_styleGuide->GetLinearColor(LineColorB);
+    m_resolvedStyleGuide.LineColorFocus = m_styleGuide->GetLinearColor(LineColorFocus);
 }
 #endif
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
@@ -107,7 +103,7 @@ REFLECTION_CLASS_BEGIN((sg,toolsui), Common)
 REFLECTION_CLASS_END
 //=============================================================================
 #if SG_ENABLE_TOOLS
-void GetButtonLikeRenderParam(ButtonLikeRenderParam& oParam, box2f const& iPlacementBox, bool iIsActivated, bool iIsHover, bool iIsClicked)
+void GetButtonLikeRenderParam(ButtonLikeRenderParam& oParam, box2f const& iPlacementBox, bool iIsActivated, bool iIsHover, bool iIsClicked, bool iHasFocus)
 {
     Common const& common = Common::Get();
     Common::ResolvedStyleGuide const& resolvedStyleGuide = common.GetResolvedStyleGuide();
@@ -117,22 +113,25 @@ void GetButtonLikeRenderParam(ButtonLikeRenderParam& oParam, box2f const& iPlace
     box2f const& box = iPlacementBox;
     oParam.outBox = box;
 
-    bool const prototypeMode = GetEditableValue("Tools UI/Button/Prototype mode", "Enable manipulating different values", false);
+    bool const prototypeMode = tools::GetEditable_bool("Tools/UI/Button/Prototype mode", "Enable manipulating different values", false);
     float lineThickness = styleGuide.GetLength(iIsClicked ? common.LineThickness1 : common.LineThickness0).Resolve(magnification, std::numeric_limits<float>::lowest());
     if(prototypeMode)
     {
-        float const borderThickness          = 1.f * GetEditableValue("Tools UI/Button/Border thickness", "Border thickness", int(0), 0, 8, 1);
-        float const highlightBorderThickness = 1.f * GetEditableValue("Tools UI/Button/Highlight border thickness", "Border thickness when highlighted", int(1), 0, 8, 1);
-        float const clickedBorderThickness   = 1.f * GetEditableValue("Tools UI/Button/Clicked border thickness", "Border thickness when clicked", int(1), 0, 8, 1);
+        float const borderThickness          = 1.f * tools::GetEditable_int("Tools/UI/Button/Border thickness", "Border thickness", int(0), 0, 8, 1);
+        float const highlightBorderThickness = 1.f * tools::GetEditable_int("Tools/UI/Button/Highlight border thickness", "Border thickness when highlighted", int(1), 0, 8, 1);
+        float const clickedBorderThickness   = 1.f * tools::GetEditable_int("Tools/UI/Button/Clicked border thickness", "Border thickness when clicked", int(1), 0, 8, 1);
 
         lineThickness = iIsClicked ? clickedBorderThickness : iIsHover ? highlightBorderThickness : borderThickness;
+        if(iHasFocus)
+            lineThickness = std::max(1.f, lineThickness);
     }
 
     oParam.inBox = box2f::FromMinMax(box.Min() + lineThickness, box.Max() - lineThickness);
     oParam.highlightColor = resolvedStyleGuide.ButtonHighlightColor;
     oParam.baseColor = resolvedStyleGuide.ButtonFillColor;
     oParam.fillColor = (iIsClicked || iIsHover) ? oParam.highlightColor : oParam.baseColor;
-    oParam.lineColor = resolvedStyleGuide.ButtonLineColor;
+    oParam.fillColor2 = (iIsClicked || iIsHover) ? oParam.baseColor : oParam.highlightColor;
+    oParam.lineColor = iHasFocus ? resolvedStyleGuide.LineColorFocus : resolvedStyleGuide.ButtonLineColor;
 
     auto ToUnactivated = [](Color4f const& c)
     {
@@ -147,6 +146,7 @@ void GetButtonLikeRenderParam(ButtonLikeRenderParam& oParam, box2f const& iPlace
     if(!iIsActivated)
     {
         oParam.fillColor = ToUnactivated(oParam.fillColor);
+        oParam.fillColor2 = ToUnactivated(oParam.fillColor2);
         oParam.lineColor = ToUnactivated(oParam.lineColor);
     }
 }

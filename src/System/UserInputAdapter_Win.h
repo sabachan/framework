@@ -6,9 +6,11 @@
 #error "Windows only !"
 #endif
 
-#include <Core/Assert.h>
-#include <Math/Vector.h>
+#include "KeyboardUtils.h"
 #include "MouseUtils.h"
+#include <Core/Assert.h>
+#include <Core/BitSet.h>
+#include <Math/Vector.h>
 
 namespace sg {
 namespace system {
@@ -55,6 +57,18 @@ public:
 private:
     LRESULT OnKeyDown(Window* iWnd, UINT message, WPARAM wParam, LPARAM lParam, UserInputListenerList& iWndListeners, UserInputManager& iManager);
     LRESULT OnKeyUp(Window* iWnd, UINT message, WPARAM wParam, LPARAM lParam, UserInputListenerList& iWndListeners, UserInputManager& iManager);
+    LRESULT OnChar(Window* iWnd, UINT message, WPARAM wParam, LPARAM lParam, UserInputListenerList& iWndListeners, UserInputManager& iManager);
+    LRESULT OnKillFocus(Window* iWnd, UINT message, WPARAM wParam, LPARAM lParam, UserInputListenerList& iWndListeners, UserInputManager& iManager);
+    LRESULT OnSetFocus(Window* iWnd, UINT message, WPARAM wParam, LPARAM lParam, UserInputListenerList& iWndListeners, UserInputManager& iManager);
+
+    u64 ComputeKeyboardState() const;
+private:
+    static size_t const scanCodeMaxCount = 256;
+    static size_t const vkCodeMaxCount= 256;
+    BitSet<scanCodeMaxCount> m_scanCodesState;
+    BitSet<scanCodeMaxCount> m_scanCodesKnownState;
+    BitSet<vkCodeMaxCount> m_vkCodesState;
+    BitSet<vkCodeMaxCount> m_vkCodesKnownState;
 };
 //=============================================================================
 class UserInputAdapter

@@ -7,8 +7,9 @@
 #include "ShaderCache.h"
 #include "ShaderConstantDatabase.h"
 #include <sstream>
-#include <d3d11.h>
-#include <d3d11shader.h>
+
+#include "WTF/IncludeD3D11.h"
+#include "WTF/IncludeD3D11Shader.h"
 
 namespace sg {
 namespace rendering {
@@ -26,26 +27,6 @@ ShaderConstantBuffers::~ShaderConstantBuffers()
 {
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-#if SHADER_CACHE_ENABLE_RELOADABLE_SHADERS
-namespace {
-    u64 ComputeShaderReflectionHash(ID3D11ShaderReflection* iShaderReflection)
-    {
-        D3D11_SHADER_DESC shDesc;
-        HRESULT hr = iShaderReflection->GetDesc(&shDesc);
-        SG_ASSERT_AND_UNUSED(SUCCEEDED(hr));
-        u64 hash = shDesc.ConstantBuffers;
-        hash = (hash << 7) ^ (hash >> (64-7)) ^ shDesc.InputParameters;
-        hash = (hash << 7) ^ (hash >> (64-7)) ^ shDesc.OutputParameters;
-        hash = (hash << 7) ^ (hash >> (64-7)) ^ shDesc.InstructionCount;
-        hash = (hash << 7) ^ (hash >> (64-7)) ^ shDesc.FloatInstructionCount;
-        hash = (hash << 7) ^ (hash >> (64-7)) ^ shDesc.IntInstructionCount;
-        hash = (hash << 7) ^ (hash >> (64-7)) ^ shDesc.UintInstructionCount;
-        hash = (hash << 7) ^ (hash >> (64-7)) ^ shDesc.TempRegisterCount;
-        hash = (hash << 7) ^ (hash >> (64-7)) ^ shDesc.TempArrayCount;
-        return hash;
-    }
-}
-#endif
 void ShaderConstantBuffers::UpdateIFN(RenderDevice const* iRenderDevice, ID3D11ShaderReflection* iShaderReflection, IShaderConstantDatabase const* iDatabase)
 {
 #if SHADER_CACHE_ENABLE_RELOADABLE_SHADERS
@@ -123,6 +104,7 @@ void ShaderConstantBuffers::UpdateIFN(RenderDevice const* iRenderDevice, ID3D11S
                 {
                     // TODO: Assert initialized to 0 ?
                 }
+                SG_BREAKABLE_POS;
             }
         }
         context->Unmap(

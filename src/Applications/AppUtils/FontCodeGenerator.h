@@ -27,19 +27,30 @@ private:
     std::vector<Symbol> m_symbols;
 };
 //=============================================================================
-struct Glyph : public reflection::BaseType
+struct GlyphBase : public reflection::BaseType
 {
     std::string character;
     std::string symbol;
-    std::string representation;
-    u32 advanceReduction;
+    u32 advanceReduction = 0;
 
-    Glyph()
-        : character()
-        , representation()
-        , advanceReduction()
-    {}
-    REFLECTION_TYPE_HEADER(Glyph, reflection::BaseType)
+    GlyphBase() {}
+    REFLECTION_TYPE_HEADER(GlyphBase, reflection::BaseType)
+};
+//=============================================================================
+struct Glyph : public GlyphBase
+{
+    std::string representation;
+
+    Glyph() {}
+    REFLECTION_TYPE_HEADER(Glyph, GlyphBase)
+};
+//=============================================================================
+struct ImageGlyph : public GlyphBase
+{
+    int2 pos = int2();
+
+    ImageGlyph() {}
+    REFLECTION_TYPE_HEADER(ImageGlyph, GlyphBase)
 };
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 struct Kerning : public reflection::BaseType
@@ -72,6 +83,8 @@ private:
     u32 m_advance;
     u32 m_baseline;
     uint2 m_glyphSize;
+    FilePath m_glyphsImageFile;
+    std::vector<ImageGlyph> m_imageGlyphs;
     std::vector<Glyph> m_glyphs;
     std::vector<Kerning> m_kernings;
 };

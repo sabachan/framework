@@ -37,8 +37,10 @@ u8 GetFlags(u32 iCharCode)
     };
     CharAndFlags const begin[] =
     {
-        { ' ' , u8(CharacterFlag::NoRepresentation) | u8(CharacterFlag::Expandable) | u8(CharacterFlag::Breakable ) },
+        { ' ' , u8(CharacterFlag::NoRepresentation) | u8(CharacterFlag::Expandable) | u8(CharacterFlag::Breakable) },
         { '\n' , u8(CharacterFlag::NoRepresentation) | u8(CharacterFlag::NewLine) },
+        { '\r' , u8(CharacterFlag::NoRepresentation) | u8(CharacterFlag::Breakable) },
+        { '\t' , u8(CharacterFlag::NoRepresentation) | u8(CharacterFlag::Expandable) | u8(CharacterFlag::Breakable) },
     };
     CharAndFlags const* end = begin + SG_ARRAYSIZE(begin);
     CharAndFlags const* f = std::find_if(begin, end, [=](CharAndFlags const& cf) { return iCharCode == cf.character; } );
@@ -47,36 +49,6 @@ u8 GetFlags(u32 iCharCode)
     else
         return 0;
 }
-//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-struct PositionCache
-{
-    friend class TextRenderer;
-    friend class TextRenderer_internal;
-private:
-    struct Glyph
-    {
-    public:
-        float2 pen;
-        u8 flags;
-        ubyte4 fillColor;
-        ubyte4 strokeColor;
-        GlyphInfo glyphInfo;
-        size_t materialIndices[SG_ARRAYSIZE(ui::GlyphInfo().materials)];
-    public:
-        Glyph(float2 const& iPen, u8 iFlags)
-            : pen(iPen)
-            , flags(iFlags)
-            , fillColor(uninitialized)
-            , strokeColor(uninitialized)
-            , glyphInfo(uninitialized)
-        {}
-    };
-    std::vector<Glyph> glyphs;
-    std::vector<std::pair<safeptr<rendering::Material>, size_t>> materialsAndCounts;
-    box2f bbox;
-    float lastBaseline;
-    bool gridAligned;
-};
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 size_t const MAX_STYLE_DEPTH = 8;
 struct ComputeGlyphPositionsState
@@ -103,6 +75,7 @@ struct ComputeGlyphPositionsState
     size_t nextModifierPosition;
     MaxSizeVector<safeptr<TextStyle const>, MAX_STYLE_DEPTH> textStyleStack;
     MaxSizeVector<TextStyle, MAX_STYLE_DEPTH> modifiableTextStyles;
+    int hidden = 0;
 public:
     ComputeGlyphPositionsState(ITypeface const& iTypeface)
         : typeface(iTypeface)
@@ -115,7 +88,7 @@ class TextRenderer_internal
 public:
 
 template <bool isLastLine>
-static void ComputeGlyphPositions_NewLine(PositionCache& positionsCache,
+static void ComputeGlyphPositions_NewLine(TextRenderer::PositionCache& positionsCache,
                                           ComputeGlyphPositionsState& state,
                                           ParagraphStyle const& paragraphStyle)
 {
@@ -139,7 +112,7 @@ static void ComputeGlyphPositions_NewLine(PositionCache& positionsCache,
         positionsCache.glyphs[j].pen += offset;
     }
 
-    if(isLastLine) { positionsCache.lastBaseline = y; }
+    if(isLastLine) { positionsCache.lastBaseline = y; positionsCache.lastPen = float2(state.pen.x(), y); }
 
     float2 const lineBeginPen = offset;
     // To understand next assert: in the case of text ending with new line, last line has no glyph in it.
@@ -161,7 +134,7 @@ static void ComputeGlyphPositions_NewLine(PositionCache& positionsCache,
     }
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-static void ComputeGlyphPositions_UpdateTextStyle(PositionCache& positionsCache,
+static void ComputeGlyphPositions_UpdateTextStyle(TextRenderer::PositionCache& positionsCache,
                                                   ComputeGlyphPositionsState& state,
                                                   TextStyle const* textStyle)
 {
@@ -175,7 +148,7 @@ static void ComputeGlyphPositions_UpdateTextStyle(PositionCache& positionsCache,
     state.lastBreakableDescent = std::max(state.lastBreakableDescent, state.fontInfo.descent);
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-static void ComputeGlyphPositions_ApplyModifier(PositionCache& positionsCache,
+static void ComputeGlyphPositions_ApplyModifier(TextRenderer::PositionCache& positionsCache,
                                                 ComputeGlyphPositionsState& state,
                                                 size_t& pos,
                                                 ParagraphStyle const& paragraphStyle,
@@ -223,12 +196,22 @@ static void ComputeGlyphPositions_ApplyModifier(PositionCache& positionsCache,
             state.textStyleStack.pop_back();
         }
         break;
+    case ITextModifier::Type::HidePush:
+        {
+            state.hidden += 1;
+        }
+        break;
+    case ITextModifier::Type::HidePop:
+        {
+            state.hidden -= 1;
+        }
+        break;
     default:
         SG_ASSUME_NOT_REACHED();
     }
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-static void ComputeGlyphPositions_ApplyModifiersIFN(PositionCache& positionsCache,
+static void ComputeGlyphPositions_ApplyModifiersIFN(TextRenderer::PositionCache& positionsCache,
                                                     ComputeGlyphPositionsState& state,
                                                     size_t& pos,
                                                     ParagraphStyle const& paragraphStyle)
@@ -242,7 +225,7 @@ static void ComputeGlyphPositions_ApplyModifiersIFN(PositionCache& positionsCach
     }
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-static void ComputeGlyphPositions(PositionCache& oPositionsCache,
+static void ComputeGlyphPositions(TextRenderer::PositionCache& oPositionsCache,
                                   std::wstring const& iStr,
                                   ITypeface const& iTypeface,
                                   TextStyle const& iTextStyle,
@@ -255,9 +238,10 @@ static void ComputeGlyphPositions(PositionCache& oPositionsCache,
     float const lineWidth = iParagraphStyle.lineWidth;
     float const lineGap = gridAligned ? round(iParagraphStyle.lineGap) : iParagraphStyle.lineGap;
 
-    PositionCache& positionsCache = oPositionsCache;
+    TextRenderer::PositionCache& positionsCache = oPositionsCache;
     positionsCache.glyphs.clear();
     positionsCache.glyphs.reserve(len);
+    positionsCache.materialsAndCounts.clear();
     positionsCache.gridAligned = gridAligned;
 
     std::unordered_map<safeptr<rendering::Material>, size_t> indexFromMaterial;
@@ -311,6 +295,8 @@ static void ComputeGlyphPositions(PositionCache& oPositionsCache,
         for(size_t i = 0; i < len; ++i)
         {
             ComputeGlyphPositions_ApplyModifiersIFN(positionsCache, state, i, iParagraphStyle);
+            if(state.hidden > 0)
+                continue;
             SG_ASSERT(i <= len);
             if(len == i)
                 break;
@@ -322,7 +308,8 @@ static void ComputeGlyphPositions(PositionCache& oPositionsCache,
             u8 flags = GetFlags(charCode);
             if(0 == flags)
             {
-                if(lineWidth >= 0.f && -1 != state.lastBreakableBegin && state.pen.x() + kerning + advance - state.fontInfo.interCharSpace > lineWidth)
+                float const glyphWidth = advance - state.fontInfo.interCharSpace;
+                if(lineWidth >= 0.f && -1 != state.lastBreakableBegin && state.pen.x() + kerning + glyphWidth > lineWidth)
                 {
                     // treat line
                     float const usedLineWidth = positionsCache.glyphs[state.lastBreakableBegin].pen.x() - state.fontInfo.interCharSpace;
@@ -339,7 +326,7 @@ static void ComputeGlyphPositions(PositionCache& oPositionsCache,
                         float2 offset = gridAligned ? float2(round(offsetPrecise.x()), offsetPrecise.y()) : offsetPrecise;
                         for(size_t j = state.lineBegin; j < state.lastBreakableBegin; ++j)
                         {
-                            PositionCache::Glyph& glyph = positionsCache.glyphs[j];
+                            TextRenderer::PositionCache::Glyph& glyph = positionsCache.glyphs[j];
                             glyph.pen += offset;
                             if(glyph.flags & u8(CharacterFlag::Expandable))
                             {
@@ -347,14 +334,14 @@ static void ComputeGlyphPositions(PositionCache& oPositionsCache,
                                 offset.x() = gridAligned ? round(offsetPrecise.x()) : offsetPrecise.x();
                             }
                         }
-                    }
 
-                    state.bbox.Grow(positionsCache.glyphs[state.lineBegin].pen + float2(0.f, -state.lineAscent));
-                    state.bbox.Grow(positionsCache.glyphs[state.lineBegin].pen + float2(usedLineWidth, state.lineDescent));
+                        state.bbox.Grow(positionsCache.glyphs[state.lineBegin].pen + float2(0.f, -state.lineAscent));
+                        state.bbox.Grow(positionsCache.glyphs[state.lineBegin].pen + float2(usedLineWidth, state.lineDescent));
 
-                    for(size_t j = state.lastBreakableBegin; j < state.lastBreakableEnd; ++j)
-                    {
-                        positionsCache.glyphs[j].pen = float2(0.f);
+                        for(size_t j = state.lastBreakableBegin; j < state.lastBreakableEnd; ++j)
+                        {
+                            positionsCache.glyphs[j].pen = offset + float2(usedLineWidth, 0.f);
+                        }
                     }
 
                     state.lineBegin = state.lastBreakableEnd;
@@ -386,7 +373,8 @@ static void ComputeGlyphPositions(PositionCache& oPositionsCache,
                     state.pen.x() += kerning;
                 }
                 positionsCache.glyphs.emplace_back(state.pen, flags);
-                PositionCache::Glyph& glyph = positionsCache.glyphs.back();
+                TextRenderer::PositionCache::Glyph& glyph = positionsCache.glyphs.back();
+                glyph.fontBox = box2f::FromMinMax(float2(0.f, -state.fontInfo.ascent), float2(glyphWidth, state.fontInfo.descent));
                 glyph.fillColor = ubyte4(state.textStyle->fillColor);
                 glyph.strokeColor = ubyte4(state.textStyle->strokeColor);
                 state.font->GetGlyphInfo(glyph.glyphInfo, charCode, *state.textStyle);
@@ -435,6 +423,8 @@ static void ComputeGlyphPositions(PositionCache& oPositionsCache,
                 SG_ASSERT((flags & u8(CharacterFlag::Expandable)) == 0);
                 SG_ASSERT((flags & u8(CharacterFlag::Breakable)) == 0);
                 positionsCache.glyphs.emplace_back(state.pen, flags);
+                TextRenderer::PositionCache::Glyph& glyph = positionsCache.glyphs.back();
+                glyph.fontBox = box2f::FromMinMax(float2(0.f, -state.fontInfo.ascent), float2(0.f, state.fontInfo.descent));
                 ComputeGlyphPositions_NewLine<false>(positionsCache, state, iParagraphStyle);
                 state.lineBegin = positionsCache.glyphs.size();
             }
@@ -474,6 +464,8 @@ static void ComputeGlyphPositions(PositionCache& oPositionsCache,
                     state.lastBreakableDescent = 0;
                 }
                 positionsCache.glyphs.emplace_back(state.pen, flags);
+                TextRenderer::PositionCache::Glyph& glyph = positionsCache.glyphs.back();
+                glyph.fontBox = box2f::FromMinMax(float2(0.f, -state.fontInfo.ascent), float2(advance, state.fontInfo.descent));
                 state.pen.x() += advance;
             }
 
@@ -490,7 +482,7 @@ static void ComputeGlyphPositions(PositionCache& oPositionsCache,
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 static void GenerateRenderCache(TextRenderer::Cache& oRenderCache,
-                                PositionCache const& iPositionsCache,
+                                TextRenderer::PositionCache const& iPositionsCache,
                                 std::wstring const& iStr,
                                 ITypeface const& iTypeface,
                                 TextStyle const& iTextStyle,
@@ -520,7 +512,7 @@ static void GenerateRenderCache(TextRenderer::Cache& oRenderCache,
     size_t glyphCount = iPositionsCache.glyphs.size();
     for(size_t i = 0; i < glyphCount; ++i)
     {
-        PositionCache::Glyph const& glyph = iPositionsCache.glyphs[i];
+        TextRenderer::PositionCache::Glyph const& glyph = iPositionsCache.glyphs[i];
         u8 const flags = glyph.flags;
         if(flags & u8(CharacterFlag::NoRepresentation))
             continue;
@@ -735,7 +727,8 @@ ArrayView<D3D11_INPUT_ELEMENT_DESC const> TextRenderer::VertexDescriptor()
     return TextVertex::InputEltDesc();
 }
 //=============================================================================
-void TextRenderer::Prepare(TextRenderer::Cache& oRenderCache,
+void TextRenderer::Prepare(TextRenderer::PositionCache& oPositionCache,
+                           TextRenderer::Cache& oRenderCache,
                            std::wstring const& iStr,
                            ITypeface const& iTypeface,
                            TextStyle const& iTextStyle,
@@ -743,11 +736,23 @@ void TextRenderer::Prepare(TextRenderer::Cache& oRenderCache,
                            ArrayView<ITextModifier const*const> iModifiers)
 {
     oRenderCache.buffers.clear();
+    oPositionCache.glyphs.clear();
+    oPositionCache.materialsAndCounts.clear();
 
-    PositionCache positionsCache;
-    TextRenderer_internal::ComputeGlyphPositions(positionsCache, iStr, iTypeface, iTextStyle, iParagraphStyle, iModifiers);
+    TextRenderer_internal::ComputeGlyphPositions(oPositionCache, iStr, iTypeface, iTextStyle, iParagraphStyle, iModifiers);
 
-    TextRenderer_internal::GenerateRenderCache(oRenderCache, positionsCache, iStr, iTypeface, iTextStyle, iParagraphStyle, iModifiers);
+    TextRenderer_internal::GenerateRenderCache(oRenderCache, oPositionCache, iStr, iTypeface, iTextStyle, iParagraphStyle, iModifiers);
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+void TextRenderer::Prepare(TextRenderer::Cache& oRenderCache,
+                           std::wstring const& iStr,
+                           ITypeface const& iTypeface,
+                           TextStyle const& iTextStyle,
+                           ParagraphStyle const& iParagraphStyle,
+                           ArrayView<ITextModifier const*const> iModifiers)
+{
+    TextRenderer::PositionCache positionsCache;
+    TextRenderer::Prepare(positionsCache, oRenderCache, iStr, iTypeface, iTextStyle, iParagraphStyle, iModifiers);
 }
 //=============================================================================
 void TextRenderer::Render_AssumeNoTransform(float2 const& iPos,
@@ -765,6 +770,8 @@ void TextRenderer::Render(float2 const& iPos,
                           size_t iLayer)
 {
 #if 1
+    if(iRenderCache.Empty())
+        return;
     Context::TransformType const transformType = iContext.GetTransformType();
     switch(transformType)
     {
@@ -848,6 +855,128 @@ void TextRenderer::Render(float2 const& iPos,
     TextRenderer::Cache cache;
     Prepare(cache, iStr, iTypeface, iTextStyle, iParagraphStyle, iModifiers);
     Render(iPos, cache, iContext, iLayer);
+}
+//=============================================================================
+size_t TextRenderer::GetGlyphCount(TextRenderer::PositionCache const& iPositionCache)
+{
+    auto const& glyphs = iPositionCache.glyphs;
+    size_t const glyphCount = glyphs.size();
+    return glyphCount;
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+box2f TextRenderer::GetGlyphBox(TextRenderer::PositionCache const& iPositionCache, size_t i)
+{
+    auto const& glyphs = iPositionCache.glyphs;
+    size_t const glyphCount = glyphs.size();
+    SG_ASSERT(i < glyphCount);
+    if(i >= glyphCount)
+        return box2f();
+    box2f const box = glyphs[i].pen + glyphs[i].fontBox;
+    return box;
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+float2 TextRenderer::GetPenPosition(TextRenderer::PositionCache const& iPositionCache, size_t i)
+{
+    auto const& glyphs = iPositionCache.glyphs;
+    size_t const glyphCount = glyphs.size();
+    SG_ASSERT(i <= glyphCount);
+    if(i >= glyphCount)
+        return iPositionCache.lastPen;
+    return  glyphs[i].pen;
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+void TextRenderer::GetSelectionBoxes(TextRenderer::PositionCache const& iPositionCache, std::vector<box2f>& oBoxes, size_t b, size_t e)
+{
+    SG_ASSERT(oBoxes.empty());
+    auto const& glyphs = iPositionCache.glyphs;
+    size_t const glyphCount = glyphs.size();
+    SG_ASSERT(b <= glyphCount);
+    SG_ASSERT(e <= glyphCount);
+    if(b >= glyphCount)
+        return;
+    oBoxes.emplace_back(glyphs[b].pen + glyphs[b].fontBox);
+    for_range(size_t, i, b+1, e)
+    {
+        if(i >= glyphCount)
+            break;
+        box2f const glyphBox = glyphs[i].pen + glyphs[i].fontBox;
+        box2f const& lineBox = oBoxes.back();
+        bool const isOnLine = lineBox.SubBox<1>(1).Contains(glyphBox.Center().y());
+        if(isOnLine)
+            oBoxes.back().Grow(glyphBox);
+        else
+            oBoxes.push_back(glyphBox);
+    }
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+size_t TextRenderer::GetNearestGlyph(TextRenderer::PositionCache const& iPositionCache, float2 const& iPosition)
+{
+    auto const& glyphs = iPositionCache.glyphs;
+    size_t const glyphCount = glyphs.size();
+    float2 bestd = float2(FLT_MAX);
+    float2 bestabsd = float2(FLT_MAX);
+    size_t bestIndex = all_ones;
+    for_range(size_t, i, 0, glyphCount)
+    {
+        auto const& glyph = glyphs[i];
+        float2 d = glyph.fontBox.VectorToPoint(iPosition - glyph.pen);
+        float2 const absd = componentwise::abs(d);
+        if(absd.y() < bestabsd.y())
+        {
+            bestd = d;
+            bestabsd = absd;
+            bestIndex = i;
+        }
+        else if(absd.y() == bestabsd.y() && absd.x() <= bestabsd.x())
+        {
+            bestd = d;
+            bestabsd = absd;
+            bestIndex = i;
+        }
+    }
+    return bestIndex;
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+size_t TextRenderer::GetNearestInterGlyph(TextRenderer::PositionCache const& iPositionCache, float2 const& iPosition)
+{
+    auto const& glyphs = iPositionCache.glyphs;
+    size_t const glyphCount = glyphs.size();
+    if(0 == glyphCount)
+        return 0;
+    size_t const nearestGlyphIndex = GetNearestGlyph(iPositionCache, iPosition);
+    auto const& glyph = glyphs[nearestGlyphIndex];
+
+    float2 const d = glyph.fontBox.VectorToPoint(iPosition - glyph.pen);
+    float2 const absd = componentwise::abs(d);
+    float2 const dend = iPosition - iPositionCache.lastPen;
+    float2 const absdend = componentwise::abs(dend);
+    if(absdend.y() < absd.y())
+        return glyphCount;
+
+    float dcenter = iPosition.x() - glyph.pen.x() - glyph.fontBox.Center().x();
+    if(dcenter >= 0.f)
+    {
+        if(nearestGlyphIndex+1 < glyphCount)
+        {
+            // In the case the next character is in another line, then it is
+            // preferable to put the cursor at the end of the line than at the
+            // begining of the next one.
+            auto const& nextGlyph = glyphs[nearestGlyphIndex+1];
+            float2 nextd = nextGlyph.fontBox.VectorToPoint(iPosition - nextGlyph.pen);
+            if(nextd.x() > d.x())
+                return nearestGlyphIndex;
+            else
+                return nearestGlyphIndex+1;
+        }
+        else
+        {
+            if(dend.x() > d.x())
+                return nearestGlyphIndex;
+            else
+                return nearestGlyphIndex+1;
+        }
+    }
+    return nearestGlyphIndex;
 }
 //=============================================================================
 }

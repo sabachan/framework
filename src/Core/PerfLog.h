@@ -6,11 +6,11 @@
 
 #if !SG_ENABLE_PERF_LOG
 
-#define SIMPLE_CPU_PERF_LOG_SCOPE(NAME) ((void)0)
+#define SG_SIMPLE_CPU_PERF_LOG_SCOPE(NAME) ((void)0)
 
 #if SG_COMPILER_IS_MSVC
-#define CPU_PERF_LOG_SCOPE(...) ((void)0)
-#define GPU_PERF_LOG_SCOPE(...) ((void)0)
+#define SG_CPU_PERF_LOG_SCOPE(...) ((void)0)
+#define SG_GPU_PERF_LOG_SCOPE(...) ((void)0)
 #else
 #error "todo"
 #endif
@@ -24,13 +24,13 @@
 #include <unordered_set>
 #include <type_traits>
 
-#define DETAIL_SIMPLE_CPU_PERF_LOG_SCOPE(NAME, LINE) \
+#define SG_IMPL_SIMPLE_CPU_PERF_LOG_SCOPE(NAME, LINE) \
     static u64 perflog_best_##LINE=::sg::all_ones; sg::SimpleCPUPerfLog perflog_##LINE = SimpleCPUPerfLog(NAME, &perflog_best_##LINE)
-#define DETAIL_SIMPLE_CPU_PERF_LOG_SCOPE_I(NAME, LINE) \
-    DETAIL_SIMPLE_CPU_PERF_LOG_SCOPE(NAME, LINE)
+#define SG_IMPL_SIMPLE_CPU_PERF_LOG_SCOPE_I(NAME, LINE) \
+    SG_IMPL_SIMPLE_CPU_PERF_LOG_SCOPE(NAME, LINE)
 
-#define SIMPLE_CPU_PERF_LOG_SCOPE(NAME) \
-    DETAIL_SIMPLE_CPU_PERF_LOG_SCOPE_I(NAME, __LINE__)
+#define SG_SIMPLE_CPU_PERF_LOG_SCOPE(NAME) \
+    SG_IMPL_SIMPLE_CPU_PERF_LOG_SCOPE_I(NAME, __LINE__)
 
 #define SG_IMPL_PERF_LOG_BEGIN_I(FCT_NAME, FILE_NAME, LINE, TYPE) \
     static size_t const perflog_uid_##LINE = sg::PerfLogger::GetNextUID(); \
@@ -63,27 +63,27 @@
     APPLY_MULTIARG_MACRO_FOR_EACH(SG_IMPL_PERF_LOG_READ_ARG, ARGS, LINE) \
     SG_IMPL_PERF_LOG_RUN(__LINE__)
 
-#define CPU_PERF_LOG_SCOPE(...) \
+#define SG_CPU_PERF_LOG_SCOPE(...) \
     SG_IMPL_PERF_LOG(SG_FUNCTION_NAME, __FILE__, __LINE__, sg::PerfLogType::CPU, (__VA_ARGS__))
 
-#define GPU_PERF_LOG_SCOPE(...) \
+#define SG_GPU_PERF_LOG_SCOPE(...) \
     SG_IMPL_PERF_LOG(SG_FUNCTION_NAME, __FILE__, __LINE__, sg::PerfLogType::CPU_GPU, (__VA_ARGS__))
 
 // usage:
-// CPU_PERF_LOG_SCOPE(LEVEL [, NAME] [, (PARAM_NAME, VALUE)]*)
+// SG_CPU_PERF_LOG_SCOPE(LEVEL [, NAME] [, (PARAM_NAME, PARAM_VALUE)]*)
 //      LEVEL is used to show/hide some log entries
 //      NAME is used to identify log entry by user in addition to function name and line.
 //          if NAME is a dynamic std::string, it is used to differentiate entries sharing same location.
 //      PARAM_NAME is the name of a parameter on which statistics will be computed.
 //      PARAM_VALUE is the value of a parameter.
 // exemple usage:
-// CPU_PERF_LOG_SCOPE(1);
-// CPU_PERF_LOG_SCOPE(1,"My sub function",("width", 128),("height", 64));
-// CPU_PERF_LOG_SCOPE(1,"My sub function");
-// CPU_PERF_LOG_SCOPE(1,"My sub function",("width", 128),("height", 64));
+// SG_CPU_PERF_LOG_SCOPE(1);
+// SG_CPU_PERF_LOG_SCOPE(1,"My sub function",("width", 128),("height", 64));
+// SG_CPU_PERF_LOG_SCOPE(1,"My sub function");
+// SG_CPU_PERF_LOG_SCOPE(1,"My sub function",("width", 128),("height", 64));
 // {
 //     int validCount = 0;
-//     CPU_PERF_LOG_SCOPE(1,("object count", 128),("valid count", &validCount));
+//     SG_CPU_PERF_LOG_SCOPE(1,("object count", 128),("valid count", &validCount));
 //     [...] ++validCount [...]
 // }
 
@@ -288,6 +288,8 @@ namespace perflog {
     PerfLogParameters const& GetParameters();
     void PrintPreviousFrame(std::ostream& os);
     void PrintStats(std::ostream& os);
+    void LogPreviousFrame();
+    void LogStats();
 }
 //=============================================================================
 }

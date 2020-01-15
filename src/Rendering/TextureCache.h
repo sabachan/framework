@@ -1,10 +1,10 @@
 #ifndef Rendering_TextureCache_H
 #define Rendering_TextureCache_H
 
+#include "SurfaceFormat.h"
 #include <Core/ComPtr.h>
 #include <Core/FilePath.h>
 #include <Core/SmartPtr.h>
-#include "SurfaceFormat.h"
 
 namespace sg {
 namespace rendering {
@@ -22,7 +22,8 @@ struct TextureParameters
     friend bool operator== (TextureParameters const& a, TextureParameters const& b)
     {
         return a.logDownscale     == b.logDownscale
-            && a.maxExtraMipCount == b.maxExtraMipCount;
+            && a.maxExtraMipCount == b.maxExtraMipCount
+            && a.surfaceFormat    == b.surfaceFormat;
     }
 };
 //=============================================================================

@@ -13,6 +13,8 @@
 #include <Core/IntTypes.h>
 #include <Core/TestFramework.h>
 
+REFLECTION_DECLARE_METACLASS((sg, reflectionTest), TestClassDerivedFromStruct_A)
+REFLECTION_DECLARE_METACLASS((sg, reflectionTest), TestClassWithSameProperty_A)
 namespace sg {
 namespace reflection {
     REFLECTION_TYPE_WRAPPER_BEGIN(TestExternalStruct)
@@ -61,6 +63,11 @@ REFLECTION_TYPE_BEGIN((sg,reflectionTest), TestStruct_B)
     REFLECTION_PROPERTY_DOC(f, "Property for unit test")
 REFLECTION_TYPE_END
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+REFLECTION_TYPE_BEGIN((sg,reflectionTest), TestStruct_C)
+    REFLECTION_TYPE_DOC("This type is for unit tests")
+    REFLECTION_PROPERTY_DOC(o, "Property for unit test")
+REFLECTION_TYPE_END
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 REFLECTION_CLASS_BEGIN((sg,reflectionTest), TestClass_A)
     REFLECTION_CLASS_DOC("This class is for unit tests")
     REFLECTION_m_PROPERTY_DOC(u, "Property for unit test")
@@ -105,6 +112,7 @@ REFLECTION_CLASS_BEGIN((sg,reflectionTest), TestClass_D)
     REFLECTION_CLASS_DOC("This class is for unit tests");
     REFLECTION_m_PROPERTY_DOC(object, "Property for unit test")
     REFLECTION_m_PROPERTY_DOC(objectlist, "Property for unit test")
+    REFLECTION_m_PROPERTY_DOC(vectorStructC, "Property for unit test")
 REFLECTION_CLASS_END
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 REFLECTION_TEMPLATE_CLASS_BEGIN((sg,reflectionTest), (TestTemplate_A<int>), TestTemplate_A_int)
@@ -607,7 +615,7 @@ SG_TEST((sg, reflection), Reflection, (Reflection, quick))
                 SG_ASSERT_AND_UNUSED(ok);
                 db.AddDeferredProperty(Identifier("::ns::subns4::object"), prop_object, new PrimitiveData<ObjectReference>(ObjectReference(&db, Identifier("::ns::subns4::object"), Identifier("subns::object"))));
             }
-            db.EndTransaction();
+            db.LinkCheckEndTransaction();
         }
         {
             db.BeginTransaction();
@@ -627,7 +635,7 @@ SG_TEST((sg, reflection), Reflection, (Reflection, quick))
                 SG_ASSERT_AND_UNUSED(ok);
                 db.AddDeferredProperty(Identifier("::ns::subns6::object"), prop_object, new PrimitiveData<ObjectReference>(ObjectReference(&db, Identifier("::ns::subns6::object"), Identifier("subns::object"))));
             }
-            db.EndTransaction();
+            db.LinkCheckEndTransaction();
         }
         SG_ASSERT(pd1->m_object == d2);
         SG_ASSERT(pd2->m_object == d3);

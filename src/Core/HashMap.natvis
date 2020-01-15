@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+
+  <!-- sg::hashmap_internal::HashMapAllocationPolicy::OneBuffer -->
+  <Type Name="sg::hashmap_internal::HashMapAllocator&lt; *,*,*,*,*,0 &gt;::Buffers">
+    <Expand>
+      <Synthetic Name="entries">
+        <DisplayString>{{ capacity={capacity} }}</DisplayString>
+        <Expand>
+          <ArrayItems>
+            <Size>capacity</Size>
+            <ValuePointer>entries</ValuePointer>
+          </ArrayItems>
+        </Expand>
+      </Synthetic>
+    </Expand>
+  </Type>
+  <Type Name="sg::hashmap_internal::HashMapAllocator&lt; *,*,*,*,*,* &gt;::Buffers">
+    <Expand>
+      <Synthetic Name="entries">
+        <DisplayString>{{ capacity={entryCapacity} }}</DisplayString>
+        <Expand>
+          <ArrayItems>
+            <Size>entryCapacity</Size>
+            <ValuePointer>entries</ValuePointer>
+          </ArrayItems>
+        </Expand>
+      </Synthetic>
+      <Synthetic Name="items">
+        <DisplayString>{{ capacity={itemCapacity} }}</DisplayString>
+        <Expand>
+          <ArrayItems>
+            <Size>itemCapacity</Size>
+            <ValuePointer>items</ValuePointer>
+          </ArrayItems>
+        </Expand>
+      </Synthetic>
+    </Expand>
+  </Type>
+</AutoVisualizer>

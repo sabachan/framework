@@ -12,17 +12,20 @@ enum class TokenType {
     unknown,
     invalid,
     identifier,
-    begin_literals,
-    integer = begin_literals,
+
+    integer,
+    begin_literals = integer,
     hexadecimal,
     number,
     string,
     end_literals,
+
     open_bloc, close_bloc,
     open_parenthesis, close_parenthesis,
     open_bracket, close_bracket,
-    begin_operators,
-    operator_colon = begin_operators,
+
+    operator_colon,
+    begin_operators = operator_colon,
     operator_semicolon,
     operator_double_colon,
     operator_comma,
@@ -43,8 +46,9 @@ enum class TokenType {
     operator_dot,
     operator_dollar,
     end_operators,
-    begin_keywords,
-    keyword_do = begin_keywords,
+
+    keyword_do,
+    begin_keywords = keyword_do,
     keyword_if,
     keyword_in,
     keyword_is,
@@ -79,13 +83,13 @@ enum class TokenType {
 //=============================================================================
 struct Token
 {
-    TokenType type;
-    char const* filebegin;
-    char const* begin;
-    char const* end;
-    size_t fileid;
-    size_t line;
-    size_t col;
+    TokenType type = TokenType::unused;
+    char const* filebegin = nullptr;
+    char const* begin = nullptr;
+    char const* end = nullptr;
+    size_t fileid = all_ones;
+    size_t line = 0;
+    size_t col = 0;
 };
 //=============================================================================
 class Tokenizer

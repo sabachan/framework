@@ -237,22 +237,28 @@ void Writer::PrintValue(std::ostringstream& oss, size_t tab, reflection::IPrimit
         {
             refptr<reflection::BaseClass> object;
             iData->As<refptr<reflection::BaseClass> >(&object);
-            SG_ASSERT(nullptr != object);
-            auto f = m_pointerToObjectEntry.find(object.get());
-            if(f == m_pointerToObjectEntry.end())
+            if(nullptr == object)
             {
-                SG_ASSERT_MSG(f != m_pointerToObjectEntry.end(), "referenced object has not been found in database.");
-                // TODO: consider it as a local private object ?
+                oss << "null";
             }
             else
             {
-                reflection::ObjectDatabase::ObjectEntry const& objectEntry = m_objectDatabase->m_objects[f->second];
-                reflection::Identifier identifier = objectEntry.id;
-                size_t const size = identifier.Size();
-                for(size_t i = 0; i < size; ++i)
+                auto f = m_pointerToObjectEntry.find(object.get());
+                if(f == m_pointerToObjectEntry.end())
                 {
-                    oss << "::";
-                    PrintIdentifierNode(oss, identifier[i]);
+                    SG_ASSERT_MSG(f != m_pointerToObjectEntry.end(), "referenced object has not been found in database.");
+                    // TODO: consider it as a local private object ?
+                }
+                else
+                {
+                    reflection::ObjectDatabase::ObjectEntry const& objectEntry = m_objectDatabase->m_objects[f->second];
+                    reflection::Identifier identifier = objectEntry.id;
+                    size_t const size = identifier.Size();
+                    for(size_t i = 0; i < size; ++i)
+                    {
+                        oss << "::";
+                        PrintIdentifierNode(oss, identifier[i]);
+                    }
                 }
             }
         }

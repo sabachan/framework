@@ -10,6 +10,7 @@
 #include <UserInterface/Container.h>
 #include <UserInterface/Component.h>
 #include <UserInterface/FitMode.h>
+#include <UserInterface/Focusable.h>
 #include <UserInterface/FrameProperty.h>
 #include <UserInterface/ListLayout.h>
 #include <UserInterface/Movable.h>
@@ -25,10 +26,12 @@ class Label;
 class CheckBox : public ui::Container
                , public ui::IMovable
                , public UnsharableObservable<CheckBox>
+               , private ui::IFocusable
                , private ui::ISensitiveAreaListener
 {
     PARENT_SAFE_COUNTABLE(ui::Container)
     typedef ui::Container parent_type;
+    typedef ui::IFocusable focusable_parent_type;
 public:
     CheckBox();
     CheckBox(ui::FitMode2 iFitMode);
@@ -43,10 +46,16 @@ protected:
     virtual void VirtualResetOffset() override;
     virtual void VirtualAddOffset(float2 const& iOffset) override;
     virtual void VirtualOnPointerEvent(ui::PointerEventContext const& iContext, ui::PointerEvent const& iPointerEvent) override;
+    virtual void OnButtonUpToDown(SG_UI_SENSITIVE_AREA_LISTENER_PARAMETERS_ONE_BUTTON) override;
     virtual void OnButtonDownToUp(SG_UI_SENSITIVE_AREA_LISTENER_PARAMETERS_ONE_BUTTON) override;
     virtual void VirtualOnDraw(ui::DrawContext const& iContext) override;
     virtual void VirtualUpdatePlacement() override;
+    virtual void VirtualOnFocusableEvent(ui::FocusableEvent const& iFocusableEvent) override;
+    virtual bool VirtualMoveFocusReturnHasMoved(ui::FocusDirection iDirection) override;
     virtual ui::Component* VirtualAsComponent() override { return this; }
+    virtual IFocusable* VirtualAsFocusableIFP() override { return this; }
+    virtual void VirtualOnInsertInUI() override { parent_type::VirtualOnInsertInUI(); OnInsertFocusableInUI(); }
+    virtual void VirtualOnRemoveFromUI() override { OnRemoveFocusableFromUI(); parent_type::VirtualOnRemoveFromUI(); }
     ui::SensitiveArea const& SensitiveArea() const { return m_sensitiveArea; }
 private:
     bool IsHover() const { return m_sensitiveArea.IsPointerInsideFree(); }

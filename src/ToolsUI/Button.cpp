@@ -26,6 +26,7 @@ Button::Button(ui::FitMode2 iFitMode)
     , m_subContainer()
     , m_content()
     , m_fitMode(iFitMode)
+    , m_userData(0)
 {
     m_subContainer = new ui::SubContainer();
     RequestAddToBack(m_subContainer.get());
@@ -107,6 +108,13 @@ void Button::CheckConstraintsOnContent(ui::IMovable* iContent)
 }
 #endif
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+void Button::Activate()
+{
+    RequestFocusIFN();
+    MoveToFrontOfAllUI();
+    NotifyObservers();
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 void Button::VirtualResetOffset()
 {
     m_frameProperty.offset = ui::Unit(float2(0));
@@ -128,8 +136,7 @@ void Button::OnButtonDownToUp(SG_UI_SENSITIVE_AREA_LISTENER_PARAMETERS_ONE_BUTTO
     SG_ASSERT(&m_sensitiveArea == iSensitiveArea);
     if(0 == iButton)
     {
-        MoveToFrontOfAllUI();
-        NotifyObservers();
+        Activate();
     }
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
@@ -142,7 +149,7 @@ void Button::VirtualOnDraw(ui::DrawContext const& iContext)
     box2f const& placementBox = PlacementBox();
 
     ButtonLikeRenderParam renderParam;
-    GetButtonLikeRenderParam(renderParam, placementBox, true, IsHover(), IsClicked());
+    GetButtonLikeRenderParam(renderParam, placementBox, true, IsHover(), IsClicked(), HasTerminalFocus());
 
     float2 const outDelta = renderParam.outBox.Delta();
     float2 const inDelta = renderParam.inBox.Delta();
@@ -182,6 +189,44 @@ void Button::VirtualUpdatePlacement()
     SetPlacementBox(frame);
     m_boxArea.SetBox(frame);
     m_subContainer->SetPlacementBox(subframe);
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+bool Button::VirtualMoveFocusReturnHasMoved(ui::FocusDirection iDirection)
+{
+    if(!HasFocus())
+    {
+        RequestTerminalFocusIFN();
+        return true;
+    }
+    switch(iDirection)
+    {
+    case ui::FocusDirection::None:
+        SG_ASSERT_NOT_REACHED();
+        break;
+    case ui::FocusDirection::Left:
+    case ui::FocusDirection::Right:
+    case ui::FocusDirection::Up:
+    case ui::FocusDirection::Down:
+        return false;
+    case ui::FocusDirection::MoveIn:
+        return true;
+    case ui::FocusDirection::MoveOut:
+        return false;
+    case ui::FocusDirection::Activate:
+        Activate();
+        return true;
+    case ui::FocusDirection::Validate:
+        Activate();
+        return true;
+    case ui::FocusDirection::Cancel:
+    case ui::FocusDirection::Next:
+    case ui::FocusDirection::Previous:
+        return false;
+    default:
+        SG_ASSERT_NOT_REACHED();
+        return false;
+    }
+    return false;
 }
 //=============================================================================
 TextButton::TextButton(std::wstring const& iText)

@@ -86,6 +86,15 @@ SG_TEST((sg, math), Vector, (Math, quick))
         //v.xyx() = uint3(1,2,3); // must fail
     }
     {
+        float4 a(1,2,3,4);
+        float4 b(6,5,4,3);
+        float4 c(5,5,5,5);
+        SG_ASSERT( any(a < b));
+        SG_ASSERT( all(a < c));
+        SG_ASSERT( any(b < c));
+        SG_ASSERT(!all(b < c));
+    }
+    {
         float4 v(1,2,3,4);
         float2 const a = v.SubVector<2>(1);
         SG_ASSERT(float2(2,3) == a);

@@ -25,7 +25,7 @@ protected:
 protected:
     FilePath m_file;
     std::string m_entryPoint;
-    // TODO: defines
+    ArrayList<std::pair<std::string, std::string>> m_defines;
 };
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 class PixelShaderDescriptor : public BaseShaderDescriptor

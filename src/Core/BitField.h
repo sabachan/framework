@@ -4,6 +4,7 @@
 #include "Assert.h"
 #include "For.h"
 #include "IntTypes.h"
+#include "TemplateUtils.h"
 
 // This class is an experiment to evaluate the alternatives to C++ bitfields,
 // as they are/were considered suboptimal by some developpers
@@ -19,16 +20,13 @@ template <size_t... Ns>
 class BitField
 {
 private:
-    template <size_t N, size_t... Ns> struct Sum;
-    template <size_t N> struct Sum<N> { enum { value = N }; };
-    template <size_t N, size_t... Ns> struct Sum { enum { value = (N + Sum<Ns...>::value) }; };
     template <size_t S> struct Store;
     template <> struct Store<8>  { typedef u8  type; };
     template <> struct Store<16> { typedef u16 type; };
     template <> struct Store<32> { typedef u32 type; };
     template <> struct Store<64> { typedef u64 type; };
 public:
-    typedef typename Store<Sum<Ns...>::value>::type store_t;
+    typedef typename Store<Sum<size_t, Ns...>::value>::type store_t;
 private:
     template <size_t I, size_t S, size_t N, size_t... Ns> struct ItemTraitsImpl;
     template <size_t S, size_t N, size_t... Ns> struct ItemTraitsImpl<0, S, N, Ns...>

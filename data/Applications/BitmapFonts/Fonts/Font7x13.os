@@ -64,6 +64,24 @@ export font is sg::image::tool::Font
                 ""
         },
         {
+            character : "à"
+            representation :
+                " . . . . . . . \n" +
+                " . . X . . . . \n" +
+                " . . . X . . . \n" +
+                " . . . . . . . \n" +
+                " . X X X X . . \n" +
+                " . X . . . X . \n" +
+                " . . . X X X . \n" +
+                " . X X . . X . \n" +
+                " X . . . X X . \n" +
+                " . X X X . X X \n" +
+                " . . . . . . . \n" +
+                " . . . . . . . \n" +
+                " . . . . . . . \n" +
+                ""
+        },
+        {
             character : "b"
             representation :
                 " X X . . . . . \n" +
@@ -100,6 +118,24 @@ export font is sg::image::tool::Font
                 ""
         },
         {
+            character : "ç"
+            representation :
+                " . . . . . . . \n" +
+                " . . . . . . . \n" +
+                " . . . . . . . \n" +
+                " . . . . . . . \n" +
+                " . X X X X X X \n" +
+                " X . . . . . X \n" +
+                " X . . . . . . \n" +
+                " X . . . . . . \n" +
+                " X . . . . . X \n" +
+                " . X X X X X X \n" +
+                " . . . . X . . \n" +
+                " . . X X . . . \n" +
+                " . . . . . . . \n" +
+                ""
+        },
+        {
             character : "d"
             representation :
                 " . . . . . X X \n" +
@@ -118,11 +154,101 @@ export font is sg::image::tool::Font
                 ""
         },
         {
+            character : "œ"
+            representation :
+                " . . . . . . . \n" +
+                " . . . . . . . \n" +
+                " . . . . . . . \n" +
+                " . . . . . . . \n" +
+                " . X X . X X . \n" +
+                " X . . X . . X \n" +
+                " X . . X X X X \n" +
+                " X . . X . . . \n" +
+                " X . . X . . X \n" +
+                " . X X . X X . \n" +
+                " . . . . . . . \n" +
+                " . . . . . . . \n" +
+                " . . . . . . . \n" +
+                ""
+        },
+        {
             character : "e"
             representation :
                 " . . . . . . . \n" +
                 " . . . . . . . \n" +
                 " . . . . . . . \n" +
+                " . . . . . . . \n" +
+                " . X X X X X . \n" +
+                " X . . . . . X \n" +
+                " X X X X X X X \n" +
+                " X . . . . . . \n" +
+                " X . . . . . X \n" +
+                " . X X X X X . \n" +
+                " . . . . . . . \n" +
+                " . . . . . . . \n" +
+                " . . . . . . . \n" +
+                ""
+        },
+        {
+            character : "é"
+            representation :
+                " . . . . . . . \n" +
+                " . . . . X . . \n" +
+                " . . . X . . . \n" +
+                " . . . . . . . \n" +
+                " . X X X X X . \n" +
+                " X . . . . . X \n" +
+                " X X X X X X X \n" +
+                " X . . . . . . \n" +
+                " X . . . . . X \n" +
+                " . X X X X X . \n" +
+                " . . . . . . . \n" +
+                " . . . . . . . \n" +
+                " . . . . . . . \n" +
+                ""
+        },
+        {
+            character : "è"
+            representation :
+                " . . . . . . . \n" +
+                " . . X . . . . \n" +
+                " . . . X . . . \n" +
+                " . . . . . . . \n" +
+                " . X X X X X . \n" +
+                " X . . . . . X \n" +
+                " X X X X X X X \n" +
+                " X . . . . . . \n" +
+                " X . . . . . X \n" +
+                " . X X X X X . \n" +
+                " . . . . . . . \n" +
+                " . . . . . . . \n" +
+                " . . . . . . . \n" +
+                ""
+        },
+        {
+            character : "ê"
+            representation :
+                " . . . . . . . \n" +
+                " . . . X . . . \n" +
+                " . . X . X . . \n" +
+                " . . . . . . . \n" +
+                " . X X X X X . \n" +
+                " X . . . . . X \n" +
+                " X X X X X X X \n" +
+                " X . . . . . . \n" +
+                " X . . . . . X \n" +
+                " . X X X X X . \n" +
+                " . . . . . . . \n" +
+                " . . . . . . . \n" +
+                " . . . . . . . \n" +
+                ""
+        },
+        {
+            character : "ë"
+            representation :
+                " . . . . . . . \n" +
+                " . . . . . . . \n" +
+                " . . X . X . . \n" +
                 " . . . . . . . \n" +
                 " . X X X X X . \n" +
                 " X . . . . . X \n" +
@@ -197,6 +323,44 @@ export font is sg::image::tool::Font
                 " . . . . . . . \n" +
                 " . . . . . . . \n" +
                 " . X . . . . . \n" +
+                " . . . . . . . \n" +
+                " X X . . . . . \n" +
+                " . X . . . . . \n" +
+                " . X . . . . . \n" +
+                " . X . . . . . \n" +
+                " . X . . . . . \n" +
+                " X X X . . . . \n" +
+                " . . . . . . . \n" +
+                " . . . . . . . \n" +
+                " . . . . . . . \n" +
+                ""
+        },
+        {
+            character : "ï"
+            advanceReduction : 4
+            representation :
+                " . . . . . . . \n" +
+                " . . . . . . . \n" +
+                " X . X . . . . \n" +
+                " . . . . . . . \n" +
+                " X X . . . . . \n" +
+                " . X . . . . . \n" +
+                " . X . . . . . \n" +
+                " . X . . . . . \n" +
+                " . X . . . . . \n" +
+                " X X X . . . . \n" +
+                " . . . . . . . \n" +
+                " . . . . . . . \n" +
+                " . . . . . . . \n" +
+                ""
+        },
+        {
+            character : "î"
+            advanceReduction : 4
+            representation :
+                " . . . . . . . \n" +
+                " . X . . . . . \n" +
+                " X . X . . . . \n" +
                 " . . . . . . . \n" +
                 " X X . . . . . \n" +
                 " . X . . . . . \n" +
@@ -320,6 +484,24 @@ export font is sg::image::tool::Font
                 ""
         },
         {
+            character : "ô"
+            representation :
+                " . . . . . . . \n" +
+                " . . . . . . . \n" +
+                " . . . . . . . \n" +
+                " . . . . . . . \n" +
+                " . X X X X X . \n" +
+                " X . . . . . X \n" +
+                " X . . . . . X \n" +
+                " X . . . . . X \n" +
+                " X . . . . . X \n" +
+                " . X X X X X . \n" +
+                " . . . . . . . \n" +
+                " . . . . . . . \n" +
+                " . . . . . . . \n" +
+                ""
+        },
+        {
             character : "p"
             representation :
                 " . . . . . . . \n" +
@@ -416,6 +598,42 @@ export font is sg::image::tool::Font
                 " . . . . . . . \n" +
                 " . . . . . . . \n" +
                 " . . . . . . . \n" +
+                " . . . . . . . \n" +
+                " X X X . . X X \n" +
+                " . X . . . X . \n" +
+                " . X . . . X . \n" +
+                " . X . . . X . \n" +
+                " . X . . X X . \n" +
+                " . . X X . X X \n" +
+                " . . . . . . . \n" +
+                " . . . . . . . \n" +
+                " . . . . . . . \n" +
+                ""
+        },
+        {
+            character : "ù"
+            representation :
+                " . . . . . . . \n" +
+                " . . X . . . . \n" +
+                " . . . X . . . \n" +
+                " . . . . . . . \n" +
+                " X X X . . X X \n" +
+                " . X . . . X . \n" +
+                " . X . . . X . \n" +
+                " . X . . . X . \n" +
+                " . X . . X X . \n" +
+                " . . X X . X X \n" +
+                " . . . . . . . \n" +
+                " . . . . . . . \n" +
+                " . . . . . . . \n" +
+                ""
+        },
+        {
+            character : "û"
+            representation :
+                " . . . . . . . \n" +
+                " . . . X . . . \n" +
+                " . . X . X . . \n" +
                 " . . . . . . . \n" +
                 " X X X . . X X \n" +
                 " . X . . . X . \n" +
@@ -550,6 +768,24 @@ export font is sg::image::tool::Font
                 " . X . . . X . \n" +
                 " . X X X X X . \n" +
                 " X . . . . . X \n" +
+                " X . . . . . X \n" +
+                " X X X . X X X \n" +
+                " . . . . . . . \n" +
+                " . . . . . . . \n" +
+                " . . . . . . . \n" +
+                ""
+        },
+        {
+            character : "À"
+            representation :
+                " . . X . . . . \n" +
+                " . . . X . . . \n" +
+                " . . X X . . . \n" +
+                " . . . X . . . \n" +
+                " . . X . X . . \n" +
+                " . . X . X . . \n" +
+                " . X . . . X . \n" +
+                " . X X X X X . \n" +
                 " X . . . . . X \n" +
                 " X X X . X X X \n" +
                 " . . . . . . . \n" +
@@ -1372,7 +1608,7 @@ export font is sg::image::tool::Font
                 " . . . . . . . \n" +
                 " . . . . . . . \n" +
                 " . . . . . . . \n" +
-                " X X X X X X X \n" +
+                " . X X X X X . \n" +
                 " . . . . . . . \n" +
                 " . . . . . . . \n" +
                 " . . . . . . . \n" +
@@ -1407,9 +1643,9 @@ export font is sg::image::tool::Font
                 " . . . X . . . \n" +
                 " . . . X . . . \n" +
                 " X X X X X X X \n" +
+                " . . . X . . . \n" +
                 " . . X . X . . \n" +
                 " . X . . . X . \n" +
-                " . . . . . . . \n" +
                 " . . . . . . . \n" +
                 " . . . . . . . \n" +
                 " . . . . . . . \n" +
@@ -1699,6 +1935,25 @@ export font is sg::image::tool::Font
                 ""
         },
         {
+            character : "’"
+            advanceReduction : 2
+            representation :
+                " . . X X . . . \n" +
+                " . . X X . . . \n" +
+                " . . X . . . . \n" +
+                " . X . . . . . \n" +
+                " . . . . . . . \n" +
+                " . . . . . . . \n" +
+                " . . . . . . . \n" +
+                " . . . . . . . \n" +
+                " . . . . . . . \n" +
+                " . . . . . . . \n" +
+                " . . . . . . . \n" +
+                " . . . . . . . \n" +
+                " . . . . . . . \n" +
+                ""
+        },
+        {
             character : "^"
             representation :
                 " . . . . . . . \n" +
@@ -1717,7 +1972,7 @@ export font is sg::image::tool::Font
                 ""
         },
         {
-            character : "�"
+            character : "°"
             advanceReduction : 1
             representation :
                 " . . X X . . . \n" +

@@ -52,7 +52,7 @@ class TFSInstruction : public reflection::BaseClass
 {
     REFLECTION_CLASS_HEADER(TFSInstruction, reflection::BaseClass)
 public:
-    enum class Type { Insert, Style, };
+    enum class Type { Insert, Style, Skip, };
     TFSInstruction(Type iType) : m_type(iType) {}
     virtual ~TFSInstruction() {}
     Type GetType() const { return m_type; }
@@ -62,6 +62,7 @@ public:
         {
         case Type::Insert: return false;
         case Type::Style:  return true;
+        case Type::Skip:   return true;
         default:
             SG_ASSUME_NOT_REACHED();
         }
@@ -76,6 +77,16 @@ class TFSInsert : public TFSInstruction
     REFLECTION_CLASS_HEADER(TFSInsert, TFSInstruction)
 public:
     TFSInsert() : TFSInstruction(TFSInstruction::Type::Style) { SG_ASSERT_NOT_IMPLEMENTED(); }
+};
+//=============================================================================
+class TFSSkip final : public TFSInstruction
+{
+    REFLECTION_CLASS_HEADER(TFSSkip, TFSInstruction)
+private:
+    TFSSkip() : TFSInstruction(TFSInstruction::Type::Skip) {}
+public:
+    TFSSkip(auto_initialized_t) : TFSInstruction(TFSInstruction::Type::Skip) { EndAutoCreation(); }
+    ~TFSSkip() {}
 };
 //=============================================================================
 class TFSStyle final : public TFSInstruction

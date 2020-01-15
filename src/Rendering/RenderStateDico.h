@@ -23,7 +23,7 @@ void Init();
 void SetRenderDevice(RenderDevice* iRenderDevice);
 ID3D11BlendState* GetBlendState(RenderStateName iName, BlendStateDescriptor const* iDescIfNeedCreation = nullptr);
 ID3D11DepthStencilState* GetDepthStencilState(RenderStateName iName, DepthStencilDescriptor const* iDescIfNeedCreation = nullptr);
-ID3D11RasterizerState* GetRasterizerState(RenderStateName iName, BlendStateDescriptor const* iDescIfNeedCreation = nullptr);
+ID3D11RasterizerState* GetRasterizerState(RenderStateName iName, RasterizerStateDescriptor const* iDescIfNeedCreation = nullptr);
 void Shutdown();
 //=============================================================================
 }

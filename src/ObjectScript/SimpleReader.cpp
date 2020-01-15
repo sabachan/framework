@@ -1185,6 +1185,8 @@ bool ReadObjectScriptROK(char const* iFileContent, reflection::ObjectDatabase& i
     reflection::ObjectDatabaseForwardPopulator databasePopulator(&ioObjectDatabase);
     ParserState state(iFileContent, &databasePopulator);
     bool ok = TryReadList1stLevelInstructions(state);
+    ioObjectDatabase.LinkTransaction();
+    ioObjectDatabase.CheckTransaction();
     ioObjectDatabase.EndTransaction();
     return ok;
 }
@@ -1281,7 +1283,7 @@ SG_TEST((sg, simpleobjectscript), Reader, (ObjectScript, quick))
     //for(size_t kk=0; kk<100; ++kk)
     {
         reflection::ObjectDatabase db;
-        SIMPLE_CPU_PERF_LOG_SCOPE("Read Simple Object Script");
+        SG_SIMPLE_CPU_PERF_LOG_SCOPE("Read Simple Object Script");
         bool ok = ReadObjectScriptROK(fileContent, db);
         SG_ASSERT_AND_UNUSED(ok);
     }

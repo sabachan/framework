@@ -12,11 +12,17 @@
 // window should mask any mouse event as soon as pointer is in window area).
 //
 // Premasking is used to enable nested clients to interpret event with a
-// priority to nested clients, when an opaque client is present at the bottom.
-// The opaque client is then informed that, as event will be masked by another,
-// it should not be masked so that an outer client can interpret it (One
-// exemple is for interpreting mouse wheel event when several scrolling
-// containers are nested).
+// priority to outer clients. Seen from clients that don't handle premasking,
+// a premask event looks as if masked. Only a client that handle premasking is
+// then able to interpret the event. Premasking is then useful to implement a
+// reverse priority for event, on a higher priority layer.
+// More engineering could be spend on this problem to produce a better
+// solution, though.
+// In the case of a pointer event, for instance, when an opaque component is
+// present at the bottom, this component is then informed that the event will
+// be masked by another, and that it doesn't have to mask it. One exemple is
+// for interpreting mouse wheel event when several scrolling containers are
+// nested.
 //
 // additional data is used to add data to entry event (value for mouse wheel,
 // is double click for mouse button, ...).
@@ -39,6 +45,16 @@
 // - ResetEntry, ResetDevice and ResetAll are used to reset the corresponding
 //   system to its default state but forbidding any client to activate a
 //   feature on the corresponding transitions.
+//
+// = Message event from keyboard =
+// Such message represent a text entry and is generated after one key event
+// or a sequence of such key events.
+// One problem that needs to be solved is how should the key event and the
+// message event work together. For instance, a key event can be used as a
+// shortcut, but if an editable text field needs the generated character, what
+// should it do to the key event?
+// One solution is to ask the editable text field to mask all the key events
+// that could generate characters.
 
 namespace sg {
 namespace system {

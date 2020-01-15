@@ -320,6 +320,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\src\System\Clipboard.cpp" />
     <ClCompile Include="..\..\src\System\KeyboardUtils.cpp" />
     <ClCompile Include="..\..\src\System\UserInputAdapter_Win.cpp" />
     <ClCompile Include="..\..\src\System\stdafx.cpp">
@@ -338,6 +339,7 @@
     <ClCompile Include="..\..\src\System\WindowedApplication.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\src\System\Clipboard.h" />
     <ClInclude Include="..\..\src\System\KeyboardUtils.h" />
     <ClInclude Include="..\..\src\System\MouseUtils.h" />
     <ClInclude Include="..\..\src\System\UserInputAdapter_Win.h" />

@@ -2,16 +2,16 @@
 
 #include "ExampleObjects.h"
 
+#include "IRenderTarget.h"
+#include "IShaderResource.h"
 #include "RenderDevice.h"
-#include "RenderTarget.h"
 #include "ShaderConstantBuffers.h"
-#include "ShaderResource.h"
 #include "TextureFromFile.h"
 #include "VertexTypes.h"
 #include <Core/Cast.h>
 #include <cstring>
-#include <d3d11.h>
-#include <d3d11shader.h>
+
+#include "WTF/IncludeD3D11.h"
 
 
 namespace sg {

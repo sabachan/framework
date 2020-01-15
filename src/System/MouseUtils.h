@@ -3,6 +3,7 @@
 
 #include <Core/Platform.h>
 #include <Core/IntTypes.h>
+#include <Math/Vector.h>
 
 namespace sg {
 namespace system {

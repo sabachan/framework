@@ -72,10 +72,9 @@ protected:
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 #define PARENT_REF_COUNTABLE(PARENT_TYPE) \
     public: \
-        RefCountable const* GetAsRefCountable() const \
-        { return PARENT_TYPE::GetAsRefCountable(); } \
+        RefCountable const* GetAsRefCountable() const { return PARENT_TYPE::GetAsRefCountable(); } \
     private: \
-        virtual RefCountable const* VirtualGetAsRefCountable() const { return PARENT_TYPE::GetAsRefCountable(); } \
+        virtual RefCountable const* VirtualGetAsRefCountable() const { return GetAsRefCountable(); } \
     private:
 //=============================================================================
 class RefCountableOnce
@@ -84,27 +83,46 @@ public:
     void IncRef() const
     {
 #if SG_ENABLE_ASSERT
+        SG_ASSERT(HasThreadAccessRights());
         SG_ASSERT(0 == m_refcount);
         ++m_refcount;
 #endif
     }
     bool DecRefReturnMustBeDeleted() const
     {
+        SG_ASSERT(HasThreadAccessRights());
         SG_ASSERT(1 == m_refcount);
         return true;
     }
     RefCountableOnce const* GetAsRefCountable() const { return this; }
 
+    SG_FORCE_INLINE void GiveOwnershipToThread(std::thread::id iThreadId)
+    {
 #if SG_ENABLE_ASSERT
-    RefCountableOnce() : m_refcount(0) {}
+        SG_ASSERT(HasThreadAccessRights());
+        m_threadId = iThreadId;
+#else
+        SG_UNUSED(iThreadId);
+#endif
+    }
+#if SG_ENABLE_ASSERT
+    RefCountableOnce()
+        : m_refcount(0)
+#if SG_ENABLE_ASSERT
+        , m_threadId(std::this_thread::get_id())
+#endif
+    {}
     RefCountableOnce(RefCountableOnce const&) : RefCountableOnce() {}
     RefCountableOnce const& operator=(RefCountableOnce const&)
     {
         // do not copy ref count.
         return *this;
     }
+    bool IsRefCounted_ForAssert() const { return 0 != m_refcount; }
+    bool HasThreadAccessRights() const { return std::this_thread::get_id() == m_threadId; }
 private:
     mutable size_t m_refcount;
+    std::thread::id m_threadId;
 #endif
 };
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
@@ -152,12 +170,17 @@ class RefAndSafeCountableOnce : public RefCountableOnce
 #if SG_ENABLE_ASSERT
 #define PARENT_SAFE_COUNTABLE(PARENT_TYPE) \
     public: \
-        SafeCountable const* GetAsSafeCountable() const \
-        { return PARENT_TYPE::GetAsSafeCountable(); } \
+        SafeCountable const* GetAsSafeCountable() const { return PARENT_TYPE::GetAsSafeCountable(); } \
     private:
 #else
 #define PARENT_SAFE_COUNTABLE(PARENT_TYPE)
 #endif
+//=============================================================================
+class RefAndSafeCountableWithVirtualDestructor : public RefAndSafeCountable
+{
+public:
+    virtual ~RefAndSafeCountableWithVirtualDestructor() {}
+};
 //=============================================================================
 template <typename T>
 class refptr
@@ -201,6 +224,90 @@ public:
     T* operator->() const { return m_p; }
     T& operator*() const { return *m_p; }
     friend void swap(refptr& a, refptr& b) { using std::swap; swap(a.m_p, b.m_p); }
+private:
+    static void IncRefIFP(T* iPtr)
+    {
+        if(nullptr != iPtr)
+        {
+            iPtr->GetAsRefCountable()->IncRef();
+        }
+    }
+    static void DecRefIFP(T* iPtr)
+    {
+        if(nullptr != iPtr)
+        {
+            bool mustdelete = iPtr->GetAsRefCountable()->DecRefReturnMustBeDeleted();
+            if(mustdelete)
+            {
+                delete iPtr;
+            }
+        }
+    }
+private:
+    T* m_p;
+};
+//=============================================================================
+template <typename T>
+class refptrOrInt
+{
+    static_assert(std::alignment_of<T>::value % 2 == 0, "");
+public:
+    refptrOrInt() : m_p(nullptr) {}
+    refptrOrInt(std::nullptr_t) : m_p(nullptr) {}
+    refptrOrInt(T* iPtr) : m_p(iPtr) { IncRefIFP(m_p); }
+    refptrOrInt(refptrOrInt const& iOther) : m_p(iOther.m_p) { if(iOther.IsPtr()) { IncRefIFP(m_p); } }
+    refptrOrInt(refptrOrInt&& iOther) : m_p(iOther.m_p) { iOther.m_p = nullptr; }
+    ~refptrOrInt() { if(IsPtr()) { DecRefIFP(m_p); } }
+
+    bool IsPtr() const { return 0 == (ptrdiff_t(m_p) & 1); }
+    bool IsInt() const { return 0 != (ptrdiff_t(m_p) & 1); }
+    void SetInt(int i) { SG_ASSERT(std::abs(i) < (1 << 24) /* can be increased */); *this = nullptr; m_p = (T*) ptrdiff_t((i * 2) | 1); }
+    int GetInt() { SG_ASSERT(IsInt()); return int(ptrdiff_t(m_p)) >> 1; }
+
+    refptrOrInt const& operator=(T* iPtr)
+    {
+        // Note: le cas iPtr == m_p passe par le chemin "complexe" pour éviter
+        // un test en plus dans le cas le plus commun.
+        IncRefIFP(iPtr);
+        bool const wasPtr = IsPtr();
+        T* old_p = m_p;
+        m_p = iPtr;
+        if(wasPtr)
+            DecRefIFP(old_p);
+        return *this;
+    }
+    refptrOrInt const& operator=(refptrOrInt const& iOther)
+    {
+        if(iOther.m_p != m_p)
+        {
+            bool const wasPtr = IsPtr();
+            T* old_p = m_p;
+            m_p = iOther.m_p;
+            if(wasPtr)
+                DecRefIFP(old_p);
+            if(IsPtr())
+                IncRefIFP(m_p);
+        }
+        return *this;
+    }
+    refptrOrInt const& operator=(refptrOrInt&& iOther)
+    {
+        if(iOther.m_p != m_p)
+        {
+            bool const wasPtr = IsPtr();
+            T* old_p = m_p;
+            m_p = iOther.m_p;
+            iOther.m_p = nullptr;
+            if(wasPtr)
+                DecRefIFP(old_p);
+        }
+        return *this;
+    }
+
+    T* get() const { SG_ASSERT(IsPtr()); return m_p; }
+    T* operator->() const { SG_ASSERT(IsPtr()); return m_p; }
+    T& operator*() const { SG_ASSERT(IsPtr()); return *m_p; }
+    friend void swap(refptrOrInt& a, refptrOrInt& b) { using std::swap; swap(a.m_p, b.m_p); }
 private:
     static void IncRefIFP(T* iPtr)
     {
@@ -496,7 +603,7 @@ public:
 
     void reset(T* iPtr)
     {
-        SG_ASSERT(m_p != iPtr);
+        SG_ASSERT(m_p != iPtr || nullptr == iPtr);
         if(nullptr != m_p)
             delete m_p;
         m_p = iPtr;
@@ -514,11 +621,11 @@ private:
     T* m_p;
 };
 //=============================================================================
-#define DEFINE_SMARTPTR_SMARTPTR_COMPARISON_OP(SP1, SP2) \
+#define SG_DEFINE_SMARTPTR_SMARTPTR_COMPARISON_OP(SP1, SP2) \
     template <typename T1, typename T2> inline bool operator==(SP1<T1> const& a, SP2<T2> const& b) { return a.get() == b.get(); } \
     template <typename T1, typename T2> inline bool operator!=(SP1<T1> const& a, SP2<T2> const& b) { return a.get() != b.get(); }
 
-#define DEFINE_SMARTPTR_PTR_COMPARISON_OP(SP) \
+#define SG_DEFINE_SMARTPTR_PTR_COMPARISON_OP(SP) \
     template <typename T1, typename T2> inline bool operator==(SP<T1> const& a, T2 const& b) { return a.get() == b; } \
     template <typename T1, typename T2> inline bool operator==(T1 const& a, SP<T2> const& b) { return a == b.get(); } \
     template <typename T> inline bool operator==(SP<T> const& a, std::nullptr_t) { return nullptr == a.get(); } \
@@ -528,18 +635,18 @@ private:
     template <typename T> inline bool operator!=(SP<T> const& a, std::nullptr_t) { return nullptr != a.get(); } \
     template <typename T> inline bool operator!=(std::nullptr_t, SP<T> const& a) { return nullptr != a.get(); }
 
-DEFINE_SMARTPTR_SMARTPTR_COMPARISON_OP(refptr, refptr)
-DEFINE_SMARTPTR_SMARTPTR_COMPARISON_OP(refptr, safeptr)
-DEFINE_SMARTPTR_SMARTPTR_COMPARISON_OP(refptr, scopedptr)
-DEFINE_SMARTPTR_SMARTPTR_COMPARISON_OP(safeptr, refptr)
-DEFINE_SMARTPTR_SMARTPTR_COMPARISON_OP(safeptr, safeptr)
-DEFINE_SMARTPTR_SMARTPTR_COMPARISON_OP(safeptr, scopedptr)
-DEFINE_SMARTPTR_SMARTPTR_COMPARISON_OP(scopedptr, refptr)
-DEFINE_SMARTPTR_SMARTPTR_COMPARISON_OP(scopedptr, safeptr)
-DEFINE_SMARTPTR_SMARTPTR_COMPARISON_OP(scopedptr, scopedptr)
-DEFINE_SMARTPTR_PTR_COMPARISON_OP(refptr)
-DEFINE_SMARTPTR_PTR_COMPARISON_OP(safeptr)
-DEFINE_SMARTPTR_PTR_COMPARISON_OP(scopedptr)
+SG_DEFINE_SMARTPTR_SMARTPTR_COMPARISON_OP(refptr, refptr)
+SG_DEFINE_SMARTPTR_SMARTPTR_COMPARISON_OP(refptr, safeptr)
+SG_DEFINE_SMARTPTR_SMARTPTR_COMPARISON_OP(refptr, scopedptr)
+SG_DEFINE_SMARTPTR_SMARTPTR_COMPARISON_OP(safeptr, refptr)
+SG_DEFINE_SMARTPTR_SMARTPTR_COMPARISON_OP(safeptr, safeptr)
+SG_DEFINE_SMARTPTR_SMARTPTR_COMPARISON_OP(safeptr, scopedptr)
+SG_DEFINE_SMARTPTR_SMARTPTR_COMPARISON_OP(scopedptr, refptr)
+SG_DEFINE_SMARTPTR_SMARTPTR_COMPARISON_OP(scopedptr, safeptr)
+SG_DEFINE_SMARTPTR_SMARTPTR_COMPARISON_OP(scopedptr, scopedptr)
+SG_DEFINE_SMARTPTR_PTR_COMPARISON_OP(refptr)
+SG_DEFINE_SMARTPTR_PTR_COMPARISON_OP(safeptr)
+SG_DEFINE_SMARTPTR_PTR_COMPARISON_OP(scopedptr)
 //=============================================================================
 }
 

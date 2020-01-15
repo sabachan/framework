@@ -44,6 +44,10 @@ namespace {
 internal::all_ones_t const all_ones;
 }
 //=============================================================================
+template<typename T, T a, T... bs> struct Sum;
+template<typename T, T a> struct Sum<T, a> { static T const value = a; };
+template<typename T, T a, T... bs> struct Sum { static T const value = a + Sum<T, bs...>::value; };
+//=============================================================================
 }
 
 #endif

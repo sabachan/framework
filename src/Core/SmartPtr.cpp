@@ -248,6 +248,32 @@ SG_TEST((sg), SmartPtr, (Core, quick))
         ri1 = nullptr;
         SG_ASSERT(C::NbInstance() == 0);
     }
+    SG_ASSERT(A::NbInstance() == 0);
+    {
+        refptrOrInt<A> ra0 = new A;
+        refptrOrInt<A> ra1 = new A;
+        SG_ASSERT(A::NbInstance() == 2);
+        ra0 = ra1;
+        SG_ASSERT(A::NbInstance() == 1);
+        ra1.SetInt(3);
+        ra0 = ra1;
+        SG_ASSERT(A::NbInstance() == 0);
+        SG_ASSERT(ra0.IsInt());
+        SG_ASSERT(ra0.GetInt() == 3);
+        ra1 = new A;
+        ra0 = ra1;
+        SG_ASSERT(ra0.IsPtr());
+        ra1.SetInt(-1);
+        SG_ASSERT(ra1.GetInt() == -1);
+        ra1.SetInt(0);
+        SG_ASSERT(ra1.GetInt() == 0);
+        ra1.SetInt(-64000);
+        SG_ASSERT(ra1.GetInt() == -64000);
+        ra1.SetInt(64000);
+        SG_ASSERT(ra1.GetInt() == 64000);
+        SG_ASSERT(A::NbInstance() == 1);
+    }
+    SG_ASSERT(A::NbInstance() == 0);
 }
 //=============================================================================
 }

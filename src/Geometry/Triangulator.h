@@ -147,7 +147,7 @@ size_t TriangulatorEx<V, P>::PushPolygon(polygon_data_type const& iData, vertex_
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 template <typename V, typename P>
-size_t TriangulatorEx<V, P>::BeginPolygon(polygon_data_type const& iData, Triangulator::PolygonType iType = Triangulator::PolygonType::Polygon)
+size_t TriangulatorEx<V, P>::BeginPolygon(polygon_data_type const& iData, Triangulator::PolygonType iType)
 {
     size_t const i = m_baseTriangulator.BeginPolygon(iType);
     SG_ASSERT(i == m_polygonData.size());
@@ -175,7 +175,7 @@ void TriangulatorEx<V, P>::PushSubPolygon(size_t iMasterPolygonId, vertex_id_typ
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 template <typename V, typename P>
-void TriangulatorEx<V, P>::BeginSubPolygon(size_t iMasterPolygonId, Triangulator::PolygonType iType = Triangulator::PolygonType::Polygon)
+void TriangulatorEx<V, P>::BeginSubPolygon(size_t iMasterPolygonId, Triangulator::PolygonType iType)
 {
     m_baseTriangulator.BeginSubPolygon(iMasterPolygonId, iType);
 }

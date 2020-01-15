@@ -8,12 +8,12 @@
 #include "TestFramework.h"
 
 namespace sg {
+namespace tools {
 //=============================================================================
 namespace {
 template <typename T>
 T GetEditableValueImpl(char const* iName, char const* iDoc, T iDefault, T iMin, T iMax, T iStep)
 {
-    using namespace tools;
     Toolbox* toolbox = Toolbox::GetIFP();
     if(nullptr != toolbox)
     {
@@ -33,11 +33,28 @@ T GetEditableValueImpl(char const* iName, char const* iDoc, T iDefault, T iMin, 
     else
         return iDefault;
 }
+template <typename T>
+void SetEditableValueImpl(char const* iName, T iValue)
+{
+    SG_ASSERT_NOT_IMPLEMENTED(); // not tested
+    Toolbox* toolbox = Toolbox::GetIFP();
+    if(nullptr != toolbox)
+    {
+        ITool* tool = toolbox->GetToolIFP(iName);
+        SG_ASSERT(nullptr != tool);
+        if(nullptr == tool)
+            return;
+        SG_ASSERT_MSG(tool->GetType() == EditableValueTraits<T>::tool_type, "The found tool is not the same type!");
+        if(tool->GetType() != EditableValueTraits<T>::tool_type)
+            return;
+        EditableValue<T>* editableValue = checked_cast<EditableValue<T>*>(tool);
+        editableValue->SetValue(iValue);
+    }
+}
 }
 //=============================================================================
-bool GetEditableValue(char const* iName, char const* iDoc, bool iDefault)
+bool GetEditable_bool(char const* iName, char const* iDoc, bool iDefault)
 {
-    using namespace tools;
     Toolbox* toolbox = Toolbox::GetIFP();
     if(nullptr != toolbox)
     {
@@ -57,26 +74,77 @@ bool GetEditableValue(char const* iName, char const* iDoc, bool iDefault)
     else
         return iDefault;
 }
+void SetEditable_bool(char const* iName, bool iValue)
+{
+    SG_ASSERT_NOT_IMPLEMENTED(); // not tested
+    using namespace tools;
+    Toolbox* toolbox = Toolbox::GetIFP();
+    if(nullptr != toolbox)
+    {
+        ITool* tool = toolbox->GetToolIFP(iName);
+        SG_ASSERT(nullptr != tool);
+        if(nullptr == tool)
+            return;
+        SG_ASSERT_MSG(tool->GetType() == ToolType::EditableValue_bool, "The found tool is not an editable bool!");
+        if(tool->GetType() != ToolType::EditableValue_bool)
+            return;
+        EditableValueBool* editableValue = checked_cast<EditableValueBool*>(tool);
+        editableValue->SetValue(iValue);
+    }
+}
+bool GetAndResetEditable_bool(char const* iName, char const* iDoc)
+{
+    Toolbox* toolbox = Toolbox::GetIFP();
+    if(nullptr != toolbox)
+    {
+        ITool* tool = toolbox->GetToolIFP(iName);
+        if(nullptr == tool)
+        {
+            EditableValueBool* editableValue = new EditableValueBool(ForwardString(iName), ForwardString(iDoc), false);
+            toolbox->RegisterTool(editableValue);
+            return editableValue->Value();
+        }
+        SG_ASSERT_MSG(tool->GetType() == ToolType::EditableValue_bool, "A tool with same name already exists!");
+        if(tool->GetType() != ToolType::EditableValue_bool)
+            return false;
+        EditableValueBool* editableValue = checked_cast<EditableValueBool*>(tool);
+        bool const value = editableValue->Value();
+        editableValue->SetValue(false);
+        return value;
+    }
+    else
+        return false;
+}
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-int GetEditableValue(char const* iName, char const* iDoc, int iDefault, int iMin, int iMax, int iStep)
+int GetEditable_int(char const* iName, char const* iDoc, int iDefault, int iMin, int iMax, int iStep)
 {
     return GetEditableValueImpl(iName, iDoc, iDefault, iMin, iMax, iStep);
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-size_t GetEditableValue(char const* iName, char const* iDoc, size_t iDefault, size_t iMin, size_t iMax, size_t iStep)
+size_t GetEditable_size_t(char const* iName, char const* iDoc, size_t iDefault, size_t iMin, size_t iMax, size_t iStep)
 {
     return GetEditableValueImpl(iName, iDoc, iDefault, iMin, iMax, iStep);
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-float GetEditableValue(char const* iName, char const* iDoc, float iDefault, float iMin, float iMax, float iStep)
+float GetEditable_float(char const* iName, char const* iDoc, float iDefault, float iMin, float iMax, float iStep)
 {
     return GetEditableValueImpl(iName, iDoc, iDefault, iMin, iMax, iStep);
 }
-//=============================================================================
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+void SetEditable_int(char const* iName, int iValue)
+{
+    SetEditableValueImpl(iName, iValue);
 }
-
-namespace sg {
-namespace tools {
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+void SetEditable_size_t(char const* iName, size_t iValue)
+{
+    SetEditableValueImpl(iName, iValue);
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+void SetEditable_float(char const* iName, float iValue)
+{
+    SetEditableValueImpl(iName, iValue);
+}
 //=============================================================================
 void Init()
 {
@@ -141,9 +209,9 @@ ITool* Toolbox::GetToolIFP(char const* iName)
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 namespace testtools {
 namespace {
-    bool GetValue1() { return GetEditableValue("core/test/value1", "just a test", false); }
-    bool GetValue2() { return GetEditableValue("core/test/value2", "just another test", true); }
-    int GetValue3() { return GetEditableValue("core/test/value3", "", 0, -10, 10, 2); }
+    bool GetValue1() { return tools::GetEditable_bool("core/test/value1", "just a test", false); }
+    bool GetValue2() { return tools::GetEditable_bool("core/test/value2", "just another test", true); }
+    int GetValue3() { return tools::GetEditable_int("core/test/value3", "", 0, -10, 10, 2); }
 }
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''

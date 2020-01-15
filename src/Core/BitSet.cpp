@@ -175,19 +175,19 @@ SG_TEST((sg,core), BitSet, (quick))
 SG_TEST((sg,core), BitSetPerf, (perf))
 {
     {
-        SIMPLE_CPU_PERF_LOG_SCOPE("std::bitset");
+        SG_SIMPLE_CPU_PERF_LOG_SCOPE("std::bitset");
         std::bitset<4653> bs;
         for_range(size_t, i, 0, 100)
             TestSieveOfErathosthenes(bs);
     }
     {
-        SIMPLE_CPU_PERF_LOG_SCOPE("BitSet");
+        SG_SIMPLE_CPU_PERF_LOG_SCOPE("BitSet");
         BitSet<4653> bs;
         for_range(size_t, i, 0, 100)
             TestSieveOfErathosthenes(bs);
     }
     {
-        SIMPLE_CPU_PERF_LOG_SCOPE("DynamicBitSet");
+        SG_SIMPLE_CPU_PERF_LOG_SCOPE("DynamicBitSet");
         DynamicBitSet bs(4653);
         for_range(size_t, i, 0, 100)
             TestSieveOfErathosthenes(bs);

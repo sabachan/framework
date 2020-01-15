@@ -8,7 +8,7 @@
 #include <Core/IntTypes.h>
 #include <Core/Log.h>
 #include <Core/StringFormat.h>
-#include <d3d11.h>
+#include "WTF/IncludeD3D11.h"
 
 // TODO:
 // - Allow mipmap generation ?
@@ -35,14 +35,13 @@ void TextureFromMemory::ClearAndSetResolution(uint2 const& iResolution)
     m_resolution.Set(iResolution);
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-void TextureFromMemory::UpdateFromMemory(u8* iData, size_t iDataSize, ColorFormat iColorFormat, uint2 const& iResolution, size_t iStrideInBytes)
+void TextureFromMemory::UpdateFromMemory(u8 const* iData, size_t iDataSize, ColorFormat iColorFormat, uint2 const& iResolution, size_t iStrideInBytes)
 {
     m_resolution.Set(iResolution);
     UpdateAssumeSameResolution(iData, iDataSize, iColorFormat, iResolution, iStrideInBytes);
-
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-void TextureFromMemory::UpdateAssumeSameResolution(u8* iData, size_t iDataSize, ColorFormat iColorFormat, uint2 const& iResolution, size_t iStrideInBytes)
+void TextureFromMemory::UpdateAssumeSameResolution(u8 const* iData, size_t iDataSize, ColorFormat iColorFormat, uint2 const& iResolution, size_t iStrideInBytes)
 {
     ID3D11Device* device = m_renderDevice->D3DDevice();
 
@@ -72,7 +71,7 @@ void TextureFromMemory::UpdateAssumeSameResolution(u8* iData, size_t iDataSize, 
     desc.Format = format;
     desc.SampleDesc.Count = 1;
     desc.SampleDesc.Quality = 0;
-    desc.Usage = D3D11_USAGE_IMMUTABLE ;
+    desc.Usage = D3D11_USAGE_IMMUTABLE;
     desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
     desc.CPUAccessFlags = 0;
     desc.MiscFlags = 0;

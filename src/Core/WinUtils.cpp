@@ -5,7 +5,9 @@
 #include "Assert.h"
 #include "Cast.h"
 #include "Log.h"
+#include "StringFormat.h"
 #include "StringUtils.h"
+#include <cstring>
 #include <sstream>
 
 #if SG_PLATFORM_IS_WIN
@@ -31,6 +33,52 @@ bool DoesFileOrDirectoryExists(std::string const& iPath)
 
     CloseHandle(handle);
     return true;
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+bool IsDirectory(std::string const& iPath)
+{
+    HANDLE handle = CreateFileW(
+        ConvertUTF8ToUCS2(iPath).c_str(),
+        0, // 0: can query metadata
+        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+        NULL, // Security Attributes
+        OPEN_EXISTING, // Creation Disposition
+        FILE_ATTRIBUTE_NORMAL | FILE_FLAG_BACKUP_SEMANTICS, // Flags and Attributes
+        NULL // Template File
+        );
+    if(INVALID_HANDLE_VALUE == handle)
+        return false;
+
+    BY_HANDLE_FILE_INFORMATION info;
+    BOOL ok = GetFileInformationByHandle(handle, &info);
+    SG_ASSERT_MSG_AND_UNUSED(ok, Format("GetFileInformationByHandle(%0)", iPath).c_str());
+
+    CloseHandle(handle);
+    return 0 != (info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY);
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+void CreateDirectory(std::string const& iPath)
+{
+    BOOL ok = CreateDirectoryW(
+        ConvertUTF8ToUCS2(iPath).c_str(),
+        NULL // security attributes
+    );
+    SG_ASSERT_MSG_AND_UNUSED(ok, Format("CreateDirectoryW(%0)", iPath).c_str());
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+void CreateDirectoryPathIFN(std::string const& iPath)
+{
+    if(!DoesFileOrDirectoryExists(iPath))
+    {
+        char const* l = strrchr(iPath.c_str(), '/');
+        SG_ASSERT(l != iPath.data() + iPath.length());
+        if(nullptr != l)
+        {
+            std::string const parentPath = std::string(iPath.data(), l - iPath.data());
+            CreateDirectoryPathIFN(parentPath);
+        }
+        CreateDirectory(iPath);
+    }
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 u64 GetFileModificationTimestamp(std::string const& iPath)

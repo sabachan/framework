@@ -4,6 +4,10 @@
 
 #include "Magnifier.h"
 
+#if SG_ENABLE_ASSERT
+#include "RootContainer.h"
+#endif
+
 namespace sg {
 namespace ui {
 //=============================================================================
@@ -47,6 +51,7 @@ ListLayout<direction>::ListLayout(ui::Magnifier const& iMagnifier)
     , m_subContainer(new SubContainer)
     , m_properties()
     , m_offset(0,0)
+    , m_lastFocusIndex(all_ones)
 #if SG_LIST_LAYOUT_OPTIMISATION_BIGGEST_CHILD
     , m_lastBiggestChild()
 #endif
@@ -151,6 +156,233 @@ void ListLayout<direction>::RemoveAllItems()
     m_subContainer->RequestRemoveAll();
 }
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+template <size_t direction>
+Component* ListLayout<direction>::GetItem(size_t i) const
+{
+    if(i >= m_items.size())
+        return nullptr;
+    if(nullptr != m_items[i].asCell)
+        return m_items[i].asCell->Content();
+    return m_items[i].asMovable->AsComponent();
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+template <size_t direction>
+size_t ListLayout<direction>::GetFocusIndex() const
+{
+    SG_ASSERT(HasFocus());
+    SG_ASSERT(!HasTerminalFocus());
+    IFocusable* focusable = FocusChild();
+    Component* c = focusable->AsComponent();
+    Component* d = c->Parent();
+    while(m_subContainer != d)
+    {
+        c = d;
+        d = c->Parent();
+        SG_ASSERT(nullptr != d);
+    }
+    size_t const itemCount = m_items.size();
+    size_t i = 0;
+    for(; i < itemCount; ++i)
+    {
+        Component const* it = m_items[i].asMovable->AsComponent();
+        if(it == c)
+            break;
+    }
+    SG_ASSERT(i < itemCount);
+    return i;
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+template <size_t direction>
+Component* ListLayout<direction>::GetFocusedItemIFP() const
+{
+    if(!HasFocus())
+        return false;
+    return GetItem(GetFocusIndex());
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+template <size_t direction>
+void ListLayout<direction>::VirtualOnSetFocusChild(IFocusable* iFocusable)
+{
+    SG_ASSERT(HasFocus());
+    size_t const itemCount = m_items.size();
+    if(nullptr == iFocusable)
+    {
+        bool hasMoved = false;
+        for_range(size_t, i, m_lastFocusIndex+1, itemCount)
+        {
+            if(RequestMoveFocusOnItemReturnHasMoved(FocusDirection::Next, m_items[i]))
+            {
+                hasMoved = true;
+                SG_ASSERT(i == m_lastFocusIndex);
+                break;
+            }
+        }
+        if(!hasMoved)
+        {
+            reverse_for_range(size_t, i, 0, std::min(m_items.size(), m_lastFocusIndex))
+            {
+                if(RequestMoveFocusOnItemReturnHasMoved(FocusDirection::Previous, m_items[i]))
+                {
+                    hasMoved = true;
+                    SG_ASSERT(i == m_lastFocusIndex);
+                    break;
+                }
+            }
+        }
+        if(!hasMoved)
+        {
+            ReleaseFocusIFN();
+        }
+    }
+    else
+    {
+        m_lastFocusIndex = GetFocusIndex();
+    }
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+template <size_t direction>
+bool ListLayout<direction>::RequestMoveFocusOnItemReturnHasMoved(FocusDirection iDirection, Item& iItem)
+{
+    IFocusable* focusable = iItem.asMovable->AsComponent()->FindFocusableIFP();
+    if(nullptr != focusable)
+    {
+        bool hasMoved = focusable->RequestMoveFocusReturnHasMoved(iDirection);
+        if(hasMoved)
+            return true;
+    }
+    return false;
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+template <size_t direction>
+bool ListLayout<direction>::VirtualMoveFocusReturnHasMoved(FocusDirection iDirection)
+{
+    SG_ASSERT(!HasTerminalFocus());
+    size_t const itemCount = m_items.size();
+    if(!HasFocus())
+    {
+        if(m_lastFocusIndex < itemCount)
+        {
+            SG_CODE_FOR_ASSERT(size_t dbgLastFocusIndex = m_lastFocusIndex;)
+            if(RequestMoveFocusOnItemReturnHasMoved(iDirection, m_items[m_lastFocusIndex]))
+            {
+                SG_ASSERT(dbgLastFocusIndex == m_lastFocusIndex);
+                return true;
+            }
+        }
+        for_range(size_t, i, 0, itemCount)
+        {
+            if(RequestMoveFocusOnItemReturnHasMoved(iDirection, m_items[i]))
+            {
+                SG_ASSERT(i == m_lastFocusIndex);
+                return true;
+            }
+        }
+        m_lastFocusIndex = all_ones;
+        return false;
+    }
+    SG_ASSERT(m_lastFocusIndex < itemCount);
+    if(m_lastFocusIndex >= itemCount)
+        m_lastFocusIndex = 0;
+    {
+        IFocusable* focusable = FocusChild();
+        SG_ASSERT(nullptr != focusable);
+        if(nullptr != focusable)
+        {
+            bool hasMoved = focusable->RequestMoveFocusReturnHasMoved(iDirection);
+            if(hasMoved)
+                return true;
+        }
+    }
+    switch(iDirection)
+    {
+    case FocusDirection::None:
+        SG_ASSERT_NOT_REACHED();
+        return false;
+    case FocusDirection::Left:
+        if(SG_CONSTANT_CONDITION(direction == 1))
+            return false;
+        reverse_for_range(size_t, i, 0, m_lastFocusIndex)
+        {
+            if(RequestMoveFocusOnItemReturnHasMoved(iDirection, m_items[i]))
+            {
+                SG_ASSERT(i == m_lastFocusIndex);
+                return true;
+            }
+        }
+        m_lastFocusIndex = 0;
+        return false;
+    case FocusDirection::Right:
+        if(SG_CONSTANT_CONDITION(direction == 1))
+            return false;
+        for_range(size_t, i, m_lastFocusIndex+1, itemCount)
+        {
+            if(RequestMoveFocusOnItemReturnHasMoved(iDirection, m_items[i]))
+            {
+                SG_ASSERT(i == m_lastFocusIndex);
+                return true;
+            }
+        }
+        m_lastFocusIndex = itemCount - 1;
+        return false;
+    case FocusDirection::Up:
+        if(SG_CONSTANT_CONDITION(direction == 0))
+            return false;
+        reverse_for_range(size_t, i, 0, m_lastFocusIndex)
+        {
+            if(RequestMoveFocusOnItemReturnHasMoved(iDirection, m_items[i]))
+            {
+                SG_ASSERT(i == m_lastFocusIndex);
+                return true;
+            }
+        }
+        m_lastFocusIndex = 0;
+        return false;
+    case FocusDirection::Down:
+        if(SG_CONSTANT_CONDITION(direction == 0))
+            return false;
+        for_range(size_t, i, m_lastFocusIndex+1, itemCount)
+        {
+            if(RequestMoveFocusOnItemReturnHasMoved(iDirection, m_items[i]))
+            {
+                SG_ASSERT(i == m_lastFocusIndex);
+                return true;
+            }
+        }
+        m_lastFocusIndex = itemCount - 1;
+        return false;
+    case FocusDirection::Next:
+        for_range(size_t, i, m_lastFocusIndex+1, itemCount)
+        {
+            if(RequestMoveFocusOnItemReturnHasMoved(iDirection, m_items[i]))
+            {
+                SG_ASSERT(i == m_lastFocusIndex);
+                return true;
+            }
+        }
+        m_lastFocusIndex = itemCount - 1;
+    case FocusDirection::Previous:
+        reverse_for_range(size_t, i, 0, m_lastFocusIndex)
+        {
+            if(RequestMoveFocusOnItemReturnHasMoved(iDirection, m_items[i]))
+            {
+                SG_ASSERT(i == m_lastFocusIndex);
+                return true;
+            }
+        }
+        m_lastFocusIndex = 0;
+        return false;
+    case FocusDirection::MoveIn:
+    case FocusDirection::MoveOut:
+    case FocusDirection::Activate:
+    case FocusDirection::Validate:
+    case FocusDirection::Cancel:
+        return false;
+    default:
+        SG_ASSERT_NOT_REACHED();
+    }
+    return false;
+}
+//'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 //template <typename T>
 //void SortItems(T iComp);
 //'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
@@ -251,7 +483,7 @@ void ListLayout<direction>::VirtualUpdatePlacement()
             }
         }
 
-        float const sumChildrenLength = offset._[direction];
+        float const sumChildrenLength = offset._[direction] - interItemMargin;
         subSize._[direction] = sumChildrenLength;
         if(sumChildrenLength > parentInducedLength && reducibleCellWeight > 0.f)
         {
